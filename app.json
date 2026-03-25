@@ -28,7 +28,7 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/favicon.ico",
+      "favicon": "./assets/favicon.png",
       "name": "App Treino",
       "shortName": "Treino",
       "description": "App de acompanhamento de treinos",
