@@ -1,0 +1,28 @@
+import { StyleSheet } from 'react-native';
+import { colors, spacing } from '../theme';
+
+export const styles = StyleSheet.create({
+  item: {
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surfaceMutedLight,
+    marginBottom: spacing.sm,
+  },
+  itemPressed: {
+    opacity: 0.8,
+  },
+  dayLabel: {
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: colors.textSecondary,
+  },
+  title: {
+    marginTop: spacing.xs,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+});
+

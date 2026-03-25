@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "app_treino",
+    "slug": "app_treino",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/favicon.svg",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/favicon.svg",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.app-treino"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/favicon.svg",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.app_treino"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.ico",
+      "name": "App Treino",
+      "shortName": "Treino",
+      "description": "App de acompanhamento de treinos",
+      "themeColor": "#000000",
+      "backgroundColor": "#ffffff"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-asset"
+    ]
+  }
+}
