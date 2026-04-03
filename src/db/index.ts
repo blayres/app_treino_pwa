@@ -267,6 +267,41 @@ export async function initDatabase() {
   await seedDatabase(db);
 }
 
+// async function seedDatabase(db: DB) {
+//   await db.execAsync(`
+//     INSERT OR IGNORE INTO users (id, name) VALUES
+//       (1, 'Diandra'),
+//       (2, 'Barbara');
+ 
+//     INSERT OR IGNORE INTO exercises (name, primary_muscle, secondary_muscle, rest_seconds, scheme) VALUES
+//       -- Inferior
+//       ('Cadeira Extensora',        'quadriceps',       null,          120, '4x10-12'),
+//       ('Leg Press 45°',            'quadriceps',       'gluteos',     120, '4x10-12'),
+//       ('Leg Press 45° Perna Aberta','adutor',          'gluteos',     120, '4x12'),
+//       ('Afundo',                   'gluteos',          'quadriceps',  90,  '3x10 cada perna'),
+//       ('Agachamento Sumô',         'adutor',           'gluteos',     90,  '3x12-15'),
+//       ('Abdutora 45°',             'gluteos',          null,          90,  '3x15-20'),
+//       ('Stiff',                    'posterior',        'gluteos',     120, '4x10-12'),
+//       ('Cadeira Flexora',          'posterior',        null,          90,  '3x10-12'),
+//       ('Búlgaro',                  'gluteos',          'quadriceps',  120, '3x8-10 cada perna'),
+ 
+//       -- Superior
+//       ('Graviton',                 'costas',           'biceps',      120, '4x6-8'),
+//       ('Remada na Máquina',        'costas',           'biceps',      90,  '3x10-12'),
+//       ('Fly Inverso',              'ombro posterior',  null,          90,  '3x12-15'),
+//       ('Desenvolvimento no Banco', 'ombros',           'triceps',     90,  '3x10-12'),
+//       ('Elevação Lateral',         'ombros',           null,          60,  '3x12-15'),
+//       ('Supino na Máquina',        'peito',            'triceps',     90,  '3x10-12'),
+//       ('Bíceps + Tríceps Máquina', 'bracos',           null,          60,  '3x12-15'),
+ 
+//       -- Core e lombar
+//       ('Lombar',                   'lombar',           'gluteos',     90,  '3x12-15'),
+//       ('Prancha',                  'core',             null,          60,  '3x40-60s'),
+//       ('Abdominal Crunch',         'core',             null,          60,  '3x12-15'),
+//       ('Elevação de Pernas',       'core',             null,          60,  '3x10-12'),
+//       ('Panturrilha no Leg Press', 'panturrilha',      null,          60,  '4x15-20');
+//   `);
+
 async function seedDatabase(db: DB) {
   await db.execAsync(`
     INSERT OR IGNORE INTO users (id, name) VALUES
@@ -311,6 +346,84 @@ async function seedDatabase(db: DB) {
   const id = (name: string) => idByName[name];
 
   type WorkoutDef = [number, string, number[]];
+
+  // // ─── Diandra ────────────────────────────────────────────────────────────────
+  // const programUser1: WorkoutDef[] = [
+  //   [1, 'Segunda – Inferior A', [
+  //     id('Cadeira Extensora'),       // amplitude parcial 0–60°, protege patela
+  //     id('Leg Press 45°'),           // descer até 90°, não ultrapassar
+  //     id('Abdutora 45°'),            // glúteo médio + formato redondo
+  //     id('Afundo'),                  // passada longa para mais glúteo
+  //     id('Agachamento Sumô'),        // adutor + glúteo
+  //   ]],
+  //   [2, 'Terça – Superior A', [
+  //     id('Graviton'),                // prioridade: evolução para barra
+  //     id('Remada na Máquina'),       // costas + postura
+  //     id('Fly Inverso'),             // deltoide posterior, alivia pescoço
+  //     id('Desenvolvimento no Banco'),// ombros
+  //     id('Elevação Lateral'),        // ombros, carga leve
+  //   ]],
+  //   [3, 'Quarta – Core + Panturrilha', [
+  //     id('Prancha'),                 // core estabilizador
+  //     id('Abdominal Crunch'),        // reto abdominal
+  //     id('Elevação de Pernas'),      // core inferior
+  //     id('Lombar'),                  // cadeia posterior + postura
+  //     id('Panturrilha no Leg Press'),// amplitude total, pausa no topo
+  //   ]],
+  //   [4, 'Quinta – Inferior B', [
+  //     id('Stiff'),                   // posterior + glúteo, joelhos semi-flexos
+  //     id('Búlgaro'),                 // glúteo superior + posterior
+  //     id('Cadeira Flexora'),         // posterior, controle na descida
+  //     id('Abdutora 45°'),            // segunda vez: saúde do joelho + glúteo
+  //     id('Agachamento Sumô'),        // variação com carga progressiva
+  //   ]],
+  //   [5, 'Sexta – Superior B', [
+  //     id('Graviton'),                // segunda sessão semanal, varia pegada
+  //     id('Supino na Máquina'),       // peito + tríceps, controle seguro
+  //     id('Remada na Máquina'),       // costas, varia pegada
+  //     id('Fly Inverso'),             // reforço postura + pescoço
+  //     id('Bíceps + Tríceps Máquina'),// tonificar sem inchar, 15 reps
+  //   ]],
+  // ];
+
+  // // ─── Barbara ────────────────────────────────────────────────────────────────
+  // const programUser2: WorkoutDef[] = [
+  //   [1, 'Segunda – Inferior A', [
+  //     id('Leg Press 45° Perna Aberta'), // sem leg press 90°, angulação segura
+  //     id('Cadeira Extensora'),          // amplitude parcial 0–60°
+  //     id('Agachamento Sumô'),           // favorito: adutor + glúteo
+  //     id('Afundo'),                     // passada longa, tronco ereto
+  //     id('Abdutora 45°'),               // glúteo médio, contração 1s no topo
+  //   ]],
+  //   [2, 'Terça – Superior A', [
+  //     id('Remada na Máquina'),          // escápulas retraem, pescoço neutro
+  //     id('Graviton'),                   // progressão a cada 2 semanas
+  //     id('Fly Inverso'),                // crucial para dor cervical
+  //     id('Desenvolvimento no Banco'),   // ombro + alívio cervical
+  //     id('Bíceps + Tríceps Máquina'),   // definição, rep range alto
+  //   ]],
+  //   [3, 'Quarta – Core + Panturrilha', [
+  //     id('Lombar'),                     // prioridade: dor lombar dela
+  //     id('Prancha'),                    // core + lombar
+  //     id('Abdominal Crunch'),           // sem puxar pescoço
+  //     id('Elevação de Pernas'),         // lombar colada no banco
+  //     id('Panturrilha no Leg Press'),   // desenvolver panturrilha + alivia dor
+  //   ]],
+  //   [4, 'Quinta – Inferior B', [
+  //     id('Stiff'),                      // ponto fraco: posterior encurtado
+  //     id('Búlgaro'),                    // glúteo superior + posterior
+  //     id('Cadeira Flexora'),            // volume adicional no ponto fraco
+  //     id('Agachamento Sumô'),           // segundo dia, ela gosta
+  //     id('Abdutora 45°'),               // glúteo firme requer frequência
+  //   ]],
+  //   [5, 'Sexta – Superior B', [
+  //     id('Graviton'),                   // segunda sessão, varia pegada
+  //     id('Supino na Máquina'),          // controle, sem arquejar lombar
+  //     id('Elevação Lateral'),           // alivia tensão cervical
+  //     id('Fly Inverso'),                // segundo reforço semanal para pescoço
+  //     id('Bíceps + Tríceps Máquina'),   // tonificar sem inchar
+  //   ]],
+  // ];
 
   const programUser1: WorkoutDef[] = [
     [1, 'Segunda – Inferior A', [
