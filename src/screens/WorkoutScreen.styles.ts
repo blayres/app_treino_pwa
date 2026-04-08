@@ -115,6 +115,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSoftLight,
     textAlign: 'center',
+    fontSize: 16,
   },
 });
 
