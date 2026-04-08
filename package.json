@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "build:web": "npx expo export --platform web && cp -r public/* dist/"
+    "build:web": "npx expo export --platform web && cp -r public/* dist/",
+    "prepare": "husky"
   },
   "dependencies": {
     "@react-navigation/native": "^7.1.28",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "@types/sql.js": "^1.4.9",
+    "husky": "^9.1.7",
     "typescript": "~5.9.2"
   },
   "private": true
