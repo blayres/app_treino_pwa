@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './HomeScreen.styles';
@@ -17,6 +17,7 @@ export default function HomeScreen() {
   const currentUser = useAppStore(state => state.currentUser);
   const setCurrentUser = useAppStore(state => state.setCurrentUser);
   const calendarRef = useRef<{ refresh: () => void }>(null);
+  const [checkInLabel, setCheckInLabel] = useState('');
 
   if (!currentUser) {
     return null;
@@ -52,8 +53,12 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <SectionCard title="Frequência">
-          <CalendarFrequency ref={calendarRef} userId={currentUser.id} />
+        <SectionCard title="Frequência" rightLabel={checkInLabel}>
+          <CalendarFrequency
+            ref={calendarRef}
+            userId={currentUser.id}
+            onLoad={(count, total) => setCheckInLabel(`${count}/${total}`)}
+          />
         </SectionCard>
 
         <SectionCard title="Treinos da semana">
@@ -63,4 +68,3 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
