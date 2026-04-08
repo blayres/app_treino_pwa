@@ -329,12 +329,19 @@ export default function WorkoutScreen() {
             const scheme = item.exercise.scheme;
             const [mainScheme, progression] = scheme.split(' e ');
             const currentLoads = loads[item.exercise.id] || { normal: '', progression: '' };
+            const isCompleted = completedIds.has(item.exercise.id);
 
             return (
-              <View style={styles.exerciseRow}>
+              <Pressable
+                style={[
+                  styles.exerciseRow,
+                  isCompleted && styles.exerciseRowActive,
+                ]}
+                onPress={() => isSessionForThisWorkout ? toggleCompleted(item.exercise.id) : null} // ✅ task 3
+              >
                 {isSessionForThisWorkout ? (
                   <CircularCheckbox
-                    checked={completedIds.has(item.exercise.id)}
+                    checked={isCompleted}
                     onToggle={() => toggleCompleted(item.exercise.id)}
                   />
                 ) : (
@@ -372,7 +379,7 @@ export default function WorkoutScreen() {
                     placeholder="00"
                   />
                 </View>
-              </View>
+              </Pressable>
             );
           }}
         />

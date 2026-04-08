@@ -23,6 +23,9 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.md,
   },
+  exerciseRowActive: {
+    backgroundColor: colors.olive + '18',
+  },
   actions: {
     flexDirection: 'row',
     marginTop: spacing.md,
