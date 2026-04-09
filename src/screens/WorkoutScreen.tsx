@@ -359,7 +359,11 @@ export default function WorkoutScreen() {
                   </Text>
                 </View>
 
-                <View style={styles.loadColumn}>
+                <View
+                  style={styles.loadColumn}
+                  onStartShouldSetResponder={() => true}
+                  onTouchEnd={e => e.stopPropagation()}
+                >
                   <Text style={styles.loadLabel}>Carga (kg)</Text>
                   <TextInput
                     style={styles.loadInput}
