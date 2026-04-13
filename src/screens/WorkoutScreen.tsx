@@ -337,7 +337,6 @@ export default function WorkoutScreen() {
                   styles.exerciseRow,
                   isCompleted && styles.exerciseRowActive,
                 ]}
-                onPress={() => isSessionForThisWorkout ? toggleCompleted(item.exercise.id) : null} // ✅ task 3
               >
                 {isSessionForThisWorkout ? (
                   <CircularCheckbox
@@ -348,7 +347,10 @@ export default function WorkoutScreen() {
                   <View style={styles.checkboxPlaceholder} />
                 )}
 
-                <View style={styles.exerciseInfo}>
+                <Pressable
+                  style={styles.exerciseInfo}
+                  onPress={() => isSessionForThisWorkout ? toggleCompleted(item.exercise.id) : null}
+                >
                   <Text style={styles.exerciseName}>{item.exercise.name}</Text>
                   <Text style={styles.scheme}>
                     {mainScheme}
@@ -357,13 +359,9 @@ export default function WorkoutScreen() {
                   <Text style={styles.rest}>
                     Intervalo {item.exercise.rest_seconds / 60} min
                   </Text>
-                </View>
+                </Pressable>
 
-                <View
-                  style={styles.loadColumn}
-                  onStartShouldSetResponder={() => true}
-                  onTouchEnd={e => e.stopPropagation()}
-                >
+                <View style={styles.loadColumn}>
                   <Text style={styles.loadLabel}>Carga (kg)</Text>
                   <TextInput
                     style={styles.loadInput}
