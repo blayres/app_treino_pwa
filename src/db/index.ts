@@ -464,7 +464,7 @@ async function seedDatabase(db: DB) {
   ];
 
   const programUser2: WorkoutDef[] = [
-    [1, 'Segunda', [
+    [1, 'Inferior A', [
       id('Leg Press'),
       id('Cadeira Extensora'),
       id('Agachamento Sumô'),
