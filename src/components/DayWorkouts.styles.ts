@@ -24,5 +24,10 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
+  lastDone: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 5,
+  },
 });
 
