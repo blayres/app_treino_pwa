@@ -426,35 +426,35 @@ async function seedDatabase(db: DB) {
   // ];
 
   const programUser1: WorkoutDef[] = [
-    [1, 'Segunda – Inferior A', [
+    [1, 'Inferior A', [
       id('Cadeira Extensora'),
       id('Leg Press'),
       id('Afundo'),
       id('Agachamento Sumô'),
       id('Abdutora 45°'),
     ]],
-    [2, 'Terça – Superior A', [
+    [2, 'Superior A', [
       id('Graviton'),
       id('Desenvolvimento no Banco'),
       id('Remada'),
       id('Bíceps + Tríceps Máquina'),
       id('Fly Inverso'),
     ]],
-    [3, 'Quarta – Core + Panturrilha', [
+    [3, 'Core + Panturrilha', [
       id('Abdominal Crunch'),
       id('Elevação de Pernas'),
       id('Lombar'),
       id('Panturrilha no Leg Press'),
       id('Prancha'),
     ]],
-    [4, 'Quinta – Inferior B', [
+    [4, 'Inferior B', [
       id('Stiff'),
       id('Cadeira Flexora'),
       id('Búlgaro'),
       id('Leg Press'),
       id('Abdutora 45°'),
     ]],
-    [5, 'Sexta – Superior B', [
+    [5, 'Superior B', [
       id('Graviton'),
       id('Supino'),
       id('Elevação Lateral'),
@@ -464,35 +464,35 @@ async function seedDatabase(db: DB) {
   ];
 
   const programUser2: WorkoutDef[] = [
-    [1, 'Segunda – Inferior A', [
+    [1, 'Segunda', [
       id('Leg Press'),
       id('Cadeira Extensora'),
       id('Agachamento Sumô'),
       id('Afundo'),
       id('Abdutora 45°'),
     ]],
-    [2, 'Terça – Superior A', [
+    [2, 'Superior A', [
       id('Remada'),
       id('Graviton'),
       id('Fly Inverso'),
       id('Desenvolvimento no Banco'),
       id('Bíceps + Tríceps Máquina'),
     ]],
-    [3, 'Quarta – Core + Panturrilha', [
+    [3, 'Core + Panturrilha', [
       id('Prancha'),
       id('Lombar'),
       id('Abdominal Crunch'),
       id('Elevação de Pernas'),
       id('Panturrilha no Leg Press'),
     ]],
-    [4, 'Quinta – Inferior B', [
+    [4, 'Inferior B', [
       id('Búlgaro'),
       id('Stiff'),
       id('Leg Press'),
       id('Cadeira Flexora'),
       id('Abdutora 45°'),
     ]],
-    [5, 'Sexta – Superior B', [
+    [5, 'Superior B', [
       id('Supino'),
       id('Graviton'),
       id('Fly Inverso'),
