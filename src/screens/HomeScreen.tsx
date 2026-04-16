@@ -22,9 +22,13 @@ export default function HomeScreen() {
   const calendarRef = useRef<{ refresh: () => void }>(null);
   const [checkInLabel, setCheckInLabel] = useState('');
 
-  if (!currentUser) {
-    return null;
-  }
+if (!currentUser) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Text>Carregando usuário...</Text>
+    </SafeAreaView>
+  );
+}
 
   const handleLogout = () => {
     (async () => {

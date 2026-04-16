@@ -111,16 +111,20 @@ export default function App() {
     >
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
-      <Stack.Navigator
-        screenOptions={{ headerShown: false }}
-        initialRouteName={currentUser ? 'Home' : 'Login'}
-      >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Signup" component={SignupScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Workout" component={WorkoutScreen} />
-        <Stack.Screen name="Admin" component={AdminScreen} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {currentUser ? (
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Workout" component={WorkoutScreen} />
+            <Stack.Screen name="Admin" component={AdminScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
