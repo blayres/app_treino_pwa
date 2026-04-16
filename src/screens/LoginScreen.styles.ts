@@ -31,6 +31,7 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.borderSoftLight,
+    fontSize: 16,
   },
   button: {
     paddingVertical: spacing.lg,
