@@ -73,10 +73,15 @@ export async function logout() {
 
 export async function getSessionUser(): Promise<User | null> {
   if (backendMode === 'supabase') {
-    ensureSupabaseEnabled();
+    try {
+      ensureSupabaseEnabled();
+    } catch {
+      console.warn('Supabase não disponível, retornando null');
+      return null;
+    }
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-      // Sem sessão ativa é esperado antes do primeiro login.
+
       if (error.message?.includes(AUTH_SESSION_MISSING)) return null;
       throw error;
     }

@@ -35,18 +35,15 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   const scheme = useColorScheme();
-
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
   const setActiveSession = useAppStore((s) => s.setActiveSession);
-
+  const currentUser = useAppStore((s) => s.currentUser);
   const [isReady, setIsReady] = useState(false);
-
   useEffect(() => {
     (async () => {
       try {
         await initDatabase();
         const user = await getSessionUser();
-
         if (user) {
           setCurrentUser(user);
           await closeStaleSessions(user.id);
@@ -56,17 +53,22 @@ export default function App() {
           }
         }
       } catch (error: any) {
-        Alert.alert(
-          'Erro ao iniciar app',
-          error?.message ?? 'Falha ao inicializar sessão e dados.',
-        );
+        console.error('Erro ao iniciar app:', error);
+        if (typeof window !== 'undefined' && window.alert) {
+          window.alert(error?.message ?? 'Falha ao inicializar sessão e dados.');
+        }
       } finally {
         setIsReady(true);
       }
     })();
-  }, []);
-
-  const currentUser = useAppStore((s) => s.currentUser);
+  }, [setCurrentUser, setActiveSession]);
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: scheme === 'dark' ? colors.backgroundDark : colors.backgroundLight }}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer
