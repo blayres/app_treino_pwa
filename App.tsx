@@ -21,6 +21,7 @@ import { initDatabase } from './src/db';
 import { useAppStore } from './src/store/useAppStore';
 import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
 import { getSessionUser } from './src/services/authService';
+import { backendMode } from './src/services/backendMode';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -42,7 +43,9 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        await initDatabase();
+        if (backendMode !== 'supabase') {
+          await initDatabase();
+        }
         const user = await getSessionUser();
         if (user) {
           setCurrentUser(user);
@@ -79,7 +82,7 @@ export default function App() {
             Login: 'login',
             Signup: 'signup',
             ForgotPassword: 'forgot-password',
-            Home: '',
+            Home: 'home',
             Workout: 'workout/:workoutId',
             Admin: 'admin',
           },

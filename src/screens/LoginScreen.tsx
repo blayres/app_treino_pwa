@@ -7,7 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { useAppStore } from '../store/useAppStore';
 import { backendMode } from '../services/backendMode';
-import { getLocalUsers, loginWithEmail, setLocalCurrentUser, signInWithGoogle } from '../services/authService';
+import { getLocalUsers, loginWithEmail, setLocalCurrentUser, signInWithGoogle, getSessionUser } from '../services/authService';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -40,7 +40,10 @@ export default function LoginScreen() {
     }
     try {
       await loginWithEmail(email.trim(), password);
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      const user = await getSessionUser();
+      if (user) {
+        setCurrentUser(user);
+      }
     } catch (error: any) {
       Alert.alert('Erro de login', error?.message ?? 'Não foi possível entrar.');
     }

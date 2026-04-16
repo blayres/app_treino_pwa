@@ -100,8 +100,23 @@ export async function getSessionUser(): Promise<User | null> {
       };
     }
 
-    const authName = data.user.user_metadata?.name || data.user.email || 'Aluna';
-    return { id: 0, name: String(authName) };
+    // Profile doesn't exist yet — create it automatically
+    const authName = data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Aluna';
+    const { data: newProfile, error: insertError } = await supabase
+      .from('profiles')
+      .insert({ auth_id: data.user.id, name: authName })
+      .select('id, name')
+      .single();
+
+    if (!insertError && newProfile) {
+      return {
+        id: Number(newProfile.id),
+        name: String(newProfile.name),
+      };
+    }
+
+    console.warn('Não foi possível criar perfil:', insertError?.message);
+    return null;
   }
 
   const db = await getDb();
