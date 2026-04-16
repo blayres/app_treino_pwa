@@ -29,5 +29,12 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 5,
   },
+  loadingWrap: {
+    paddingVertical: spacing.md,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
 });
 

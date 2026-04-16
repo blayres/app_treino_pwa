@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { styles } from './DayWorkouts.styles';
-import { getDb, WorkoutRow } from '../db';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
+import { getWorkoutsByUser } from '../services/workoutService';
+import type { WorkoutWithLastDone } from '../services/types';
+import { Skeleton } from './Skeleton';
 
 type Props = {
   userId: number;
 };
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
-
-type WorkoutWithLastDone = WorkoutRow & {
-  last_done: string | null;
-};
 
 const dayLabels: Record<number, string> = {
   1: 'Segunda',
@@ -38,7 +36,7 @@ function formatRelativeDate(dateStr: string): string {
 
   if (diffMinutes < 60) return 'feito hoje';
   if (diffHours < 24) return 'feito hoje';
-  if (diffDays === 1) return 'feitohá 1 dia';
+  if (diffDays === 1) return 'feito há 1 dia';
   if (diffDays < 7) return `feito há ${diffDays} dias`;
   if (diffWeeks === 1) return 'feito há 1 semana';
   if (diffWeeks < 4) return `feito há ${diffWeeks} semanas`;
@@ -49,39 +47,39 @@ function formatRelativeDate(dateStr: string): string {
 export function DayWorkouts({ userId }: Props) {
   const navigation = useNavigation<Navigation>();
   const [workouts, setWorkouts] = useState<WorkoutWithLastDone[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const db = await getDb();
-
-      const rows = await db.getAllAsync<WorkoutRow>(
-        `SELECT * FROM workouts
-         WHERE user_id = ?
-         ORDER BY day_of_week ASC;`,
-        userId,
-      );
-
-      const lastDoneRows = await db.getAllAsync<{ workout_id: number; last_done: string }>(
-        `SELECT workout_id, MAX(ended_at) as last_done
-         FROM workout_sessions
-         WHERE user_id = ? AND completed = 1
-         GROUP BY workout_id;`,
-        userId,
-      );
-
-      const lastDoneMap: Record<number, string> = {};
-      lastDoneRows.forEach(row => {
-        lastDoneMap[row.workout_id] = row.last_done;
-      });
-
-      const workoutsWithLastDone: WorkoutWithLastDone[] = rows.map(w => ({
-        ...w,
-        last_done: lastDoneMap[w.id] ?? null,
-      }));
-
-      setWorkouts(workoutsWithLastDone);
+      setIsLoading(true);
+      try {
+        const workoutsWithLastDone = await getWorkoutsByUser(userId);
+        setWorkouts(workoutsWithLastDone);
+      } finally {
+        setIsLoading(false);
+      }
     })();
   }, [userId]);
+
+  if (isLoading) {
+    return (
+      <View>
+        {[...Array(5)].map((_, i) => (
+          <View
+            key={i}
+            style={{
+              paddingVertical: 5,
+              paddingHorizontal: 0,
+              borderRadius: 15,
+              marginBottom: 0,
+            }}
+          >
+            <Skeleton width={350} height={60} />
+          </View>
+        ))}
+      </View>
+    );
+  }
 
   return (
     <View>

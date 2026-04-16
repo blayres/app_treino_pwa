@@ -30,5 +30,22 @@ export const styles = StyleSheet.create({
     color: colors.olive,
     textDecorationLine: 'underline',
   },
+  toolsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  toolButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderSoftLight,
+    backgroundColor: colors.surfaceMutedLight,
+  },
+  toolButtonLabel: {
+    ...typography.caption,
+    color: colors.textPrimary,
+  },
 });
 

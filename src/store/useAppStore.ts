@@ -1,16 +1,5 @@
 import { create } from 'zustand';
-
-type User = {
-  id: number;
-  name: string;
-};
-
-type ActiveSession = {
-  sessionId: number;
-  workoutId: number;
-  startedAt: string;
-  isRunning: boolean;
-};
+import type { ActiveSession, User } from '../services/types';
 
 type AppState = {
   currentUser: User | null;

@@ -45,5 +45,10 @@ export const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '600',
   },
+  loadingText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
 });
 

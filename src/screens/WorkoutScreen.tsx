@@ -12,17 +12,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './WorkoutScreen.styles';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
-import { getDb, ExerciseRow } from '../db';
 import { useAppStore } from '../store/useAppStore';
 import { Timer } from '../components/Timer';
 import { CircularCheckbox } from '../components/CircularCheckbox';
 import { ConfirmModal } from '../components/ConfirmModal';
+import {
+  invalidateWorkoutsByUserCache,
+  getExerciseLoadsByUser,
+  getWorkoutExercises,
+  getWorkoutTitle,
+  upsertExerciseLoad,
+} from '../services/workoutService';
+import { markAttendance } from '../services/attendanceService';
+import { startWorkoutSession, stopWorkoutSession } from '../services/sessionService';
+import type { Exercise } from '../services/types';
+import { Skeleton } from '../components/Skeleton';
 
 type WorkoutRoute = RouteProp<RootStackParamList, 'Workout'>;
 
 type WorkoutExercise = {
   id: number;
-  exercise: ExerciseRow;
+  exercise: Exercise;
 };
 
 export default function WorkoutScreen() {
@@ -39,6 +49,7 @@ export default function WorkoutScreen() {
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isCancelAction, setIsCancelAction] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
   const isSessionForThisWorkout =
@@ -58,122 +69,55 @@ export default function WorkoutScreen() {
     if (!currentUser) return;
 
     (async () => {
-      const db = await getDb();
+      setIsLoading(true);
+      try {
+        const [title, workoutExercises, loadRows] = await Promise.all([
+          getWorkoutTitle(workoutId),
+          getWorkoutExercises(workoutId),
+          getExerciseLoadsByUser(currentUser.id),
+        ]);
 
-      const titleRow = await db.getFirstAsync<{ title: string }>(
-        `SELECT title FROM workouts WHERE id = ?;`,
-        workoutId,
-      );
-      if (titleRow) {
-        setWorkoutTitle(titleRow.title);
-      }
+        setWorkoutTitle(title);
 
-      const exerciseRows = await db.getAllAsync<any>(
-        `SELECT we.id as we_id, we.order_index, e.*
-         FROM workout_exercises we
-         JOIN exercises e ON e.id = we.exercise_id
-         WHERE we.workout_id = ?
-         ORDER BY we.order_index ASC;`,
-        workoutId,
-      );
-      const items: WorkoutExercise[] = exerciseRows.map((row: any) => {
-        const exercise: ExerciseRow = {
+        const items: WorkoutExercise[] = workoutExercises.map((row) => ({
           id: row.id,
-          name: row.name,
-          primary_muscle: row.primary_muscle,
-          secondary_muscle: row.secondary_muscle,
-          rest_seconds: row.rest_seconds,
-          scheme: row.scheme,
-        };
-        return { id: row.we_id, exercise };
-      });
-      setExercises(items);
+          exercise: row.exercise,
+        }));
+        setExercises(items);
 
-      const loadRows = await db.getAllAsync<{
-        exercise_id: number;
-        load_kg: number | null;
-        progression_kg: number | null;
-      }>(
-        `SELECT exercise_id, load_kg, progression_kg FROM exercise_loads
-         WHERE user_id = ?;`,
-        currentUser.id,
-      );
-      const map: Record<number, { normal: string; progression: string }> = {};
-      loadRows.forEach(row => {
-        map[row.exercise_id] = {
-          normal: row.load_kg != null ? String(row.load_kg) : '',
-          progression: row.progression_kg != null ? String(row.progression_kg) : '',
-        };
-      });
-      setLoads(map);
+        const map: Record<number, { normal: string; progression: string }> = {};
+        loadRows.forEach(row => {
+          map[row.exercise_id] = {
+            normal: row.load_kg != null ? String(row.load_kg) : '',
+            progression: row.progression_kg != null ? String(row.progression_kg) : '',
+          };
+        });
+        setLoads(map);
+      } finally {
+        setIsLoading(false);
+      }
     })();
   }, [workoutId, currentUser]);
 
   const handleStart = async () => {
     if (!currentUser || isSessionForThisWorkout) return;
-
-    const startedAt = new Date().toISOString();
-
-    const db = await getDb();
-
-    const result = await db.runAsync(
-      `INSERT INTO workout_sessions (user_id, workout_id, started_at, completed)
-       VALUES (?, ?, ?, 0);`,
-      currentUser.id,
-      workoutId,
-      startedAt,
-    );
-
-    setActiveSession({
-      sessionId: result.lastInsertRowId!,
-      workoutId,
-      startedAt,
-      isRunning: true,
-    });
+    const session = await startWorkoutSession(currentUser.id, workoutId);
+    setActiveSession(session);
   };
 
   const handleStop = async (cancelOnly: boolean) => {
     if (!currentUser || !activeSession) return;
 
-    const endedAt = new Date();
-    const durationSeconds = Math.floor(
-      (endedAt.getTime() - new Date(activeSession.startedAt).getTime()) / 1000
-    );
-    const completed = cancelOnly ? 0 : 1;
+    const result = await stopWorkoutSession({
+      userId: currentUser.id,
+      sessionId: activeSession.sessionId,
+      startedAt: activeSession.startedAt,
+      cancelOnly,
+    });
 
-    const db = await getDb();
-
-    await db.runAsync(
-      `UPDATE workout_sessions
-   SET ended_at = ?, duration_seconds = ?, completed = ?
-   WHERE id = ?;`,
-      endedAt.toISOString(),
-      durationSeconds,
-      completed,
-      activeSession.sessionId,
-    );
-
-    await db.runAsync(
-      `UPDATE workout_sessions
-   SET ended_at = ?, duration_seconds = 0, completed = 0
-   WHERE user_id = ? AND ended_at IS NULL AND id != ?;`,
-      endedAt.toISOString(),
-      currentUser.id,
-      activeSession.sessionId,
-    );
-
-    if (!cancelOnly) {
-      const today = endedAt;
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
-      const dateStr = `${y}-${m}-${d}`;
-
-      await db.runAsync(
-        `INSERT OR IGNORE INTO attendance (user_id, date) VALUES (?, ?);`,
-        currentUser.id,
-        dateStr,
-      );
+    if (result.completed) {
+      await markAttendance(currentUser.id, result.endedAt);
+      invalidateWorkoutsByUserCache(currentUser.id);
     }
 
     setActiveSession(null);
@@ -229,20 +173,13 @@ export default function WorkoutScreen() {
           : Number(updated[exerciseId].progression.replace(',', '.')) || null;
 
       if (!Number.isNaN(numeric) || value === '') {
-        const now = new Date().toISOString();
         (async () => {
-          const db = await getDb();
-          await db.runAsync(
-            `INSERT INTO exercise_loads (user_id, exercise_id, load_kg, progression_kg, updated_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(user_id, exercise_id)
-             DO UPDATE SET load_kg = excluded.load_kg, progression_kg = excluded.progression_kg, updated_at = excluded.updated_at;`,
-            currentUser.id,
+          await upsertExerciseLoad({
+            userId: currentUser.id,
             exerciseId,
-            normalValue,
-            progressionValue,
-            now,
-          );
+            loadKg: normalValue,
+            progressionKg: progressionValue,
+          });
         })();
       }
 
@@ -279,18 +216,27 @@ export default function WorkoutScreen() {
           <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
             <Text style={styles.backLabel}>Voltar</Text>
           </Pressable>
-          <Text style={styles.title}>{workoutTitle}</Text>
+
+          <Text style={styles.title}>
+            {workoutTitle || <Skeleton width={250} height={22} />}
+          </Text>
         </View>
 
         <View style={styles.timerRow}>
           <Timer seconds={seconds} />
+
           <View style={styles.actions}>
             {!isSessionForThisWorkout ? (
               <Pressable
-                style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
+                style={({ pressed }) => [
+                  styles.buttonPrimary,
+                  pressed && styles.buttonPrimaryPressed,
+                ]}
                 onPress={handleStart}
               >
-                <Text style={styles.buttonPrimaryLabel}>Iniciar treino</Text>
+                <Text style={styles.buttonPrimaryLabel}>
+                  Iniciar treino
+                </Text>
               </Pressable>
             ) : (
               <>
@@ -303,8 +249,12 @@ export default function WorkoutScreen() {
                 >
                   <Text style={styles.buttonSecondaryLabel}>Parar (erro)</Text>
                 </Pressable>
+
                 <Pressable
-                  style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
+                  style={({ pressed }) => [
+                    styles.buttonPrimary,
+                    pressed && styles.buttonPrimaryPressed,
+                  ]}
                   onPress={() => handleStopWithConfirm(false)}
                 >
                   <Text style={styles.buttonPrimaryLabel}>Finalizar</Text>
@@ -314,77 +264,121 @@ export default function WorkoutScreen() {
           </View>
         </View>
 
-        <FlatList
-          ref={flatListRef}
-          contentContainerStyle={styles.listContent}
-          data={exercises}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
-          onScrollToIndexFailed={info => {
-            const wait = new Promise(resolve => setTimeout(resolve, 500));
-            wait.then(() => {
-              flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
-            });
-          }}
-          renderItem={({ item, index }) => {
-            const scheme = item.exercise.scheme;
-            const [mainScheme, progression] = scheme.split(' e ');
-            const currentLoads = loads[item.exercise.id] || { normal: '', progression: '' };
-            const isCompleted = completedIds.has(item.exercise.id);
-
-            return (
-              <Pressable
-                style={[
-                  styles.exerciseRow,
-                  isCompleted && styles.exerciseRowActive,
-                ]}
+        {isLoading ? (
+          <View style={{ paddingHorizontal: 24 }}>
+            {[...Array(5)].map((_, i) => (
+              <View
+                key={i}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 35,
+                  marginTop: 30,
+                }}
               >
-                {isSessionForThisWorkout ? (
-                  <CircularCheckbox
-                    checked={isCompleted}
-                    onToggle={() => toggleCompleted(item.exercise.id)}
-                  />
-                ) : (
-                  <View style={styles.checkboxPlaceholder} />
-                )}
+                <Skeleton width={22} height={22} />
 
-                <Pressable
-                  style={styles.exerciseInfo}
-                  onPress={() => isSessionForThisWorkout ? toggleCompleted(item.exercise.id) : null}
-                >
-                  <Text style={styles.exerciseName}>{item.exercise.name}</Text>
-                  <Text style={styles.scheme}>
-                    {mainScheme}
-                    {progression ? ` · ${progression}` : ''}
-                  </Text>
-                  <Text style={styles.rest}>
-                    Intervalo {item.exercise.rest_seconds / 60} min
-                  </Text>
-                </Pressable>
-
-                <View style={styles.loadColumn}>
-                  <Text style={styles.loadLabel}>Carga (kg)</Text>
-                  <TextInput
-                    style={styles.loadInput}
-                    keyboardType="decimal-pad"
-                    value={currentLoads.normal}
-                    onChangeText={text => handleChangeLoad(item.exercise.id, text, 'normal')}
-                    onFocus={() => handleInputFocus(index)}
-                    placeholder="00"
-                  />
-                  <Text style={styles.loadLabelProgression}>Progressão</Text>
-                  <TextInput
-                    style={styles.loadInput}
-                    keyboardType="decimal-pad"
-                    value={currentLoads.progression}
-                    onChangeText={text => handleChangeLoad(item.exercise.id, text, 'progression')}
-                    onFocus={() => handleInputFocus(index)}
-                    placeholder="00"
-                  />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Skeleton width="70%" height={14} />
+                  <Skeleton width="50%" height={12} style={{ marginTop: 6 }} />
+                  <Skeleton width="40%" height={12} style={{ marginTop: 6 }} />
                 </View>
-              </Pressable>
-            );
-          }}
-        />
+
+                <View style={{ marginLeft: 12 }}>
+                  <Skeleton width={60} height={32} style={{ marginBottom: 6 }} />
+                  <Skeleton width={60} height={32} />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            contentContainerStyle={styles.listContent}
+            data={exercises}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            onScrollToIndexFailed={info => {
+              setTimeout(() => {
+                flatListRef.current?.scrollToIndex({
+                  index: info.index,
+                  animated: true,
+                });
+              }, 500);
+            }}
+            renderItem={({ item, index }) => {
+              const scheme = item.exercise.scheme;
+              const [mainScheme, progression] = scheme.split(' e ');
+              const currentLoads =
+                loads[item.exercise.id] || { normal: '', progression: '' };
+              const isCompleted = completedIds.has(item.exercise.id);
+
+              return (
+                <Pressable
+                  style={[
+                    styles.exerciseRow,
+                    isCompleted && styles.exerciseRowActive,
+                  ]}
+                >
+                  {isSessionForThisWorkout ? (
+                    <CircularCheckbox
+                      checked={isCompleted}
+                      onToggle={() => toggleCompleted(item.exercise.id)}
+                    />
+                  ) : (
+                    <View style={styles.checkboxPlaceholder} />
+                  )}
+
+                  <Pressable
+                    style={styles.exerciseInfo}
+                    onPress={() =>
+                      isSessionForThisWorkout
+                        ? toggleCompleted(item.exercise.id)
+                        : null
+                    }
+                  >
+                    <Text style={styles.exerciseName}>
+                      {item.exercise.name}
+                    </Text>
+                    <Text style={styles.scheme}>
+                      {mainScheme}
+                      {progression ? ` · ${progression}` : ''}
+                    </Text>
+                    <Text style={styles.rest}>
+                      Intervalo {item.exercise.rest_seconds / 60} min
+                    </Text>
+                  </Pressable>
+
+                  <View style={styles.loadColumn}>
+                    <Text style={styles.loadLabel}>Carga (kg)</Text>
+                    <TextInput
+                      style={styles.loadInput}
+                      keyboardType="decimal-pad"
+                      value={currentLoads.normal}
+                      onChangeText={text =>
+                        handleChangeLoad(item.exercise.id, text, 'normal')
+                      }
+                      onFocus={() => handleInputFocus(index)}
+                      placeholder="00"
+                    />
+                    <Text style={styles.loadLabelProgression}>
+                      Progressão
+                    </Text>
+                    <TextInput
+                      style={styles.loadInput}
+                      keyboardType="decimal-pad"
+                      value={currentLoads.progression}
+                      onChangeText={text =>
+                        handleChangeLoad(item.exercise.id, text, 'progression')
+                      }
+                      onFocus={() => handleInputFocus(index)}
+                      placeholder="00"
+                    />
+                  </View>
+                </Pressable>
+              );
+            }}
+          />
+        )}
       </KeyboardAvoidingView>
 
       <ConfirmModal

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './HomeScreen.styles';
 import { useAppStore } from '../store/useAppStore';
@@ -9,6 +9,9 @@ import { DayWorkouts } from '../components/DayWorkouts';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
+import { downloadIndexedDbBackup } from '../services/backupService';
+import { backendMode } from '../services/backendMode';
+import { logout } from '../services/authService';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -23,18 +26,31 @@ export default function HomeScreen() {
     return null;
   }
 
-  useFocusEffect(
-    React.useCallback(() => {
-      calendarRef.current?.refresh();
-    }, []),
-  );
-
   const handleLogout = () => {
+    (async () => {
+      try {
+        await logout();
+      } catch (error: any) {
+        Alert.alert('Erro ao sair', error?.message ?? 'Falha ao encerrar sessão.');
+      }
+    })();
     setCurrentUser(null);
     navigation.reset({
       index: 0,
       routes: [{ name: 'Login' }],
     });
+  };
+
+  const handleOpenAdmin = () => {
+    navigation.navigate('Admin');
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      await downloadIndexedDbBackup();
+    } catch (error: any) {
+      Alert.alert('Erro ao exportar', error?.message ?? 'Não foi possível exportar o backup.');
+    }
   };
 
   return (
@@ -49,9 +65,13 @@ export default function HomeScreen() {
             <Text style={styles.subtitle}>Bora treinar hoje?</Text>
           </View>
           <Pressable onPress={handleLogout} hitSlop={8}>
-            <Text style={styles.logoutLabel}>Trocar usuário</Text>
+            <Text style={styles.logoutLabel}>Sair</Text>
           </Pressable>
         </View>
+
+        <SectionCard title="Treinos da semana">
+          <DayWorkouts userId={currentUser.id} />
+        </SectionCard>
 
         <SectionCard title="Frequência" rightLabel={checkInLabel}>
           <CalendarFrequency
@@ -59,10 +79,6 @@ export default function HomeScreen() {
             userId={currentUser.id}
             onLoad={(count, total) => setCheckInLabel(`${count}/${total}`)}
           />
-        </SectionCard>
-
-        <SectionCard title="Treinos da semana">
-          <DayWorkouts userId={currentUser.id} />
         </SectionCard>
       </ScrollView>
     </SafeAreaView>
