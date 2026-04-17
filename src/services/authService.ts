@@ -1,6 +1,7 @@
 import { getDb } from '../db';
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
+import { seedDefaultWorkoutsForUser } from './defaultWorkoutService';
 import type { User } from './types';
 
 const LAST_USER_KEY = 'lastUserId';
@@ -109,6 +110,12 @@ export async function getSessionUser(): Promise<User | null> {
       .single();
 
     if (!insertError && newProfile) {
+      // Seed the default workout program for this brand-new user
+      try {
+        await seedDefaultWorkoutsForUser(Number(newProfile.id));
+      } catch (seedErr) {
+        console.warn('Falha ao criar treino padrão:', seedErr);
+      }
       return {
         id: Number(newProfile.id),
         name: String(newProfile.name),
