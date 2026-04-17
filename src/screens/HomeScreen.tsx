@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './HomeScreen.styles';
@@ -21,6 +21,14 @@ export default function HomeScreen() {
   const setCurrentUser = useAppStore(state => state.setCurrentUser);
   const calendarRef = useRef<{ refresh: () => void }>(null);
   const [checkInLabel, setCheckInLabel] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      calendarRef.current?.refresh();
+      setRefreshKey(k => k + 1);
+    }, []),
+  );
 
 if (!currentUser) {
   return (
@@ -74,7 +82,7 @@ if (!currentUser) {
         </View>
 
         <SectionCard title="Treinos da semana">
-          <DayWorkouts userId={currentUser.id} />
+          <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} />
         </SectionCard>
 
         <SectionCard title="Frequência" rightLabel={checkInLabel}>

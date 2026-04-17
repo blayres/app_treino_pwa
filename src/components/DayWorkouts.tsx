@@ -10,6 +10,7 @@ import { Skeleton } from './Skeleton';
 
 type Props = {
   userId: number;
+  refreshKey?: number;
 };
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -44,7 +45,7 @@ function formatRelativeDate(dateStr: string): string {
   return `feito há ${diffMonths} meses`;
 }
 
-export function DayWorkouts({ userId }: Props) {
+export function DayWorkouts({ userId, refreshKey }: Props) {
   const navigation = useNavigation<Navigation>();
   const [workouts, setWorkouts] = useState<WorkoutWithLastDone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +60,7 @@ export function DayWorkouts({ userId }: Props) {
         setIsLoading(false);
       }
     })();
-  }, [userId]);
+  }, [userId, refreshKey]);
 
   if (isLoading) {
     return (

@@ -38,7 +38,14 @@ export async function getAttendanceDatesByMonth(params: {
       .lte('date', to);
     if (error) throw error;
     const response = {
-      dates: new Set((data ?? []).map((row) => String(row.date))),
+      dates: new Set((data ?? []).map((row) => {
+        // Supabase may return full ISO timestamps — normalize to local YYYY-MM-DD
+        const raw = String(row.date);
+        if (raw.length > 10) {
+          return formatLocalDate(new Date(raw));
+        }
+        return raw;
+      })),
       totalDays: lastDay.getDate(),
     };
     attendanceCache.set(cacheKey, {
