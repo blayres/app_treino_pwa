@@ -29,6 +29,18 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 5,
   },
+  itemRest: {
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surfaceMutedLight,
+    marginBottom: spacing.sm,
+    opacity: 0.45,
+  },
+  titleRest: {
+    color: colors.textSecondary,
+    fontWeight: '400',
+  },
   loadingWrap: {
     paddingVertical: spacing.md,
   },

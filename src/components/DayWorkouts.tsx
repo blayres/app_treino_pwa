@@ -84,21 +84,29 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
 
   return (
     <View>
-      {workouts.map(item => (
-        <Pressable
-          key={item.id}
-          style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-          onPress={() => navigation.navigate('Workout', { workoutId: item.id })}
-        >
-          <View>
-            <Text style={styles.dayLabel}>{dayLabels[item.day_of_week]}</Text>
-            <Text style={styles.title}>{item.title}</Text>
-          </View>
-          {item.last_done ? (
-            <Text style={styles.lastDone}>{formatRelativeDate(item.last_done)}</Text>
-          ) : null}
-        </Pressable>
-      ))}
+      {workouts.map(item => {
+        const isRest = item.title.toLowerCase().includes('repouso');
+
+        return (
+          <Pressable
+            key={item.id}
+            style={({ pressed }) => [
+              styles.item,
+              isRest ? styles.itemRest : (pressed && styles.itemPressed),
+            ]}
+            onPress={() => !isRest && navigation.navigate('Workout', { workoutId: item.id })}
+            disabled={isRest}
+          >
+            <View>
+              <Text style={styles.dayLabel}>{dayLabels[item.day_of_week]}</Text>
+              <Text style={[styles.title, isRest && styles.titleRest]}>{item.title}</Text>
+            </View>
+            {!isRest && item.last_done ? (
+              <Text style={styles.lastDone}>{formatRelativeDate(item.last_done)}</Text>
+            ) : null}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
