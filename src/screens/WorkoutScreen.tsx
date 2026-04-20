@@ -312,6 +312,15 @@ export default function WorkoutScreen() {
                 loads[item.exercise.id] || { normal: '', progression: '' };
               const isCompleted = completedIds.has(item.exercise.id);
 
+              const restSecs = item.exercise.rest_seconds;
+              const restMin = Math.floor(restSecs / 60);
+              const restRemSec = restSecs % 60;
+              const restLabel = restMin > 0 && restRemSec > 0
+                ? `${restMin}min ${restRemSec}s`
+                : restMin > 0
+                  ? `${restMin}min`
+                  : `${restRemSec}s`;
+
               return (
                 <Pressable
                   style={[
@@ -344,8 +353,11 @@ export default function WorkoutScreen() {
                       {progression ? ` · ${progression}` : ''}
                     </Text>
                     <Text style={styles.rest}>
-                      Intervalo {item.exercise.rest_seconds / 60} min
+                      Intervalo {restLabel}
                     </Text>
+                    {item.exercise.hint ? (
+                      <Text style={styles.hint}>{item.exercise.hint}</Text>
+                    ) : null}
                   </Pressable>
 
                   <View style={styles.loadColumn}>

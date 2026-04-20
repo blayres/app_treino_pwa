@@ -93,6 +93,12 @@ export const styles = StyleSheet.create({
     ...typography.caption,
     marginTop: 2,
   },
+  hint: {
+    ...typography.caption,
+    marginTop: 4,
+    color: colors.olive,
+    fontStyle: 'italic',
+  },
   keyboardAvoid: {
     flex: 1,
   },

@@ -10,6 +10,7 @@ export type Exercise = {
   secondary_muscle: string | null;
   rest_seconds: number;
   scheme: string;
+  hint: string | null;
 };
 
 export type Workout = {

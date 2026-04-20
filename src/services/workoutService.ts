@@ -161,6 +161,7 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
       secondary_muscle: row.secondary_muscle,
       rest_seconds: row.rest_seconds,
       scheme: row.scheme,
+      hint: row.hint ?? null,
     },
   }));
 }
