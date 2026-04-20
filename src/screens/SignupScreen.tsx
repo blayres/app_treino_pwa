@@ -1,11 +1,12 @@
 import React from 'react';
-import { Alert, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { styles } from './LoginScreen.styles';
-import { signInWithGoogle, signUpWithEmail } from '../services/authService';
+import { feedbackStyles } from './FeedbackStyles';
+import { signUpWithEmail } from '../services/authService';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
 
@@ -14,36 +15,34 @@ export default function SignupScreen() {
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [success, setSuccess] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
 
   const handleSignUp = async () => {
+    setSuccess('');
+    setError('');
+
     if (!email || !password) {
-      Alert.alert('Campos obrigatórios', 'Preencha email e senha.');
+      setError('Preencha email e senha.');
       return;
     }
 
+    setLoading(true);
     try {
       await signUpWithEmail(email.trim(), password, name.trim() || undefined);
-      Alert.alert(
-        'Conta criada',
-        'Conta criada com sucesso. Se a confirmação por email estiver ativa no Supabase, verifique sua caixa de entrada.',
-      );
-      navigation.navigate('Login');
-    } catch (error: any) {
-      Alert.alert('Erro no cadastro', error?.message ?? 'Não foi possível criar a conta.');
-    }
-  };
-
-  const handleGoogle = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error: any) {
-      Alert.alert('Erro no Google', error?.message ?? 'Falha ao autenticar com Google.');
+      setSuccess('Conta criada com sucesso! Verifique seu email para continuar (pode estar no spam).');
+    } catch (err: any) {
+      const raw = err?.message ?? 'Não foi possível criar a conta.';
+      setError(`Não entre em pânico e manda esse erro pra Babi: ${raw}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Criar conta</Text>
         <Text style={styles.subtitle}>Use email e senha para começar.</Text>
 
@@ -71,27 +70,30 @@ export default function SignupScreen() {
           onChangeText={setPassword}
         />
 
-        <Pressable
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, styles.mt]}
-          onPress={handleSignUp}
-        >
-          <Text style={styles.buttonLabel}>Criar conta</Text>
-        </Pressable>
+        {success ? (
+          <View style={feedbackStyles.successBox}>
+            <Text style={feedbackStyles.successText}>{success}</Text>
+          </View>
+        ) : null}
 
-        {/* @TODO : No futuro permitir login social na tela de cadastro, mas por ora vamos focar no email/senha */}
-        {/* {Platform.OS === 'web' ? (
-          <Pressable
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
-            onPress={handleGoogle}
-          >
-            <Text style={styles.secondaryButtonLabel}>Continuar com Google</Text>
-          </Pressable>
-        ) : null} */}
+        {error ? (
+          <View style={feedbackStyles.errorBox}>
+            <Text style={feedbackStyles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        <Pressable
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, styles.mt, loading && { opacity: 0.6 }]}
+          onPress={handleSignUp}
+          disabled={loading}
+        >
+          <Text style={styles.buttonLabel}>{loading ? 'Criando...' : 'Criar conta'}</Text>
+        </Pressable>
 
         <Pressable onPress={() => navigation.navigate('Login')} hitSlop={8} style={styles.linkWrap}>
           <Text style={styles.linkLabel}>Já tenho conta</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
