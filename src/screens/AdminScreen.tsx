@@ -6,6 +6,8 @@ import { styles } from './AdminScreen.styles';
 import { listExercises, getWorkoutsByUser } from '../services/workoutService';
 import { listUsers, replaceWorkoutExerciseOrder, saveExercise, saveWorkout } from '../services/adminService';
 import { isCurrentUserAdmin } from '../services/authService';
+import { getStudentStats, type StudentStats } from '../services/adminStatsService';
+import { colors } from '../theme/colors';
 
 const dayOptions = [
   { value: 1, label: 'Segunda' },
@@ -24,6 +26,8 @@ export default function AdminScreen() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [exercises, setExercises] = useState<any[]>([]);
+  const [stats, setStats] = useState<StudentStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   const [exerciseForm, setExerciseForm] = useState({
     id: '',
@@ -46,6 +50,18 @@ export default function AdminScreen() {
     [users, selectedUserId],
   );
 
+  const loadStats = useCallback(async (userId: number) => {
+    setLoadingStats(true);
+    try {
+      const data = await getStudentStats(userId);
+      setStats(data);
+    } catch {
+      setStats(null);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     const userRows = await listUsers();
     setUsers(userRows);
@@ -60,8 +76,9 @@ export default function AdminScreen() {
       ]);
       setWorkouts(workoutRows);
       setExercises(exerciseRows);
+      await loadStats(activeUserId);
     }
-  }, [selectedUserId]);
+  }, [selectedUserId, loadStats]);
 
   useEffect(() => {
     (async () => {
@@ -76,6 +93,7 @@ export default function AdminScreen() {
     setSelectedUserId(userId);
     const workoutRows = await getWorkoutsByUser(userId);
     setWorkouts(workoutRows);
+    await loadStats(userId);
   };
 
   const handleSaveExercise = async () => {
@@ -153,6 +171,54 @@ export default function AdminScreen() {
               </Pressable>
             ))}
           </View>
+        </View>
+
+        {/* ── Student dashboard ─────────────────────────────────────────── */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Dashboard — {selectedUserName}</Text>
+
+          {loadingStats ? (
+            <Text style={styles.emptyText}>Carregando dados...</Text>
+          ) : stats ? (
+            <>
+              {/* Top stats row */}
+              <View style={styles.statRow}>
+                <View style={styles.statBox}>
+                  <View style={[styles.checkinDot, { backgroundColor: stats.checkedInToday ? colors.success : colors.danger }]} />
+                  <Text style={styles.statValue}>{stats.checkedInToday ? 'Sim' : 'Não'}</Text>
+                  <Text style={styles.statLabel}>Check-in hoje</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>{stats.weeklyFrequency}x</Text>
+                  <Text style={styles.statLabel}>Treinos (7 dias)</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>{stats.lastDurationMinutes > 0 ? `${stats.lastDurationMinutes}` : '—'}</Text>
+                  <Text style={styles.statLabel}>Último treino (min)</Text>
+                </View>
+              </View>
+
+              {/* Loads table */}
+              <Text style={[styles.helper, styles.spaced]}>Cargas registradas</Text>
+              {stats.loads.length === 0 ? (
+                <Text style={styles.emptyText}>Nenhuma carga registrada ainda.</Text>
+              ) : (
+                stats.loads.map((row) => (
+                  <View key={row.exercise_id} style={styles.loadRow}>
+                    <Text style={styles.loadName}>{row.exercise_name}</Text>
+                    <Text style={styles.loadValue}>
+                      {row.load_kg != null ? `${row.load_kg} kg` : '—'}
+                    </Text>
+                    {row.progression_kg != null ? (
+                      <Text style={styles.loadProgression}>+{row.progression_kg} kg</Text>
+                    ) : null}
+                  </View>
+                ))
+              )}
+            </>
+          ) : (
+            <Text style={styles.emptyText}>Selecione uma aluna para ver os dados.</Text>
+          )}
         </View>
 
         <View style={styles.card}>

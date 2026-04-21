@@ -1,5 +1,4 @@
-import { StyleSheet } from 'react-native';
-import { colors, spacing, typography } from '../theme';
+import { StyleSheet } from 'react-native';import { colors, spacing, typography } from '../theme';
 
 export const styles = StyleSheet.create({
   safe: {
@@ -82,5 +81,67 @@ export const styles = StyleSheet.create({
   },
   spaced: {
     marginTop: spacing.sm,
+  },
+  // ── Student dashboard ──────────────────────────────────────────────────────
+  statRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.oliveDark,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  checkinDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 2,
+  },
+  loadRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSoftLight,
+  },
+  loadName: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  loadValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.oliveDark,
+    marginLeft: spacing.sm,
+  },
+  loadProgression: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginLeft: spacing.xs,
+  },
+  emptyText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
   },
 });
