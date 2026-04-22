@@ -6,7 +6,7 @@ import {
   DarkTheme,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useColorScheme, View, ActivityIndicator, Alert } from 'react-native';
+import { useColorScheme, View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -22,6 +22,7 @@ import { useAppStore } from './src/store/useAppStore';
 import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
 import { getSessionUser } from './src/services/authService';
 import { backendMode } from './src/services/backendMode';
+import { supabase } from './src/services/supabaseClient';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -40,6 +41,8 @@ export default function App() {
   const setActiveSession = useAppStore((s) => s.setActiveSession);
   const currentUser = useAppStore((s) => s.currentUser);
   const [isReady, setIsReady] = useState(false);
+
+  // Boot: restore existing session on app open
   useEffect(() => {
     (async () => {
       try {
@@ -51,9 +54,7 @@ export default function App() {
           setCurrentUser(user);
           await closeStaleSessions(user.id);
           const session = await restoreActiveSessionByUser(user.id);
-          if (session) {
-            setActiveSession(session);
-          }
+          if (session) setActiveSession(session);
         }
       } catch (error: any) {
         console.error('Erro ao iniciar app:', error);
@@ -65,6 +66,37 @@ export default function App() {
       }
     })();
   }, [setCurrentUser, setActiveSession]);
+
+  // Auth listener: handles email confirmation links and token refreshes.
+  // Supabase parses the #access_token from the URL automatically on web
+  // and fires SIGNED_IN — we just need to react to it here.
+  useEffect(() => {
+    if (backendMode !== 'supabase') return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN') {
+        try {
+          const user = await getSessionUser();
+          if (user) {
+            setCurrentUser(user);
+            await closeStaleSessions(user.id);
+            const session = await restoreActiveSessionByUser(user.id);
+            if (session) setActiveSession(session);
+          }
+        } catch (err) {
+          console.error('Erro ao processar login automático:', err);
+        }
+      }
+
+      if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setActiveSession(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setCurrentUser, setActiveSession]);
+
   if (!isReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: scheme === 'dark' ? colors.backgroundDark : colors.backgroundLight }}>
