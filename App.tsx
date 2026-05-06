@@ -20,7 +20,7 @@ import { colors } from './src/theme/colors';
 import { initDatabase } from './src/db';
 import { useAppStore } from './src/store/useAppStore';
 import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
-import { getSessionUser } from './src/services/authService';
+import { getSessionUser, getOrCreateProfile } from './src/services/authService';
 import { backendMode } from './src/services/backendMode';
 import { supabase } from './src/services/supabaseClient';
 
@@ -42,40 +42,16 @@ export default function App() {
   const currentUser = useAppStore((s) => s.currentUser);
   const [isReady, setIsReady] = useState(false);
 
-  // Boot: restore existing session on app open
+  // Single auth initializer — uses onAuthStateChange as the source of truth.
+  // It fires immediately with INITIAL_SESSION on mount, so we wait for it
+  // before rendering the navigator (ensures deep links like /admin resolve
+  // with the correct auth state already set).
   useEffect(() => {
-    (async () => {
-      try {
-        if (backendMode !== 'supabase') {
-          await initDatabase();
-        }
-        const user = await getSessionUser();
-        if (user) {
-          setCurrentUser(user);
-          await closeStaleSessions(user.id);
-          const session = await restoreActiveSessionByUser(user.id);
-          if (session) setActiveSession(session);
-        }
-      } catch (error: any) {
-        console.error('Erro ao iniciar app:', error);
-        if (typeof window !== 'undefined' && window.alert) {
-          window.alert(error?.message ?? 'Falha ao inicializar sessão e dados.');
-        }
-      } finally {
-        setIsReady(true);
-      }
-    })();
-  }, [setCurrentUser, setActiveSession]);
-
-  // Auth listener: handles email confirmation links and token refreshes.
-  // Supabase parses the #access_token from the URL automatically on web
-  // and fires SIGNED_IN — we just need to react to it here.
-  useEffect(() => {
-    if (backendMode !== 'supabase') return;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === 'SIGNED_IN') {
+    if (backendMode !== 'supabase') {
+      // Local/SQLite mode — init DB then check session the old way
+      (async () => {
         try {
+          await initDatabase();
           const user = await getSessionUser();
           if (user) {
             setCurrentUser(user);
@@ -83,18 +59,67 @@ export default function App() {
             const session = await restoreActiveSessionByUser(user.id);
             if (session) setActiveSession(session);
           }
-        } catch (err) {
-          console.error('Erro ao processar login automático:', err);
+        } catch (error: any) {
+          console.error('Erro ao iniciar app:', error);
+        } finally {
+          setIsReady(true);
+        }
+      })();
+      return;
+    }
+
+    // Safety net: if onAuthStateChange never fires (network issue, cold start
+    // timeout), unblock the UI after 5 seconds so the app doesn't hang forever.
+    const timeout = setTimeout(() => setIsReady(true), 5000);
+
+    let booted = false;
+
+    const handleAuthEvent = async (
+      event: string,
+      session: { user: { id: string; email?: string; user_metadata: Record<string, any> } } | null,
+    ) => {
+      try {
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+          const user = await getOrCreateProfile(
+            session.user.id,
+            session.user.email,
+            session.user.user_metadata ?? {},
+          );
+          if (user) {
+            setCurrentUser(user);
+            if (!booted) {
+              await closeStaleSessions(user.id);
+              const activeSession = await restoreActiveSessionByUser(user.id);
+              if (activeSession) setActiveSession(activeSession);
+            }
+          }
+        }
+
+        if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+          setActiveSession(null);
+        }
+      } catch (err) {
+        console.error('Erro ao processar sessão:', err);
+      } finally {
+        if (!booted) {
+          booted = true;
+          clearTimeout(timeout);
+          setIsReady(true);
         }
       }
+    };
 
-      if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-        setActiveSession(null);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Kick off async work but don't block — onAuthStateChange doesn't await callbacks.
+      // isReady is set inside handleAuthEvent's finally block after the async work completes.
+      handleAuthEvent(event, session?.user ? session : null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, [setCurrentUser, setActiveSession]);
 
   if (!isReady) {

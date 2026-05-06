@@ -79,48 +79,11 @@ export async function getSessionUser(): Promise<User | null> {
     }
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-
       if (error.message?.includes(AUTH_SESSION_MISSING)) return null;
       throw error;
     }
     if (!data.user) return null;
-
-    const profile = await supabase
-      .from('profiles')
-      .select('id, name')
-      .eq('auth_id', data.user.id)
-      .maybeSingle();
-
-    if (!profile.error && profile.data) {
-      return {
-        id: Number(profile.data.id),
-        name: String(profile.data.name),
-      };
-    }
-
-    // Profile doesn't exist yet — create it automatically
-    const authName = data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Aluna';
-    const { data: newProfile, error: insertError } = await supabase
-      .from('profiles')
-      .insert({ auth_id: data.user.id, name: authName })
-      .select('id, name')
-      .single();
-
-    if (!insertError && newProfile) {
-      // Seed the default workout program for this brand-new user
-      try {
-        await seedDefaultWorkoutsForUser(Number(newProfile.id));
-      } catch (seedErr) {
-        console.warn('Falha ao criar treino padrão:', seedErr);
-      }
-      return {
-        id: Number(newProfile.id),
-        name: String(newProfile.name),
-      };
-    }
-
-    console.warn('Não foi possível criar perfil:', insertError?.message);
-    return null;
+    return getOrCreateProfile(data.user.id, data.user.email, data.user.user_metadata);
   }
 
   const db = await getDb();
@@ -131,6 +94,56 @@ export async function getSessionUser(): Promise<User | null> {
     Number(lastUserId),
   );
   return user ?? null;
+}
+
+/**
+ * Looks up the profile row for a given Supabase auth user.
+ * Creates it (and seeds default workouts) if it doesn't exist yet.
+ * Accepts the auth user data directly so callers don't need to call
+ * supabase.auth.getUser() again — avoiding lock contention.
+ */
+export async function getOrCreateProfile(
+  authId: string,
+  email: string | undefined,
+  userMetadata: Record<string, any>,
+): Promise<User | null> {
+  ensureSupabaseEnabled();
+
+  const profile = await supabase
+    .from('profiles')
+    .select('id, name')
+    .eq('auth_id', authId)
+    .maybeSingle();
+
+  if (!profile.error && profile.data) {
+    return {
+      id: Number(profile.data.id),
+      name: String(profile.data.name),
+    };
+  }
+
+  // Profile doesn't exist yet — create it automatically
+  const authName = userMetadata?.name || email?.split('@')[0] || 'Aluna';
+  const { data: newProfile, error: insertError } = await supabase
+    .from('profiles')
+    .insert({ auth_id: authId, name: authName })
+    .select('id, name')
+    .single();
+
+  if (!insertError && newProfile) {
+    try {
+      await seedDefaultWorkoutsForUser(Number(newProfile.id));
+    } catch (seedErr) {
+      console.warn('Falha ao criar treino padrão:', seedErr);
+    }
+    return {
+      id: Number(newProfile.id),
+      name: String(newProfile.name),
+    };
+  }
+
+  console.warn('Não foi possível criar perfil:', insertError?.message);
+  return null;
 }
 
 export async function setLocalCurrentUser(userId: number): Promise<User | null> {
