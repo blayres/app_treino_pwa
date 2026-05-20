@@ -6,7 +6,8 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.backgroundLight,
   },
   container: {
-    padding: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xl,
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },

@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.backgroundLight,
   },
   header: {
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
@@ -20,7 +20,7 @@ export const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   timerRow: {
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.md,
   },
   exerciseRowActive: {
@@ -62,7 +62,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   listContent: {
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
   },
   exerciseRow: {
