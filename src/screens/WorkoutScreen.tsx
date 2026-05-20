@@ -27,6 +27,9 @@ import { markAttendance } from '../services/attendanceService';
 import { startWorkoutSession, stopWorkoutSession } from '../services/sessionService';
 import type { Exercise } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
+import { colors } from '../theme/colors';
+
+const STALE_THRESHOLD_SECONDS = 2 * 60 * 60; // 2 hours
 
 type WorkoutRoute = RouteProp<RootStackParamList, 'Workout'>;
 
@@ -150,6 +153,18 @@ export default function WorkoutScreen() {
     )
     : 0;
 
+  // Cap display at threshold so the timer doesn't show absurd values.
+  // If over threshold, show the stale banner instead of normal controls.
+  const displaySeconds = Math.min(seconds, STALE_THRESHOLD_SECONDS);
+  const isStale = isSessionForThisWorkout && seconds > STALE_THRESHOLD_SECONDS;
+
+  // Human-readable elapsed time for the stale banner, e.g. "3h 12min"
+  const staleHours = Math.floor(seconds / 3600);
+  const staleMinutes = Math.floor((seconds % 3600) / 60);
+  const staleLabel = staleHours > 0
+    ? `${staleHours}h ${staleMinutes}min`
+    : `${staleMinutes}min`;
+
   const handleStopWithConfirm = (cancelOnly: boolean) => {
     setIsCancelAction(cancelOnly);
     setShowConfirmModal(true);
@@ -243,45 +258,69 @@ export default function WorkoutScreen() {
         </View>
 
         <View style={styles.timerRow}>
-          <Timer seconds={seconds} />
+          <Timer seconds={displaySeconds} />
 
-          <View style={styles.actions}>
-            {!isSessionForThisWorkout ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.buttonPrimary,
-                  pressed && styles.buttonPrimaryPressed,
-                ]}
-                onPress={handleStart}
-              >
-                <Text style={styles.buttonPrimaryLabel}>
-                  Iniciar treino
-                </Text>
-              </Pressable>
-            ) : (
-              <>
+          {isStale ? (
+            // ── Stale session banner ──────────────────────────────────────
+            <View style={styles.staleBanner}>
+              <Text style={styles.staleText}>
+                Esse treino está aberto há {staleLabel}. Esqueceu de finalizar?
+              </Text>
+              <View style={styles.staleActions}>
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.buttonSecondary,
-                    pressed && styles.buttonSecondaryPressed,
-                  ]}
+                  style={({ pressed }) => [styles.buttonSecondary, pressed && styles.buttonSecondaryPressed]}
                   onPress={() => handleStopWithConfirm(true)}
                 >
-                  <Text style={styles.buttonSecondaryLabel}>Parar (erro)</Text>
+                  <Text style={styles.buttonSecondaryLabel}>Cancelar treino</Text>
                 </Pressable>
-
+                <Pressable
+                  style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
+                  onPress={() => handleStopWithConfirm(false)}
+                >
+                  <Text style={styles.buttonPrimaryLabel}>Finalizar</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            // ── Normal controls ───────────────────────────────────────────
+            <View style={styles.actions}>
+              {!isSessionForThisWorkout ? (
                 <Pressable
                   style={({ pressed }) => [
                     styles.buttonPrimary,
                     pressed && styles.buttonPrimaryPressed,
                   ]}
-                  onPress={() => handleStopWithConfirm(false)}
+                  onPress={handleStart}
                 >
-                  <Text style={styles.buttonPrimaryLabel}>Finalizar</Text>
+                  <Text style={styles.buttonPrimaryLabel}>
+                    Iniciar treino
+                  </Text>
                 </Pressable>
-              </>
-            )}
-          </View>
+              ) : (
+                <>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.buttonSecondary,
+                      pressed && styles.buttonSecondaryPressed,
+                    ]}
+                    onPress={() => handleStopWithConfirm(true)}
+                  >
+                    <Text style={styles.buttonSecondaryLabel}>Parar (erro)</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.buttonPrimary,
+                      pressed && styles.buttonPrimaryPressed,
+                    ]}
+                    onPress={() => handleStopWithConfirm(false)}
+                  >
+                    <Text style={styles.buttonPrimaryLabel}>Finalizar</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          )}
         </View>
 
         {isLoading ? (

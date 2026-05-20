@@ -141,5 +141,23 @@ export const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '600',
   },
+  staleBanner: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.warning + '22',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.warning,
+    borderRadius: 10,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  staleText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    lineHeight: 18,
+  },
+  staleActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
 });
 
