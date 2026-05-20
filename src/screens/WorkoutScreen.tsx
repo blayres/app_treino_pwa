@@ -46,11 +46,28 @@ export default function WorkoutScreen() {
   const [workoutTitle, setWorkoutTitle] = useState('');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loads, setLoads] = useState<Record<number, { normal: string; progression: string }>>({});
-  const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
+  const [completedIds, setCompletedIds] = useState<Set<number>>(() => {
+    // Restore checked exercises from sessionStorage so they survive
+    // PWA backgrounding (iOS/Android suspending the tab to free memory).
+    try {
+      const key = `completedIds:${workoutId}`;
+      const raw = sessionStorage.getItem(key);
+      if (raw) return new Set<number>(JSON.parse(raw));
+    } catch {}
+    return new Set<number>();
+  });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isCancelAction, setIsCancelAction] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+
+  // Keep sessionStorage in sync whenever completedIds changes.
+  useEffect(() => {
+    try {
+      const key = `completedIds:${workoutId}`;
+      sessionStorage.setItem(key, JSON.stringify([...completedIds]));
+    } catch {}
+  }, [completedIds, workoutId]);
 
   const isSessionForThisWorkout =
     activeSession && activeSession.workoutId === workoutId && activeSession.isRunning;
@@ -119,6 +136,9 @@ export default function WorkoutScreen() {
       await markAttendance(currentUser.id, result.endedAt);
       invalidateWorkoutsByUserCache(currentUser.id);
     }
+
+    // Clear persisted checkboxes — workout is done
+    try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch {}
 
     setActiveSession(null);
     navigation.goBack();
