@@ -33,14 +33,18 @@ function formatRelativeDate(dateStr: string): string {
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const diffWeeks = Math.floor(diffDays / 7);
-  const diffMonths = Math.floor(diffDays / 30);
+
+  // Use real calendar months, not days/30, to avoid gaps like "0 months"
+  const diffMonths =
+    (now.getFullYear() - date.getFullYear()) * 12 +
+    (now.getMonth() - date.getMonth());
 
   if (diffMinutes < 60) return 'feito hoje';
   if (diffHours < 24) return 'feito hoje';
   if (diffDays === 1) return 'feito há 1 dia';
   if (diffDays < 7) return `feito há ${diffDays} dias`;
   if (diffWeeks === 1) return 'feito há 1 semana';
-  if (diffWeeks < 4) return `feito há ${diffWeeks} semanas`;
+  if (diffMonths < 1) return `feito há ${diffWeeks} semanas`;
   if (diffMonths === 1) return 'feito há 1 mês';
   return `feito há ${diffMonths} meses`;
 }
