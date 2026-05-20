@@ -42,8 +42,14 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
       const cacheKey = `${userId}-${year}-${month}`;
 
       if (!force && cacheRef.current[cacheKey]) {
-        setWeeks(cacheRef.current[cacheKey]);
+        const cachedWeeks = cacheRef.current[cacheKey];
+        setWeeks(cachedWeeks);
         setIsLoading(false);
+        // Derive count and totalDays from the cached grid — no network call needed
+        const allDays = cachedWeeks.flat();
+        const checkInCount = allDays.filter(d => d.hasCheckIn).length;
+        const totalDays = allDays.filter(d => !d.isEmpty).length;
+        onLoad?.(checkInCount, totalDays);
         return;
       }
 
