@@ -3,7 +3,7 @@ import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import type { Exercise, ExerciseLoad, Workout, WorkoutExercise, WorkoutWithLastDone } from './types';
 
-const WORKOUTS_CACHE_TTL_MS = 20_000;
+const WORKOUTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — changes only when admin edits
 const workoutsByUserCache = new Map<number, { expiresAt: number; data: WorkoutWithLastDone[] }>();
 
 export async function getWorkoutTitle(workoutId: number): Promise<string> {

@@ -28,7 +28,7 @@ export type RootStackParamList = {
   Signup: undefined;
   ForgotPassword: undefined;
   Home: undefined;
-  Workout: { workoutId: number };
+  Workout: { workoutId: number; workoutTitle?: string };
   Admin: undefined;
 };
 

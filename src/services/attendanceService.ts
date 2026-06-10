@@ -2,7 +2,7 @@ import { getDb } from '../db';
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 
-const ATTENDANCE_CACHE_TTL_MS = 20_000;
+const ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — attendance changes at most once per workout
 const attendanceCache = new Map<string, { expiresAt: number; data: { dates: Set<string>; totalDays: number } }>();
 
 function formatLocalDate(date: Date): string {

@@ -1,0 +1,97 @@
+import React, { memo } from 'react';
+import { View, Text, TextInput, Pressable } from 'react-native';
+import { styles } from '../screens/WorkoutScreen.styles';
+import { CircularCheckbox } from './CircularCheckbox';
+import { ExerciseLibraryCard } from './ExerciseLibraryCard';
+import type { Exercise } from '../services/types';
+
+type Props = {
+  exerciseRowId: number;
+  exercise: Exercise;
+  isSessionActive: boolean;
+  isCompleted: boolean;
+  loadNormal: string;
+  loadProgression: string;
+  onToggle: () => void;
+  onChangeNormal: (text: string) => void;
+  onChangeProgression: (text: string) => void;
+  onFocus: () => void;
+};
+
+function restLabel(restSecs: number): string {
+  const restMin = Math.floor(restSecs / 60);
+  const restRemSec = restSecs % 60;
+  if (restMin > 0 && restRemSec > 0) return `${restMin}min ${restRemSec}s`;
+  if (restMin > 0) return `${restMin}min`;
+  return `${restRemSec}s`;
+}
+
+export const ExerciseRow = memo(function ExerciseRow({
+  exerciseRowId,
+  exercise,
+  isSessionActive,
+  isCompleted,
+  loadNormal,
+  loadProgression,
+  onToggle,
+  onChangeNormal,
+  onChangeProgression,
+  onFocus,
+}: Props) {
+  const scheme = exercise.scheme;
+  const [mainScheme, progression] = scheme.split(' e ');
+
+  return (
+    <Pressable
+      style={[
+        styles.exerciseRow,
+        isCompleted && styles.exerciseRowActive,
+      ]}
+    >
+      {isSessionActive ? (
+        <CircularCheckbox checked={isCompleted} onToggle={onToggle} />
+      ) : (
+        <View style={styles.checkboxPlaceholder} />
+      )}
+
+      <Pressable
+        style={styles.exerciseInfo}
+        onPress={isSessionActive ? onToggle : undefined}
+      >
+        <Text style={styles.exerciseName}>{exercise.name}</Text>
+        <Text style={styles.scheme}>
+          {mainScheme}
+          {progression ? ` · ${progression}` : ''}
+        </Text>
+        <Text style={styles.rest}>Intervalo {restLabel(exercise.rest_seconds)}</Text>
+        {exercise.tip ? (
+          <Text style={styles.tip}>{exercise.tip}</Text>
+        ) : null}
+        {exercise.library ? (
+          <ExerciseLibraryCard library={exercise.library} />
+        ) : null}
+      </Pressable>
+
+      <View style={styles.loadColumn}>
+        <Text style={styles.loadLabel}>Carga (kg)</Text>
+        <TextInput
+          style={styles.loadInput}
+          keyboardType="decimal-pad"
+          value={loadNormal}
+          onChangeText={onChangeNormal}
+          onFocus={onFocus}
+          placeholder="00"
+        />
+        <Text style={styles.loadLabelProgression}>Progressão</Text>
+        <TextInput
+          style={styles.loadInput}
+          keyboardType="decimal-pad"
+          value={loadProgression}
+          onChangeText={onChangeProgression}
+          onFocus={onFocus}
+          placeholder="00"
+        />
+      </View>
+    </Pressable>
+  );
+});

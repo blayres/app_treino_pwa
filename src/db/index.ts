@@ -9,64 +9,75 @@ export type DB = {
   getFirstAsync: <T>(sql: string, ...params: any[]) => Promise<T | null>
 }
 
-let dbPromise: Promise<DB>
+// Lazy — only initialized on first call to getDb().
+// In Supabase mode, getDb() is never called, so sql-wasm.wasm (323 KiB)
+// is never downloaded, saving a full network round-trip on every page load.
+let dbPromise: Promise<DB> | null = null
 
-if (Platform.OS === 'web') {
-  dbPromise = (async () => {
+function createDbPromise(): Promise<DB> {
+  if (Platform.OS !== 'web') {
+    return (async () => {
+      const native = await SQLite.openDatabaseAsync('training_app.db')
+      return {
+        execAsync: native.execAsync.bind(native),
+        runAsync: native.runAsync.bind(native),
+        getAllAsync: native.getAllAsync.bind(native),
+        getFirstAsync: native.getFirstAsync.bind(native),
+      }
+    })()
+  }
 
+  // Web — load sql.js + IndexedDB persistence
+  return (async () => {
     const SQL = await initSqlJs({
       locateFile: () => '/sql-wasm.wasm',
-    });
+    })
 
-    const DB_NAME = 'training_app_sqlite';
-    const STORE = 'sqlite';
+    const DB_NAME = 'training_app_sqlite'
+    const STORE = 'sqlite'
 
     async function loadDbFile(): Promise<Uint8Array | null> {
       return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, 1);
-        req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+        const req = indexedDB.open(DB_NAME, 1)
+        req.onupgradeneeded = () => req.result.createObjectStore(STORE)
         req.onsuccess = () => {
-          const db = req.result;
-          const tx = db.transaction(STORE, 'readonly');
-          const store = tx.objectStore(STORE);
-          const getReq = store.get('db');
-          getReq.onsuccess = () => resolve(getReq.result ?? null);
-          getReq.onerror = () => reject(getReq.error);
-        };
-        req.onerror = () => reject(req.error);
-      });
+          const db = req.result
+          const tx = db.transaction(STORE, 'readonly')
+          const store = tx.objectStore(STORE)
+          const getReq = store.get('db')
+          getReq.onsuccess = () => resolve(getReq.result ?? null)
+          getReq.onerror = () => reject(getReq.error)
+        }
+        req.onerror = () => reject(req.error)
+      })
     }
 
     async function saveDbFile(data: Uint8Array) {
       return new Promise<void>((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, 1);
+        const req = indexedDB.open(DB_NAME, 1)
         req.onsuccess = () => {
-          const db = req.result;
-          const tx = db.transaction(STORE, 'readwrite');
-          const store = tx.objectStore(STORE);
-          store.put(data, 'db');
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        };
-        req.onerror = () => reject(req.error);
-      });
+          const db = req.result
+          const tx = db.transaction(STORE, 'readwrite')
+          const store = tx.objectStore(STORE)
+          store.put(data, 'db')
+          tx.oncomplete = () => resolve()
+          tx.onerror = () => reject(tx.error)
+        }
+        req.onerror = () => reject(req.error)
+      })
     }
 
-    const saved = await loadDbFile();
-    const db = saved ? new SQL.Database(saved) : new SQL.Database();
-
-    // ---------- PROFESSIONAL DEBOUNCED SAVE ----------
+    const saved = await loadDbFile()
+    const db = saved ? new SQL.Database(saved) : new SQL.Database()
 
     let saveTimer: any = null
     let saving = false
 
     function scheduleSave() {
       if (saveTimer) return
-
       saveTimer = setTimeout(async () => {
         if (saving) return
         saving = true
-
         try {
           const data = db.export()
           await saveDbFile(data)
@@ -77,97 +88,60 @@ if (Platform.OS === 'web') {
       }, 500)
     }
 
-    // -------------------------------------------------
-
     const api: DB = {
-
       execAsync: async (sql: string) => {
-        console.log('[DB][execAsync]', sql);
         db.exec(sql)
         scheduleSave()
       },
 
       runAsync: async (sql: string, ...params: any[]) => {
-        console.log('[DB][runAsync]', sql, params);
         const stmt = db.prepare(sql)
         stmt.bind(params)
         stmt.step()
         stmt.free()
 
         const result = db.exec('SELECT last_insert_rowid() as id')
-
         let id: number | undefined = undefined
-
         if (result.length > 0) {
           const value = result[0].values?.[0]?.[0]
-          if (typeof value === 'number') {
-            id = value
-          }
+          if (typeof value === 'number') id = value
         }
 
         scheduleSave()
-
         return { lastInsertRowId: id }
       },
 
       getAllAsync: async <T>(sql: string, ...params: any[]) => {
-        console.log('[DB][getAllAsync]', sql, params);
         const stmt = db.prepare(sql)
         stmt.bind(params)
-
         const rows: T[] = []
-
         while (stmt.step()) {
           rows.push(stmt.getAsObject() as T)
         }
-        console.log('[DB][getAllAsync][rows]', rows.length);
-
         stmt.free()
-
         return rows
       },
 
       getFirstAsync: async <T>(sql: string, ...params: any[]) => {
-        console.log('[DB][getFirstAsync]', sql, params);
         const stmt = db.prepare(sql)
         stmt.bind(params)
-
         let row: T | null = null
-
         if (stmt.step()) {
           row = stmt.getAsObject() as T
         }
-
-        console.log('[DB][getFirstAsync][result]', row);
-
         stmt.free()
-
         return row
       },
     }
 
     return api
-
-  })()
-} else {
-
-  dbPromise = (async () => {
-
-    const native = await SQLite.openDatabaseAsync('training_app.db')
-
-    const api: DB = {
-      execAsync: native.execAsync.bind(native),
-      runAsync: native.runAsync.bind(native),
-      getAllAsync: native.getAllAsync.bind(native),
-      getFirstAsync: native.getFirstAsync.bind(native),
-    }
-
-    return api
-
   })()
 }
 
 export async function getDb(): Promise<DB> {
+  if (!dbPromise) {
+    dbPromise = createDbPromise()
+  }
   return dbPromise
 }
 

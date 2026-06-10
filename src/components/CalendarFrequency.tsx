@@ -151,8 +151,9 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
 
     if (isLoading) {
       return (
-        <View>
-          <Skeleton width="100%" height={280} />
+        // Reserve space matching the rendered calendar height to prevent layout shift (CLS)
+        <View style={{ minHeight: 340 }}>
+          <Skeleton width="100%" height={320} />
         </View>
       );
     }

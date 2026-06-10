@@ -90,7 +90,7 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
               styles.item,
               isRest ? styles.itemRest : (pressed && styles.itemPressed),
             ]}
-            onPress={() => !isRest && navigation.navigate('Workout', { workoutId: item.id })}
+            onPress={() => !isRest && navigation.navigate('Workout', { workoutId: item.id, workoutTitle: item.title })}
             disabled={isRest}
           >
             <View>
