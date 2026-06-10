@@ -39,16 +39,13 @@ export default function App() {
   const scheme = useColorScheme();
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
   const setActiveSession = useAppStore((s) => s.setActiveSession);
-  const currentUser = useAppStore((s) => s.currentUser);
-  const [isReady, setIsReady] = useState(false);
+  // 'loading'         — waiting for the first auth event, show spinner
+  // 'authenticated'   — session confirmed, show Home stack
+  // 'unauthenticated' — no session, show Login stack
+  const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
 
-  // Single auth initializer — uses onAuthStateChange as the source of truth.
-  // It fires immediately with INITIAL_SESSION on mount, so we wait for it
-  // before rendering the navigator (ensures deep links like /admin resolve
-  // with the correct auth state already set).
   useEffect(() => {
     if (backendMode !== 'supabase') {
-      // Local/SQLite mode — init DB then check session the old way
       (async () => {
         try {
           await initDatabase();
@@ -58,19 +55,20 @@ export default function App() {
             await closeStaleSessions(user.id);
             const session = await restoreActiveSessionByUser(user.id);
             if (session) setActiveSession(session);
+            setAuthStatus('authenticated');
+          } else {
+            setAuthStatus('unauthenticated');
           }
         } catch (error: any) {
           console.error('Erro ao iniciar app:', error);
-        } finally {
-          setIsReady(true);
+          setAuthStatus('unauthenticated');
         }
       })();
       return;
     }
 
-    // Safety net: if onAuthStateChange never fires (network issue, cold start
-    // timeout), unblock the UI after 5 seconds so the app doesn't hang forever.
-    const timeout = setTimeout(() => setIsReady(true), 5000);
+    // Safety net — unblock after 5s if onAuthStateChange never fires
+    const timeout = setTimeout(() => setAuthStatus('unauthenticated'), 5000);
 
     let booted = false;
 
@@ -92,27 +90,34 @@ export default function App() {
               const activeSession = await restoreActiveSessionByUser(user.id);
               if (activeSession) setActiveSession(activeSession);
             }
+            // Set status AFTER setCurrentUser so they land in the same render
+            setAuthStatus('authenticated');
+            return;
           }
         }
 
         if (event === 'SIGNED_OUT') {
           setCurrentUser(null);
           setActiveSession(null);
+          setAuthStatus('unauthenticated');
+        }
+
+        // INITIAL_SESSION with no user means logged out
+        if (event === 'INITIAL_SESSION' && !session?.user) {
+          setAuthStatus('unauthenticated');
         }
       } catch (err) {
         console.error('Erro ao processar sessão:', err);
+        if (!booted) setAuthStatus('unauthenticated');
       } finally {
         if (!booted) {
           booted = true;
           clearTimeout(timeout);
-          setIsReady(true);
         }
       }
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Kick off async work but don't block — onAuthStateChange doesn't await callbacks.
-      // isReady is set inside handleAuthEvent's finally block after the async work completes.
       handleAuthEvent(event, session?.user ? session : null);
     });
 
@@ -122,7 +127,7 @@ export default function App() {
     };
   }, [setCurrentUser, setActiveSession]);
 
-  if (!isReady) {
+  if (authStatus === 'loading') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: scheme === 'dark' ? colors.backgroundDark : colors.backgroundLight }}>
         <ActivityIndicator size="large" color={colors.accent} />
@@ -172,7 +177,7 @@ export default function App() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {currentUser ? (
+        {authStatus === 'authenticated' ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Workout" component={WorkoutScreen} />
