@@ -8,6 +8,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:web": "npx expo export --platform web && node scripts/inject-meta.js",
+    "import:exercises": "ts-node --project tsconfig.json scripts/importExerciseDb.ts",
+    "link:exercises": "ts-node --skip-project scripts/linkExercises.ts",
     "prepare": "husky"
   },
   "dependencies": {

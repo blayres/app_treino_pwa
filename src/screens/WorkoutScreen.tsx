@@ -27,7 +27,7 @@ import { markAttendance } from '../services/attendanceService';
 import { startWorkoutSession, stopWorkoutSession } from '../services/sessionService';
 import type { Exercise } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
-import { colors } from '../theme/colors';
+import { ExerciseLibraryCard } from '../components/ExerciseLibraryCard';
 
 const STALE_THRESHOLD_SECONDS = 2 * 60 * 60; // 2 hours
 
@@ -414,8 +414,11 @@ export default function WorkoutScreen() {
                     <Text style={styles.rest}>
                       Intervalo {restLabel}
                     </Text>
-                    {item.exercise.hint ? (
-                      <Text style={styles.hint}>{item.exercise.hint}</Text>
+                    {item.exercise.tip ? (
+                      <Text style={styles.tip}>{item.exercise.tip}</Text>
+                    ) : null}
+                    {item.exercise.library ? (
+                      <ExerciseLibraryCard library={item.exercise.library} />
                     ) : null}
                   </Pressable>
 

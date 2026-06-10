@@ -178,7 +178,7 @@ export type ExerciseRow = {
   secondary_muscle: string | null
   rest_seconds: number
   scheme: string
-  hint: string | null
+  tip: string | null
 }
 
 export type WorkoutRow = {
@@ -210,7 +210,7 @@ export async function initDatabase() {
       secondary_muscle TEXT,
       rest_seconds INTEGER NOT NULL,
       scheme TEXT NOT NULL,
-      hint TEXT
+      tip TEXT
     );
     CREATE TABLE IF NOT EXISTS workouts (
       id INTEGER PRIMARY KEY NOT NULL,

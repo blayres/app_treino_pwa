@@ -25,7 +25,7 @@ export async function saveExercise(exercise: Omit<Exercise, 'id'> & { id?: numbe
       secondary_muscle: exercise.secondary_muscle,
       rest_seconds: exercise.rest_seconds,
       scheme: exercise.scheme,
-      hint: exercise.hint ?? null,
+      tip: exercise.tip ?? null,
     };
     const query = exercise.id
       ? supabase.from('exercises').update(payload).eq('id', exercise.id)
@@ -39,28 +39,28 @@ export async function saveExercise(exercise: Omit<Exercise, 'id'> & { id?: numbe
   if (exercise.id) {
     await db.runAsync(
       `UPDATE exercises
-       SET name = ?, primary_muscle = ?, secondary_muscle = ?, rest_seconds = ?, scheme = ?, hint = ?
+       SET name = ?, primary_muscle = ?, secondary_muscle = ?, rest_seconds = ?, scheme = ?, tip = ?
        WHERE id = ?;`,
       exercise.name,
       exercise.primary_muscle,
       exercise.secondary_muscle,
       exercise.rest_seconds,
       exercise.scheme,
-      exercise.hint ?? null,
+      exercise.tip ?? null,
       exercise.id,
     );
     return;
   }
 
   await db.runAsync(
-    `INSERT INTO exercises (name, primary_muscle, secondary_muscle, rest_seconds, scheme, hint)
+    `INSERT INTO exercises (name, primary_muscle, secondary_muscle, rest_seconds, scheme, tip)
      VALUES (?, ?, ?, ?, ?, ?);`,
     exercise.name,
     exercise.primary_muscle,
     exercise.secondary_muscle,
     exercise.rest_seconds,
     exercise.scheme,
-    exercise.hint ?? null,
+    exercise.tip ?? null,
   );
 }
 

@@ -36,7 +36,7 @@ export default function AdminScreen() {
     secondary: '',
     rest: '90',
     scheme: '3x10-12',
-    hint: '',
+    tip: '',
   });
   const [workoutForm, setWorkoutForm] = useState({
     id: '',
@@ -105,10 +105,10 @@ export default function AdminScreen() {
         secondary_muscle: exerciseForm.secondary.trim() || null,
         rest_seconds: Number(exerciseForm.rest),
         scheme: exerciseForm.scheme.trim(),
-        hint: exerciseForm.hint.trim() || null,
+        tip: exerciseForm.tip.trim() || null,
       });
       Alert.alert('Sucesso', 'Exercício salvo.');
-      setExerciseForm({ id: '', name: '', primary: '', secondary: '', rest: '90', scheme: '3x10-12', hint: '' });
+      setExerciseForm({ id: '', name: '', primary: '', secondary: '', rest: '90', scheme: '3x10-12', tip: '' });
       setExercises(await listExercises());
     } catch (error: any) {
       Alert.alert('Erro', error?.message ?? 'Não foi possível salvar exercício.');
@@ -229,7 +229,7 @@ export default function AdminScreen() {
           <TextInput style={styles.input} placeholder="Músculo secundário" value={exerciseForm.secondary} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, secondary: value }))} />
           <TextInput style={styles.input} placeholder="Descanso (segundos)" keyboardType="number-pad" value={exerciseForm.rest} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, rest: value }))} />
           <TextInput style={styles.input} placeholder="Série (ex: 4x8-10)" value={exerciseForm.scheme} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, scheme: value }))} />
-          <TextInput style={styles.input} placeholder="Comentário (ex: joelhos alinhados com os pés)" value={exerciseForm.hint} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, hint: value }))} multiline />
+          <TextInput style={styles.input} placeholder="Comentário (ex: joelhos alinhados com os pés)" value={exerciseForm.tip} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, tip: value }))} multiline />
           <Pressable style={styles.button} onPress={handleSaveExercise}>
             <Text style={styles.buttonLabel}>Salvar exercício</Text>
           </Pressable>

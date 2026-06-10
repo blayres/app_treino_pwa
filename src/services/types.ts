@@ -3,6 +3,11 @@ export type User = {
   name: string;
 };
 
+export type ExerciseLibrary = {
+  id: string;
+  gif_url: string | null;
+};
+
 export type Exercise = {
   id: number;
   name: string;
@@ -10,7 +15,9 @@ export type Exercise = {
   secondary_muscle: string | null;
   rest_seconds: number;
   scheme: string;
-  hint: string | null;
+  tip: string | null;
+  exercise_library_id: string | null;
+  library?: ExerciseLibrary | null;
 };
 
 export type Workout = {

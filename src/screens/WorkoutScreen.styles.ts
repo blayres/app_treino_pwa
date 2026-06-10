@@ -93,7 +93,7 @@ export const styles = StyleSheet.create({
     ...typography.caption,
     marginTop: 2,
   },
-  hint: {
+  tip: {
     ...typography.caption,
     marginTop: 4,
     color: colors.olive,

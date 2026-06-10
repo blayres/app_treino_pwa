@@ -107,6 +107,7 @@ export function invalidateWorkoutsByUserCache(userId?: number) {
 export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExercise[]> {
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
+
     const { data, error } = await supabase
       .from('workout_exercises')
       .select(
@@ -121,22 +122,88 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
           primary_muscle,
           secondary_muscle,
           rest_seconds,
-          scheme
+          scheme,
+          tip,
+          exercise_library_id,
+          exercise_library:exercise_library_id (
+            id,
+            gif_url
+          )
         )
       `,
       )
       .eq('workout_id', workoutId)
       .order('order_index', { ascending: true });
 
-    if (error) throw error;
+    // Fallback if tip/exercise_library_id columns don't exist yet in Supabase
+    if (error) {
+      console.warn('[getWorkoutExercises] full query failed, using base fallback:', error.message);
 
-    return (data ?? []).map((row: any) => ({
-      id: Number(row.id),
-      workout_id: Number(row.workout_id),
-      exercise_id: Number(row.exercise_id),
-      order_index: Number(row.order_index),
-      exercise: row.exercises as Exercise,
-    }));
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('workout_exercises')
+        .select(
+          `
+          id,
+          workout_id,
+          exercise_id,
+          order_index,
+          exercises (
+            id,
+            name,
+            primary_muscle,
+            secondary_muscle,
+            rest_seconds,
+            scheme
+          )
+        `,
+        )
+        .eq('workout_id', workoutId)
+        .order('order_index', { ascending: true });
+
+      if (fallbackError) throw fallbackError;
+
+      return (fallbackData ?? []).map((row: any) => {
+        const ex = row.exercises;
+        return {
+          id: Number(row.id),
+          workout_id: Number(row.workout_id),
+          exercise_id: Number(row.exercise_id),
+          order_index: Number(row.order_index),
+          exercise: {
+            id: Number(ex.id),
+            name: String(ex.name),
+            primary_muscle: ex.primary_muscle ?? null,
+            secondary_muscle: ex.secondary_muscle ?? null,
+            rest_seconds: Number(ex.rest_seconds),
+            scheme: String(ex.scheme),
+            tip: null,
+            exercise_library_id: null,
+            library: null,
+          },
+        };
+      });
+    }
+
+    return (data ?? []).map((row: any) => {
+      const ex = row.exercises;
+      return {
+        id: Number(row.id),
+        workout_id: Number(row.workout_id),
+        exercise_id: Number(row.exercise_id),
+        order_index: Number(row.order_index),
+        exercise: {
+          id: Number(ex.id),
+          name: String(ex.name),
+          primary_muscle: ex.primary_muscle ?? null,
+          secondary_muscle: ex.secondary_muscle ?? null,
+          rest_seconds: Number(ex.rest_seconds),
+          scheme: String(ex.scheme),
+          tip: ex.tip ?? null,
+          exercise_library_id: ex.exercise_library_id ?? null,
+          library: ex.exercise_library ?? null,
+        },
+      };
+    });
   }
 
   const db = await getDb();
@@ -161,7 +228,9 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
       secondary_muscle: row.secondary_muscle,
       rest_seconds: row.rest_seconds,
       scheme: row.scheme,
-      hint: row.hint ?? null,
+      tip: row.tip ?? null,
+      exercise_library_id: null,
+      library: null,
     },
   }));
 }

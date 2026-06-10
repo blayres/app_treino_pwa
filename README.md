@@ -104,10 +104,24 @@ The seed is skipped if the user already has workouts — existing programs are n
 
 ```sql
 -- Add hint column to exercises
-ALTER TABLE exercises ADD COLUMN IF NOT EXISTS hint TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tip TEXT;
 
 -- See src/services/defaultWorkoutService.ts for the full seed SQL
 ```
+
+---
+
+## Exercise Library Import
+
+Imports ~800 exercises from [yuhonas/free-exercise-db](https://github.com/yuhonas/free-exercise-db) — public domain, no API key required.
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key> \
+npx ts-node scripts/importExerciseDb.ts
+```
+
+The script fetches the dataset, upserts into `exercise_library`, then auto-links `exercises.exercise_library_id` by normalized name matching + PT-BR alias map. Unmatched exercises are printed clearly so you can add aliases or link manually.
 
 ---
 
