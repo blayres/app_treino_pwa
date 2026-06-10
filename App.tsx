@@ -6,7 +6,7 @@ import {
   DarkTheme,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import { useColorScheme, View, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -16,8 +16,7 @@ import AdminScreen from './src/screens/AdminScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 
-import { colors } from './src/theme/colors';
-import { initDatabase } from './src/db';
+import { colors } from './src/theme/colors';import { initDatabase } from './src/db';
 import { useAppStore } from './src/store/useAppStore';
 import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
 import { getSessionUser, getOrCreateProfile } from './src/services/authService';
@@ -129,8 +128,12 @@ export default function App() {
 
   if (authStatus === 'loading') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: scheme === 'dark' ? colors.backgroundDark : colors.backgroundLight }}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
+        <Image
+          source={require('./assets/favicon.png')}
+          style={{ width: 96, height: 96 }}
+          resizeMode="contain"
+        />
       </View>
     );
   }
