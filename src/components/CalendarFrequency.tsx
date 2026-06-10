@@ -152,19 +152,7 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
     if (isLoading) {
       return (
         <View>
-          {[...Array(1)].map((_, i) => (
-            <View
-              key={i}
-              style={{
-                paddingVertical: 5,
-                paddingHorizontal: 0,
-                borderRadius: 15,
-                marginBottom: 0,
-              }}
-            >
-              <Skeleton width={350} height={280} />
-            </View>
-          ))}
+          <Skeleton width="100%" height={280} />
         </View>
       );
     }

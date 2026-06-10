@@ -70,16 +70,8 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
     return (
       <View>
         {[...Array(5)].map((_, i) => (
-          <View
-            key={i}
-            style={{
-              paddingVertical: 5,
-              paddingHorizontal: 0,
-              borderRadius: 15,
-              marginBottom: 0,
-            }}
-          >
-            <Skeleton width={350} height={60} />
+          <View key={i} style={{ marginBottom: 8 }}>
+            <Skeleton width="100%" height={60} />
           </View>
         ))}
       </View>

@@ -324,7 +324,7 @@ export default function WorkoutScreen() {
         </View>
 
         {isLoading ? (
-          <View style={{ paddingHorizontal: 24 }}>
+          <View style={{ paddingHorizontal: 12 }}>
             {[...Array(5)].map((_, i) => (
               <View
                 key={i}
