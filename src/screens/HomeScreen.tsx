@@ -30,13 +30,8 @@ export default function HomeScreen() {
     }, []),
   );
 
-if (!currentUser) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Text>Carregando usuário...</Text>
-    </SafeAreaView>
-  );
-}
+  // currentUser is guaranteed by authStatus === 'authenticated' in App.tsx
+  if (!currentUser) return null;
 
   const handleLogout = () => {
     (async () => {

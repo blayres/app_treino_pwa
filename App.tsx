@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -9,12 +9,15 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useColorScheme, View, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
+// Critical screens — loaded eagerly (on the initial render path)
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
-import WorkoutScreen from './src/screens/WorkoutScreen';
-import AdminScreen from './src/screens/AdminScreen';
-import SignupScreen from './src/screens/SignupScreen';
-import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+
+// Non-critical screens — lazy loaded after first paint
+const WorkoutScreen = lazy(() => import('./src/screens/WorkoutScreen'));
+const AdminScreen = lazy(() => import('./src/screens/AdminScreen'));
+const SignupScreen = lazy(() => import('./src/screens/SignupScreen'));
+const ForgotPasswordScreen = lazy(() => import('./src/screens/ForgotPasswordScreen'));
 
 import { colors } from './src/theme/colors';import { initDatabase } from './src/db';
 import { useAppStore } from './src/store/useAppStore';
@@ -84,13 +87,18 @@ export default function App() {
           );
           if (user) {
             setCurrentUser(user);
-            if (!booted) {
-              await closeStaleSessions(user.id);
-              const activeSession = await restoreActiveSessionByUser(user.id);
-              if (activeSession) setActiveSession(activeSession);
-            }
-            // Set status AFTER setCurrentUser so they land in the same render
+            // Render home immediately — don't block on session cleanup
             setAuthStatus('authenticated');
+
+            if (!booted) {
+              // Run non-critical boot work after first paint
+              Promise.all([
+                closeStaleSessions(user.id),
+                restoreActiveSessionByUser(user.id),
+              ]).then(([, activeSession]) => {
+                if (activeSession) setActiveSession(activeSession);
+              }).catch(err => console.warn('Boot cleanup error:', err));
+            }
             return;
           }
         }
@@ -179,21 +187,23 @@ export default function App() {
     >
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {authStatus === 'authenticated' ? (
-          <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Workout" component={WorkoutScreen} />
-            <Stack.Screen name="Admin" component={AdminScreen} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          </>
-        )}
-      </Stack.Navigator>
+      <Suspense fallback={null}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {authStatus === 'authenticated' ? (
+            <>
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Workout" component={WorkoutScreen} />
+              <Stack.Screen name="Admin" component={AdminScreen} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Signup" component={SignupScreen} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </Suspense>
     </NavigationContainer>
   );
 }

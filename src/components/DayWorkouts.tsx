@@ -56,7 +56,9 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
 
   useEffect(() => {
     (async () => {
-      setIsLoading(true);
+      // Don't set isLoading=true if we already have data — keep previous content
+      // visible during refresh to eliminate the skeleton→content layout shift (CLS)
+      if (workouts.length === 0) setIsLoading(true);
       try {
         const workoutsWithLastDone = await getWorkoutsByUser(userId);
         setWorkouts(workoutsWithLastDone);

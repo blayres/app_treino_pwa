@@ -106,6 +106,7 @@ export default function AdminScreen() {
         rest_seconds: Number(exerciseForm.rest),
         scheme: exerciseForm.scheme.trim(),
         tip: exerciseForm.tip.trim() || null,
+        exercise_library_id: null,
       });
       Alert.alert('Sucesso', 'Exercício salvo.');
       setExerciseForm({ id: '', name: '', primary: '', secondary: '', rest: '90', scheme: '3x10-12', tip: '' });

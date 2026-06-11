@@ -45,7 +45,6 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
         const cachedWeeks = cacheRef.current[cacheKey];
         setWeeks(cachedWeeks);
         setIsLoading(false);
-        // Derive count and totalDays from the cached grid — no network call needed
         const allDays = cachedWeeks.flat();
         const checkInCount = allDays.filter(d => d.hasCheckIn).length;
         const totalDays = allDays.filter(d => !d.isEmpty).length;
@@ -53,7 +52,8 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
         return;
       }
 
-      setIsLoading(true);
+      // Only show skeleton on first load — keep existing content visible on refresh
+      if (weeks.length === 0) setIsLoading(true);
 
       try {
         const firstDay = new Date(year, month, 1);
@@ -151,9 +151,17 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
 
     if (isLoading) {
       return (
-        // Reserve space matching the rendered calendar height to prevent layout shift (CLS)
-        <View style={{ minHeight: 340 }}>
-          <Skeleton width="100%" height={320} />
+        // Render month nav + skeleton grid at fixed height to prevent CLS.
+        // The structure matches the real calendar so no layout shift occurs.
+        <View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <View style={{ width: 18, height: 18 }} />
+            <Skeleton width={80} height={14} />
+            <View style={{ width: 18, height: 18 }} />
+          </View>
+          <View style={{ height: 320 }}>
+            <Skeleton width="100%" height={320} />
+          </View>
         </View>
       );
     }
