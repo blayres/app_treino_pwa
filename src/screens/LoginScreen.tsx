@@ -40,10 +40,6 @@ export default function LoginScreen() {
     }
     try {
       await loginWithEmail(email.trim(), password);
-      const user = await getSessionUser();
-      if (user) {
-        setCurrentUser(user);
-      }
     } catch (error: any) {
       Alert.alert('Erro de login', error?.message ?? 'Não foi possível entrar.');
     }
