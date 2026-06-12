@@ -48,6 +48,12 @@ export default function App() {
   const lastAuthUserIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.getElementById('initial-splash')?.remove();
+    }
+  }, []);
+
+  useEffect(() => {
     if (backendMode !== 'supabase') {
       (async () => {
         try {

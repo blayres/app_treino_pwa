@@ -39,10 +39,34 @@ const baseStyles = `
         min-height: 100%;
         background: #F8F8F2;
       }
+
+      #initial-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F8F8F2;
+        z-index: 9999;
+      }
+
+      #initial-splash img {
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+        display: block;
+      }
     </style>
 `;
 
+const initialSplash = `
+  <div id="initial-splash">
+    <img src="/favicon.png" width="96" height="96" alt="">
+  </div>
+`;
+
 html = html.replace('<title>App Treino</title>', `${metaTags}\n${baseStyles}\n    <title>App Treino</title>`);
+html = html.replace('<body>', `<body>${initialSplash}`);
 
 fs.writeFileSync(distHtml, html);
 console.log('Meta tags injetadas com sucesso');
