@@ -4,9 +4,13 @@ import { styles } from './DayWorkouts.styles';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
-import { getWorkoutsByUser } from '../services/workoutService';
 import type { WorkoutWithLastDone } from '../services/types';
 import { Skeleton } from './Skeleton';
+import {
+  getWorkoutsByUser,
+  getWorkoutExercises,
+  getExerciseLoadsByUser,
+} from '../services/workoutService';
 
 type Props = {
   userId: number;
@@ -80,6 +84,25 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
     );
   }
 
+  const handleOpenWorkout = async (
+    workoutId: number,
+    workoutTitle: string,
+  ) => {
+    try {
+      await Promise.all([
+        getWorkoutExercises(workoutId),
+        getExerciseLoadsByUser(userId),
+      ]);
+    } catch {
+      // ignora erros, a tela busca novamente se necessário
+    }
+
+    navigation.navigate('Workout', {
+      workoutId,
+      workoutTitle,
+    });
+  };
+
   return (
     <View>
       {workouts.map(item => {
@@ -92,7 +115,13 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
               styles.item,
               isRest ? styles.itemRest : (pressed && styles.itemPressed),
             ]}
-            onPress={() => !isRest && navigation.navigate('Workout', { workoutId: item.id, workoutTitle: item.title })}
+            onPress={() =>
+              !isRest &&
+              handleOpenWorkout(
+                item.id,
+                item.title,
+              )
+            }
             disabled={isRest}
           >
             <View>
