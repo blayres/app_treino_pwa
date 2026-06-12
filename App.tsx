@@ -148,7 +148,7 @@ export default function App() {
           }}
         >
           <img
-            src="/favicon.svg"
+            src="/favicon.png"
             width="96"
             height="96"
             alt=""
