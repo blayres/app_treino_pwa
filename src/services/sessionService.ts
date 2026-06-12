@@ -1,7 +1,11 @@
-import { getDb } from '../db';
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import type { ActiveSession } from './types';
+
+async function getLocalDb() {
+  const { getDb } = await import('../db');
+  return getDb();
+}
 
 export async function restoreActiveSessionByUser(userId: number): Promise<ActiveSession | null> {
   if (backendMode === 'supabase') {
@@ -24,7 +28,7 @@ export async function restoreActiveSessionByUser(userId: number): Promise<Active
     };
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   const session = await db.getFirstAsync<{
     id: number;
     workout_id: number;
@@ -65,7 +69,7 @@ export async function closeStaleSessions(userId?: number) {
     return;
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   await db.runAsync(`
     UPDATE workout_sessions
     SET ended_at = started_at, duration_seconds = 0, completed = 0
@@ -98,7 +102,7 @@ export async function startWorkoutSession(userId: number, workoutId: number): Pr
     };
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   const result = await db.runAsync(
     `INSERT INTO workout_sessions (user_id, workout_id, started_at, completed)
      VALUES (?, ?, ?, 0);`,
@@ -152,7 +156,7 @@ export async function stopWorkoutSession(params: {
     return { completed, endedAt };
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   await db.runAsync(
     `UPDATE workout_sessions
       SET ended_at = ?, duration_seconds = ?, completed = ?

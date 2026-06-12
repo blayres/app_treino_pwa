@@ -1,6 +1,10 @@
-import { getDb } from '../db';
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
+
+async function getLocalDb() {
+  const { getDb } = await import('../db');
+  return getDb();
+}
 
 const ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — attendance changes at most once per workout
 const attendanceCache = new Map<string, { expiresAt: number; data: { dates: Set<string>; totalDays: number } }>();
@@ -55,7 +59,7 @@ export async function getAttendanceDatesByMonth(params: {
     return response;
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   const rows = await db.getAllAsync<{ date: string }>(
     `SELECT date FROM attendance WHERE user_id = ? AND date BETWEEN ? AND ?;`,
     params.userId,
@@ -87,7 +91,7 @@ export async function markAttendance(userId: number, date: Date) {
     );
     if (error) throw error;
   } else {
-    const db = await getDb();
+    const db = await getLocalDb();
     await db.runAsync(
       `INSERT OR IGNORE INTO attendance (user_id, date) VALUES (?, ?);`,
       userId,

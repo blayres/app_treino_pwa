@@ -9,8 +9,6 @@ import { DayWorkouts } from '../components/DayWorkouts';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
-import { downloadIndexedDbBackup } from '../services/backupService';
-import { backendMode } from '../services/backendMode';
 import { logout } from '../services/authService';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -52,18 +50,6 @@ export default function HomeScreen() {
       index: 0,
       routes: [{ name: 'Login' }],
     });
-  };
-
-  const handleOpenAdmin = () => {
-    navigation.navigate('Admin');
-  };
-
-  const handleExportBackup = async () => {
-    try {
-      await downloadIndexedDbBackup();
-    } catch (error: any) {
-      Alert.alert('Erro ao exportar', error?.message ?? 'Não foi possível exportar o backup.');
-    }
   };
 
   return (

@@ -1,7 +1,11 @@
-import { getDb } from '../db';
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import type { Exercise, ExerciseLoad, Workout, WorkoutExercise, WorkoutWithLastDone } from './types';
+
+async function getLocalDb() {
+  const { getDb } = await import('../db');
+  return getDb();
+}
 
 const WORKOUTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — changes only when admin edits
 const workoutsByUserCache = new Map<number, { expiresAt: number; data: WorkoutWithLastDone[] }>();
@@ -14,7 +18,7 @@ export async function getWorkoutTitle(workoutId: number): Promise<string> {
     return data.title as string;
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   const row = await db.getFirstAsync<{ title: string }>(
     `SELECT title FROM workouts WHERE id = ?;`,
     workoutId,
@@ -64,7 +68,7 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
     return response;
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   const rows = await db.getAllAsync<Workout>(
     `SELECT * FROM workouts
      WHERE user_id = ?
@@ -206,7 +210,7 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
     });
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   const rows = await db.getAllAsync<any>(
     `SELECT we.id as we_id, we.workout_id, we.exercise_id, we.order_index, e.*
      FROM workout_exercises we
@@ -246,7 +250,7 @@ export async function getExerciseLoadsByUser(userId: number): Promise<ExerciseLo
     return (data ?? []) as ExerciseLoad[];
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   return db.getAllAsync<ExerciseLoad>(
     `SELECT exercise_id, load_kg, progression_kg FROM exercise_loads
      WHERE user_id = ?;`,
@@ -278,7 +282,7 @@ export async function upsertExerciseLoad(params: {
     return;
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   await db.runAsync(
     `INSERT INTO exercise_loads (user_id, exercise_id, load_kg, progression_kg, updated_at)
      VALUES (?, ?, ?, ?, ?)
@@ -300,6 +304,6 @@ export async function listExercises(): Promise<Exercise[]> {
     return (data ?? []) as Exercise[];
   }
 
-  const db = await getDb();
+  const db = await getLocalDb();
   return db.getAllAsync<Exercise>(`SELECT * FROM exercises ORDER BY name ASC;`);
 }
