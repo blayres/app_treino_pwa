@@ -96,8 +96,6 @@ export const styles = StyleSheet.create({
   tip: {
     ...typography.caption,
     marginTop: 4,
-    color: colors.olive,
-    fontStyle: 'italic',
   },
   keyboardAvoid: {
     flex: 1,
