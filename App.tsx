@@ -45,6 +45,7 @@ export default function App() {
   // 'authenticated'   — session confirmed, show Home stack
   // 'unauthenticated' — no session, show Login stack
   const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const lastAuthUserIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     if (backendMode !== 'supabase') {
@@ -52,7 +53,7 @@ export default function App() {
         try {
           const { initDatabase } = await import('./src/db');
           await initDatabase();
-          
+
           const user = await getSessionUser();
           if (user) {
             setCurrentUser(user);
@@ -82,6 +83,12 @@ export default function App() {
     ) => {
       try {
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+          if (lastAuthUserIdRef.current === session.user.id) {
+            return;
+          }
+
+          lastAuthUserIdRef.current = session.user.id;
+
           const user = await getOrCreateProfile(
             session.user.id,
             session.user.email,
@@ -106,6 +113,7 @@ export default function App() {
         }
 
         if (event === 'SIGNED_OUT') {
+          lastAuthUserIdRef.current = null;
           setCurrentUser(null);
           setActiveSession(null);
           setAuthStatus('unauthenticated');
