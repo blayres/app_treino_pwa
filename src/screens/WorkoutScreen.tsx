@@ -22,6 +22,8 @@ import {
   getWorkoutExercises,
   getWorkoutTitle,
   upsertExerciseLoad,
+  getCachedWorkoutExercises,
+  getCachedExerciseLoads,
 } from '../services/workoutService';
 import { markAttendance } from '../services/attendanceService';
 import { startWorkoutSession, stopWorkoutSession } from '../services/sessionService';
@@ -46,7 +48,8 @@ export default function WorkoutScreen() {
   const activeSession = useAppStore(state => state.activeSession);
   const setActiveSession = useAppStore(state => state.setActiveSession);
 
-  const [workoutTitle, setWorkoutTitle] = useState('');
+  const routeTitle = route.params?.workoutTitle;
+  const [workoutTitle, setWorkoutTitle] = useState(routeTitle ?? '');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loads, setLoads] = useState<Record<number, { normal: string; progression: string }>>({});
   const [completedIds, setCompletedIds] = useState<Set<number>>(() => {
@@ -56,7 +59,7 @@ export default function WorkoutScreen() {
       const key = `completedIds:${workoutId}`;
       const raw = sessionStorage.getItem(key);
       if (raw) return new Set<number>(JSON.parse(raw));
-    } catch {}
+    } catch { }
     return new Set<number>();
   });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -69,7 +72,7 @@ export default function WorkoutScreen() {
     try {
       const key = `completedIds:${workoutId}`;
       sessionStorage.setItem(key, JSON.stringify([...completedIds]));
-    } catch {}
+    } catch { }
   }, [completedIds, workoutId]);
 
   const isSessionForThisWorkout =
@@ -88,8 +91,46 @@ export default function WorkoutScreen() {
   useEffect(() => {
     if (!currentUser) return;
 
-    (async () => {
+    let cancelled = false;
+
+    const applyLoads = (loadRows: Awaited<ReturnType<typeof getExerciseLoadsByUser>>) => {
+      const map: Record<number, { normal: string; progression: string }> = {};
+
+      loadRows.forEach(row => {
+        map[row.exercise_id] = {
+          normal: row.load_kg != null ? String(row.load_kg) : '',
+          progression: row.progression_kg != null ? String(row.progression_kg) : '',
+        };
+      });
+
+      setLoads(map);
+    };
+
+    const cachedExercises = getCachedWorkoutExercises(workoutId);
+    const cachedLoads = getCachedExerciseLoads(currentUser.id);
+
+    if (cachedExercises) {
+      setExercises(
+        cachedExercises.map(row => ({
+          id: row.id,
+          exercise: row.exercise,
+        })),
+      );
+    }
+
+    if (cachedLoads) {
+      applyLoads(cachedLoads);
+    }
+
+    const hasCachedContent = Boolean(cachedExercises);
+
+    if (!hasCachedContent) {
       setIsLoading(true);
+    } else {
+      setIsLoading(false);
+    }
+
+    (async () => {
       try {
         const [title, workoutExercises, loadRows] = await Promise.all([
           getWorkoutTitle(workoutId),
@@ -97,26 +138,28 @@ export default function WorkoutScreen() {
           getExerciseLoadsByUser(currentUser.id),
         ]);
 
+        if (cancelled) return;
+
         setWorkoutTitle(title);
 
-        const items: WorkoutExercise[] = workoutExercises.map((row) => ({
-          id: row.id,
-          exercise: row.exercise,
-        }));
-        setExercises(items);
+        setExercises(
+          workoutExercises.map(row => ({
+            id: row.id,
+            exercise: row.exercise,
+          })),
+        );
 
-        const map: Record<number, { normal: string; progression: string }> = {};
-        loadRows.forEach(row => {
-          map[row.exercise_id] = {
-            normal: row.load_kg != null ? String(row.load_kg) : '',
-            progression: row.progression_kg != null ? String(row.progression_kg) : '',
-          };
-        });
-        setLoads(map);
+        applyLoads(loadRows);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [workoutId, currentUser]);
 
   const handleStart = async () => {
@@ -141,7 +184,7 @@ export default function WorkoutScreen() {
     }
 
     // Clear persisted checkboxes — workout is done
-    try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch {}
+    try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch { }
 
     setActiveSession(null);
     navigation.goBack();

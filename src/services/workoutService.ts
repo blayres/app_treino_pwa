@@ -10,6 +10,32 @@ async function getLocalDb() {
 const WORKOUTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — changes only when admin edits
 const workoutsByUserCache = new Map<number, { expiresAt: number; data: WorkoutWithLastDone[] }>();
 
+const WORKOUT_EXERCISES_CACHE_TTL_MS = 5 * 60 * 1000;
+const workoutExercisesCache = new Map<number, { expiresAt: number; data: WorkoutExercise[] }>();
+
+const EXERCISE_LOADS_CACHE_TTL_MS = 5 * 60 * 1000;
+const exerciseLoadsCache = new Map<number, { expiresAt: number; data: ExerciseLoad[] }>();
+
+export function getCachedWorkoutExercises(workoutId: number): WorkoutExercise[] | null {
+  const cached = workoutExercisesCache.get(workoutId);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
+  return null;
+}
+
+export function getCachedExerciseLoads(userId: number): ExerciseLoad[] | null {
+  const cached = exerciseLoadsCache.get(userId);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
+  return null;
+}
+
 export async function getWorkoutTitle(workoutId: number): Promise<string> {
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
@@ -23,6 +49,7 @@ export async function getWorkoutTitle(workoutId: number): Promise<string> {
     `SELECT title FROM workouts WHERE id = ?;`,
     workoutId,
   );
+
   return row?.title ?? '';
 }
 
@@ -34,6 +61,7 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
+
     const [{ data: workouts, error: workoutsError }, { data: sessions, error: sessionsError }] =
       await Promise.all([
         supabase.from('workouts').select('*').eq('user_id', userId).order('day_of_week', { ascending: true }),
@@ -52,6 +80,7 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
     (sessions ?? []).forEach((session) => {
       const workoutId = Number(session.workout_id);
       const endedAt = String(session.ended_at);
+
       if (!lastDoneMap[workoutId] || endedAt > lastDoneMap[workoutId]) {
         lastDoneMap[workoutId] = endedAt;
       }
@@ -61,14 +90,17 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
       ...(workout as Workout),
       last_done: lastDoneMap[Number(workout.id)] ?? null,
     }));
+
     workoutsByUserCache.set(userId, {
       expiresAt: Date.now() + WORKOUTS_CACHE_TTL_MS,
       data: response,
     });
+
     return response;
   }
 
   const db = await getLocalDb();
+
   const rows = await db.getAllAsync<Workout>(
     `SELECT * FROM workouts
      WHERE user_id = ?
@@ -93,10 +125,12 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
     ...workout,
     last_done: lastDoneMap[workout.id] ?? null,
   }));
+
   workoutsByUserCache.set(userId, {
     expiresAt: Date.now() + WORKOUTS_CACHE_TTL_MS,
     data: response,
   });
+
   return response;
 }
 
@@ -105,10 +139,34 @@ export function invalidateWorkoutsByUserCache(userId?: number) {
     workoutsByUserCache.delete(userId);
     return;
   }
+
   workoutsByUserCache.clear();
 }
 
+export function invalidateWorkoutExercisesCache(workoutId?: number) {
+  if (typeof workoutId === 'number') {
+    workoutExercisesCache.delete(workoutId);
+    return;
+  }
+
+  workoutExercisesCache.clear();
+}
+
+export function invalidateExerciseLoadsCache(userId?: number) {
+  if (typeof userId === 'number') {
+    exerciseLoadsCache.delete(userId);
+    return;
+  }
+
+  exerciseLoadsCache.clear();
+}
+
 export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExercise[]> {
+  const cached = workoutExercisesCache.get(workoutId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
 
@@ -139,7 +197,6 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
       .eq('workout_id', workoutId)
       .order('order_index', { ascending: true });
 
-    // Fallback if tip/exercise_library_id columns don't exist yet in Supabase
     if (error) {
       console.warn('[getWorkoutExercises] full query failed, using base fallback:', error.message);
 
@@ -166,8 +223,9 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
 
       if (fallbackError) throw fallbackError;
 
-      return (fallbackData ?? []).map((row: any) => {
+      const response = (fallbackData ?? []).map((row: any) => {
         const ex = row.exercises;
+
         return {
           id: Number(row.id),
           workout_id: Number(row.workout_id),
@@ -186,10 +244,18 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
           },
         };
       });
+
+      workoutExercisesCache.set(workoutId, {
+        expiresAt: Date.now() + WORKOUT_EXERCISES_CACHE_TTL_MS,
+        data: response,
+      });
+
+      return response;
     }
 
-    return (data ?? []).map((row: any) => {
+    const response = (data ?? []).map((row: any) => {
       const ex = row.exercises;
+
       return {
         id: Number(row.id),
         workout_id: Number(row.workout_id),
@@ -208,9 +274,17 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
         },
       };
     });
+
+    workoutExercisesCache.set(workoutId, {
+      expiresAt: Date.now() + WORKOUT_EXERCISES_CACHE_TTL_MS,
+      data: response,
+    });
+
+    return response;
   }
 
   const db = await getLocalDb();
+
   const rows = await db.getAllAsync<any>(
     `SELECT we.id as we_id, we.workout_id, we.exercise_id, we.order_index, e.*
      FROM workout_exercises we
@@ -220,7 +294,7 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
     workoutId,
   );
 
-  return rows.map((row) => ({
+  const response = rows.map((row) => ({
     id: row.we_id,
     workout_id: row.workout_id,
     exercise_id: row.exercise_id,
@@ -237,25 +311,55 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
       library: null,
     },
   }));
+
+  workoutExercisesCache.set(workoutId, {
+    expiresAt: Date.now() + WORKOUT_EXERCISES_CACHE_TTL_MS,
+    data: response,
+  });
+
+  return response;
 }
 
 export async function getExerciseLoadsByUser(userId: number): Promise<ExerciseLoad[]> {
+  const cached = exerciseLoadsCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
+
     const { data, error } = await supabase
       .from('exercise_loads')
       .select('exercise_id, load_kg, progression_kg')
       .eq('user_id', userId);
+
     if (error) throw error;
-    return (data ?? []) as ExerciseLoad[];
+
+    const response = (data ?? []) as ExerciseLoad[];
+
+    exerciseLoadsCache.set(userId, {
+      expiresAt: Date.now() + EXERCISE_LOADS_CACHE_TTL_MS,
+      data: response,
+    });
+
+    return response;
   }
 
   const db = await getLocalDb();
-  return db.getAllAsync<ExerciseLoad>(
+
+  const response = await db.getAllAsync<ExerciseLoad>(
     `SELECT exercise_id, load_kg, progression_kg FROM exercise_loads
      WHERE user_id = ?;`,
     userId,
   );
+
+  exerciseLoadsCache.set(userId, {
+    expiresAt: Date.now() + EXERCISE_LOADS_CACHE_TTL_MS,
+    data: response,
+  });
+
+  return response;
 }
 
 export async function upsertExerciseLoad(params: {
@@ -266,8 +370,11 @@ export async function upsertExerciseLoad(params: {
 }) {
   const now = new Date().toISOString();
 
+  exerciseLoadsCache.delete(params.userId);
+
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
+
     const { error } = await supabase.from('exercise_loads').upsert(
       {
         user_id: params.userId,
@@ -278,11 +385,13 @@ export async function upsertExerciseLoad(params: {
       },
       { onConflict: 'user_id,exercise_id' },
     );
+
     if (error) throw error;
     return;
   }
 
   const db = await getLocalDb();
+
   await db.runAsync(
     `INSERT INTO exercise_loads (user_id, exercise_id, load_kg, progression_kg, updated_at)
      VALUES (?, ?, ?, ?, ?)
@@ -299,11 +408,15 @@ export async function upsertExerciseLoad(params: {
 export async function listExercises(): Promise<Exercise[]> {
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
+
     const { data, error } = await supabase.from('exercises').select('*').order('name', { ascending: true });
+
     if (error) throw error;
+
     return (data ?? []) as Exercise[];
   }
 
   const db = await getLocalDb();
+
   return db.getAllAsync<Exercise>(`SELECT * FROM exercises ORDER BY name ASC;`);
 }
