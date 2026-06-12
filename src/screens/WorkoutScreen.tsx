@@ -48,6 +48,7 @@ export default function WorkoutScreen() {
   const activeSession = useAppStore(state => state.activeSession);
   const setActiveSession = useAppStore(state => state.setActiveSession);
 
+  const [focusedLoadInput, setFocusedLoadInput] = useState<string | null>(null);
   const routeTitle = route.params?.workoutTitle;
   const [workoutTitle, setWorkoutTitle] = useState(routeTitle ?? '');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
@@ -474,8 +475,14 @@ export default function WorkoutScreen() {
                       onChangeText={text =>
                         handleChangeLoad(item.exercise.id, text, 'normal')
                       }
-                      onFocus={() => handleInputFocus(index)}
-                      placeholder="00"
+                      onFocus={() => {
+                        setFocusedLoadInput(`${item.exercise.id}-normal`);
+                        handleInputFocus(index);
+                      }}
+                      onBlur={() => setFocusedLoadInput(null)}
+                      placeholder={
+                        focusedLoadInput === `${item.exercise.id}-normal` ? '' : '0'
+                      }
                     />
                     <Text style={styles.loadLabelProgression}>
                       Progressão
@@ -487,8 +494,14 @@ export default function WorkoutScreen() {
                       onChangeText={text =>
                         handleChangeLoad(item.exercise.id, text, 'progression')
                       }
-                      onFocus={() => handleInputFocus(index)}
-                      placeholder="00"
+                      onFocus={() => {
+                        setFocusedLoadInput(`${item.exercise.id}-progression`);
+                        handleInputFocus(index);
+                      }}
+                      onBlur={() => setFocusedLoadInput(null)}
+                      placeholder={
+                        focusedLoadInput === `${item.exercise.id}-progression` ? '' : '0'
+                      }
                     />
                   </View>
                 </Pressable>

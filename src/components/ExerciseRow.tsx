@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
 import { styles } from '../screens/WorkoutScreen.styles';
 import { CircularCheckbox } from './CircularCheckbox';
@@ -41,6 +41,9 @@ export const ExerciseRow = memo(function ExerciseRow({
   const scheme = exercise.scheme;
   const [mainScheme, progression] = scheme.split(' e ');
 
+  const [normalSelection, setNormalSelection] = useState<{ start: number; end: number } | undefined>();
+  const [progressionSelection, setProgressionSelection] = useState<{ start: number; end: number } | undefined>();
+
   return (
     <Pressable
       style={[
@@ -79,8 +82,16 @@ export const ExerciseRow = memo(function ExerciseRow({
           keyboardType="decimal-pad"
           value={loadNormal}
           onChangeText={onChangeNormal}
-          onFocus={onFocus}
-          placeholder="00"
+          onFocus={() => {
+            const end = loadNormal.length;
+            setNormalSelection({ start: end, end });
+            onFocus();
+          }}
+          onSelectionChange={({ nativeEvent }) => {
+            setNormalSelection(nativeEvent.selection);
+          }}
+          selection={normalSelection}
+          placeholder="0"
         />
         <Text style={styles.loadLabelProgression}>Progressão</Text>
         <TextInput
@@ -88,8 +99,16 @@ export const ExerciseRow = memo(function ExerciseRow({
           keyboardType="decimal-pad"
           value={loadProgression}
           onChangeText={onChangeProgression}
-          onFocus={onFocus}
-          placeholder="00"
+          onFocus={() => {
+            const end = loadProgression.length;
+            setProgressionSelection({ start: end, end });
+            onFocus();
+          }}
+          onSelectionChange={({ nativeEvent }) => {
+            setProgressionSelection(nativeEvent.selection);
+          }}
+          selection={progressionSelection}
+          placeholder="0"
         />
       </View>
     </Pressable>
