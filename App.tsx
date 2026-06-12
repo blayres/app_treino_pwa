@@ -6,7 +6,7 @@ import {
   DarkTheme,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useColorScheme, View, Image, Platform } from 'react-native';
+import { useColorScheme, View, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 // Critical screens — loaded eagerly (on the initial render path)
@@ -19,7 +19,7 @@ const AdminScreen = lazy(() => import('./src/screens/AdminScreen'));
 const SignupScreen = lazy(() => import('./src/screens/SignupScreen'));
 const ForgotPasswordScreen = lazy(() => import('./src/screens/ForgotPasswordScreen'));
 
-import { colors } from './src/theme/colors'; 
+import { colors } from './src/theme/colors';
 import { initDatabase } from './src/db';
 import { useAppStore } from './src/store/useAppStore';
 import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
@@ -136,35 +136,6 @@ export default function App() {
   }, [setCurrentUser, setActiveSession]);
 
   if (authStatus === 'loading') {
-    if (Platform.OS === 'web') {
-      return (
-        <div
-          style={{
-            minHeight: '100vh',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: '#ffffff',
-          }}
-        >
-          <img
-            src="/favicon.png"
-            width="96"
-            height="96"
-            alt=""
-            decoding="sync"
-            fetchPriority="high"
-            style={{
-              width: 96,
-              height: 96,
-              display: 'block',
-              objectFit: 'contain',
-            }}
-          />
-        </div>
-      );
-    }
-
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
         <Image
