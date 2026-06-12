@@ -73,7 +73,7 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
       <View>
         {[...Array(5)].map((_, i) => (
           <View key={i} style={{ marginBottom: 8 }}>
-            <Skeleton width="100%" height={60} />
+            <Skeleton width="100%" height={80} />
           </View>
         ))}
       </View>
@@ -99,9 +99,9 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
               <Text style={styles.dayLabel}>{dayLabels[item.day_of_week]}</Text>
               <Text style={[styles.title, isRest && styles.titleRest]}>{item.title}</Text>
             </View>
-            {!isRest && item.last_done ? (
-              <Text style={styles.lastDone}>{formatRelativeDate(item.last_done)}</Text>
-            ) : null}
+            <Text style={styles.lastDone}>
+              {!isRest && item.last_done ? formatRelativeDate(item.last_done) : ' '}
+            </Text>
           </Pressable>
         );
       })}
