@@ -20,7 +20,6 @@ const SignupScreen = lazy(() => import('./src/screens/SignupScreen'));
 const ForgotPasswordScreen = lazy(() => import('./src/screens/ForgotPasswordScreen'));
 
 import { colors } from './src/theme/colors';
-import { initDatabase } from './src/db';
 import { useAppStore } from './src/store/useAppStore';
 import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
 import { getSessionUser, getOrCreateProfile } from './src/services/authService';
@@ -51,7 +50,9 @@ export default function App() {
     if (backendMode !== 'supabase') {
       (async () => {
         try {
+          const { initDatabase } = await import('./src/db');
           await initDatabase();
+          
           const user = await getSessionUser();
           if (user) {
             setCurrentUser(user);
