@@ -20,11 +20,17 @@ export default function HomeScreen() {
   const currentUser = useAppStore(state => state.currentUser);
   const setCurrentUser = useAppStore(state => state.setCurrentUser);
   const calendarRef = useRef<{ refresh: () => void }>(null);
+  const hasFocusedOnceRef = useRef(false);
   const [checkInLabel, setCheckInLabel] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
+      if (!hasFocusedOnceRef.current) {
+        hasFocusedOnceRef.current = true;
+        return;
+      }
+
       calendarRef.current?.refresh();
       setRefreshKey(k => k + 1);
     }, []),
