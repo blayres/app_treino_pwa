@@ -29,27 +29,52 @@ const dayLabels: Record<number, string> = {
   7: 'Domingo',
 };
 
+function getParisDateKey(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Paris',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function dateKeyToUTC(dateKey: string): Date {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function diffCalendarDaysInParis(from: Date, to: Date): number {
+  const fromKey = getParisDateKey(from);
+  const toKey = getParisDateKey(to);
+
+  const fromUtc = dateKeyToUTC(fromKey);
+  const toUtc = dateKeyToUTC(toKey);
+
+  return Math.floor((toUtc.getTime() - fromUtc.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 function formatRelativeDate(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  const diffDays = diffCalendarDaysInParis(date, now);
   const diffWeeks = Math.floor(diffDays / 7);
 
-  // Use real calendar months, not days/30, to avoid gaps like "0 months"
-  const diffMonths =
-    (now.getFullYear() - date.getFullYear()) * 12 +
-    (now.getMonth() - date.getMonth());
+  const nowKey = getParisDateKey(now);
+  const dateKey = getParisDateKey(date);
 
-  if (diffMinutes < 60) return 'feito hoje';
-  if (diffHours < 24) return 'feito hoje';
+  const [nowYear, nowMonth] = nowKey.split('-').map(Number);
+  const [dateYear, dateMonth] = dateKey.split('-').map(Number);
+
+  const diffMonths = (nowYear - dateYear) * 12 + (nowMonth - dateMonth);
+
+  if (diffDays <= 0) return 'feito hoje';
   if (diffDays === 1) return 'feito há 1 dia';
   if (diffDays < 7) return `feito há ${diffDays} dias`;
   if (diffWeeks === 1) return 'feito há 1 semana';
   if (diffMonths < 1) return `feito há ${diffWeeks} semanas`;
   if (diffMonths === 1) return 'feito há 1 mês';
+
   return `feito há ${diffMonths} meses`;
 }
 
