@@ -25,6 +25,7 @@ export const styles = StyleSheet.create({
   },
   exerciseRowActive: {
     backgroundColor: colors.olive + '18',
+    borderRadius: '5px',
   },
   actions: {
     flexDirection: 'row',

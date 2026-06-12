@@ -451,59 +451,71 @@ export default function WorkoutScreen() {
                     <Text style={styles.exerciseName}>
                       {item.exercise.name}
                     </Text>
-                    <Text style={styles.scheme}>
-                      {mainScheme}
-                      {progression ? ` · ${progression}` : ''}
-                    </Text>
-                    <Text style={styles.rest}>
-                      Intervalo {restLabel}
-                    </Text>
-                    {item.exercise.tip ? (
-                      <Text style={styles.tip}>{item.exercise.tip}</Text>
-                    ) : null}
-                    {item.exercise.library ? (
-                      <ExerciseLibraryCard library={item.exercise.library} />
+
+                    {!isCompleted ? (
+                      <>
+                        <Text style={styles.scheme}>
+                          {mainScheme}
+                          {progression ? ` · ${progression}` : ''}
+                        </Text>
+
+                        <Text style={styles.rest}>
+                          Intervalo {restLabel}
+                        </Text>
+
+                        {item.exercise.tip ? (
+                          <Text style={styles.tip}>{item.exercise.tip}</Text>
+                        ) : null}
+
+                        {item.exercise.library ? (
+                          <ExerciseLibraryCard library={item.exercise.library} />
+                        ) : null}
+                      </>
                     ) : null}
                   </Pressable>
 
-                  <View style={styles.loadColumn}>
-                    <Text style={styles.loadLabel}>Carga (kg)</Text>
-                    <TextInput
-                      style={styles.loadInput}
-                      keyboardType="decimal-pad"
-                      value={currentLoads.normal}
-                      onChangeText={text =>
-                        handleChangeLoad(item.exercise.id, text, 'normal')
-                      }
-                      onFocus={() => {
-                        setFocusedLoadInput(`${item.exercise.id}-normal`);
-                        handleInputFocus(index);
-                      }}
-                      onBlur={() => setFocusedLoadInput(null)}
-                      placeholder={
-                        focusedLoadInput === `${item.exercise.id}-normal` ? '' : '0'
-                      }
-                    />
-                    <Text style={styles.loadLabelProgression}>
-                      Progressão
-                    </Text>
-                    <TextInput
-                      style={styles.loadInput}
-                      keyboardType="decimal-pad"
-                      value={currentLoads.progression}
-                      onChangeText={text =>
-                        handleChangeLoad(item.exercise.id, text, 'progression')
-                      }
-                      onFocus={() => {
-                        setFocusedLoadInput(`${item.exercise.id}-progression`);
-                        handleInputFocus(index);
-                      }}
-                      onBlur={() => setFocusedLoadInput(null)}
-                      placeholder={
-                        focusedLoadInput === `${item.exercise.id}-progression` ? '' : '0'
-                      }
-                    />
-                  </View>
+                  {!isCompleted ? (
+                    <View style={styles.loadColumn}>
+                      <Text style={styles.loadLabel}>Carga (kg)</Text>
+                      <TextInput
+                        style={styles.loadInput}
+                        keyboardType="decimal-pad"
+                        value={currentLoads.normal}
+                        onChangeText={text =>
+                          handleChangeLoad(item.exercise.id, text, 'normal')
+                        }
+                        onFocus={() => {
+                          setFocusedLoadInput(`${item.exercise.id}-normal`);
+                          handleInputFocus(index);
+                        }}
+                        onBlur={() => setFocusedLoadInput(null)}
+                        placeholder={
+                          focusedLoadInput === `${item.exercise.id}-normal` ? '' : '0'
+                        }
+                      />
+
+                      <Text style={styles.loadLabelProgression}>
+                        Progressão
+                      </Text>
+
+                      <TextInput
+                        style={styles.loadInput}
+                        keyboardType="decimal-pad"
+                        value={currentLoads.progression}
+                        onChangeText={text =>
+                          handleChangeLoad(item.exercise.id, text, 'progression')
+                        }
+                        onFocus={() => {
+                          setFocusedLoadInput(`${item.exercise.id}-progression`);
+                          handleInputFocus(index);
+                        }}
+                        onBlur={() => setFocusedLoadInput(null)}
+                        placeholder={
+                          focusedLoadInput === `${item.exercise.id}-progression` ? '' : '0'
+                        }
+                      />
+                    </View>
+                  ) : null}
                 </Pressable>
               );
             }}
