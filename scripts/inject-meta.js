@@ -16,12 +16,15 @@ fs.readdirSync(publicDir).forEach(file => {
 // Injeta meta tags no index.html
 const distHtml = path.join(distDir, 'index.html');
 let html = fs.readFileSync(distHtml, 'utf8');
+html = html.replace(/<meta name="theme-color" content="[^"]*">\s*/g, '');
 
 // Find the actual hashed favicon asset path from the built HTML
 const faviconMatch = html.match(/src="([^"]*favicon[^"]*\.png[^"]*)"/);
 const faviconPath = faviconMatch ? faviconMatch[1] : null;
 
 const metaTags = `
+    <meta name="theme-color" content="#F8F8F2">
+    <meta name="background-color" content="#F8F8F2">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Treino">
@@ -29,7 +32,17 @@ const metaTags = `
     <link rel="manifest" href="/manifest.json">${faviconPath ? `
     <link rel="preload" as="image" href="${faviconPath}" fetchpriority="high">` : ''}`;
 
-html = html.replace('<title>App Treino</title>', `${metaTags}\n    <title>App Treino</title>`);
+const baseStyles = `
+    <style>
+      html, body, #root {
+        margin: 0;
+        min-height: 100%;
+        background: #F8F8F2;
+      }
+    </style>
+`;
+
+html = html.replace('<title>App Treino</title>', `${metaTags}\n${baseStyles}\n    <title>App Treino</title>`);
 
 fs.writeFileSync(distHtml, html);
 console.log('Meta tags injetadas com sucesso');

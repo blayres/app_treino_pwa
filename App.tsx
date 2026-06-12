@@ -146,7 +146,7 @@ export default function App() {
 
   if (authStatus === 'loading') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F8F2' }}>
         <Image
           source={require('./assets/favicon.png')}
           style={{ width: 96, height: 96 }}
