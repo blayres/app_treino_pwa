@@ -13,7 +13,7 @@ import { styles } from './WorkoutScreen.styles';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import { useAppStore } from '../store/useAppStore';
-import { Timer } from '../components/Timer';
+import { LiveTimer } from '../components/LiveTimer';
 import { CircularCheckbox } from '../components/CircularCheckbox';
 import { ConfirmModal } from '../components/ConfirmModal';
 import {
@@ -76,18 +76,30 @@ export default function WorkoutScreen() {
     } catch { }
   }, [completedIds, workoutId]);
 
+  // Re-read completedIds from sessionStorage when the user returns to the tab.
+  // iOS/Android may discard the JS heap while backgrounded — on resume the page
+  // reloads and the lazy initializer above handles it. But for soft tab switches
+  // (Spotify, notifications), the state is still in memory and the interval
+  // that was driving renders may have been paused by the browser.
+  // We re-read here to ensure the checkboxes match storage on every resume.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const key = `completedIds:${workoutId}`;
+        const raw = sessionStorage.getItem(key);
+        if (raw) {
+          const restored = new Set<number>(JSON.parse(raw));
+          setCompletedIds(restored);
+        }
+      } catch { }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [workoutId]);
+
   const isSessionForThisWorkout =
     activeSession && activeSession.workoutId === workoutId && activeSession.isRunning;
-
-  useEffect(() => {
-    if (!isSessionForThisWorkout) return;
-
-    const interval = setInterval(() => {
-      setCompletedIds(prev => new Set(prev));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isSessionForThisWorkout]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -191,20 +203,29 @@ export default function WorkoutScreen() {
     navigation.goBack();
   };
 
-  const seconds = isSessionForThisWorkout
-    ? Math.floor(
-      (Date.now() - new Date(activeSession!.startedAt).getTime()) / 1000
-    )
+  // Stale detection — recheck when user returns from background
+  const [isStale, setIsStale] = useState(() => {
+    if (!activeSession || activeSession.workoutId !== workoutId) return false;
+    return (Date.now() - new Date(activeSession.startedAt).getTime()) / 1000 > STALE_THRESHOLD_SECONDS;
+  });
+
+  useEffect(() => {
+    const check = () => {
+      if (!isSessionForThisWorkout) { setIsStale(false); return; }
+      const elapsed = (Date.now() - new Date(activeSession!.startedAt).getTime()) / 1000;
+      setIsStale(elapsed > STALE_THRESHOLD_SECONDS);
+    };
+    check();
+    document.addEventListener('visibilitychange', check);
+    return () => document.removeEventListener('visibilitychange', check);
+  }, [isSessionForThisWorkout, activeSession]);
+
+  // Human-readable elapsed for stale banner
+  const staleElapsed = isSessionForThisWorkout
+    ? Math.floor((Date.now() - new Date(activeSession!.startedAt).getTime()) / 1000)
     : 0;
-
-  // Cap display at threshold so the timer doesn't show absurd values.
-  // If over threshold, show the stale banner instead of normal controls.
-  const displaySeconds = Math.min(seconds, STALE_THRESHOLD_SECONDS);
-  const isStale = isSessionForThisWorkout && seconds > STALE_THRESHOLD_SECONDS;
-
-  // Human-readable elapsed time for the stale banner, e.g. "3h 12min"
-  const staleHours = Math.floor(seconds / 3600);
-  const staleMinutes = Math.floor((seconds % 3600) / 60);
+  const staleHours = Math.floor(staleElapsed / 3600);
+  const staleMinutes = Math.floor((staleElapsed % 3600) / 60);
   const staleLabel = staleHours > 0
     ? `${staleHours}h ${staleMinutes}min`
     : `${staleMinutes}min`;
@@ -302,7 +323,14 @@ export default function WorkoutScreen() {
         </View>
 
         <View style={styles.timerRow}>
-          <Timer seconds={displaySeconds} />
+          {isSessionForThisWorkout ? (
+            <LiveTimer
+              startedAt={activeSession!.startedAt}
+              capSeconds={STALE_THRESHOLD_SECONDS}
+            />
+          ) : (
+            <LiveTimer startedAt={new Date().toISOString()} capSeconds={0} />
+          )}
 
           {isStale ? (
             // ── Stale session banner ──────────────────────────────────────

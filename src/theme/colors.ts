@@ -1,5 +1,5 @@
 export const colors = {
-  // Base palette (oliva elegante)
+  // Base palette 
   olive: '#556B2F',
   oliveDark: '#3C4A22',
   oliveLight: '#7C8F4E',
