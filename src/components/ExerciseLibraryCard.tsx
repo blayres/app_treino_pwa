@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import type { ExerciseLibrary } from '../services/types';
 import { colors, spacing } from '../theme';
+import { useI18n } from '../i18n';
 
 type Props = {
   library: ExerciseLibrary;
@@ -17,6 +18,7 @@ type Props = {
 export function ExerciseLibraryCard({ library }: Props) {
   const [gifVisible, setGifVisible] = useState(false);
   const [gifLoaded, setGifLoaded] = useState(false);
+  const { t } = useI18n();
 
   const handleToggleGif = useCallback(() => {
     setGifVisible((v) => !v);
@@ -31,7 +33,7 @@ export function ExerciseLibraryCard({ library }: Props) {
         style={({ pressed }) => [styles.gifToggle, pressed && { opacity: 0.7 }]}
       >
         <Text style={styles.gifToggleLabel}>
-          {gifVisible ? 'Ocultar animação' : 'Ver animação'}
+          {gifVisible ? t.hideAnimation : t.showAnimation}
         </Text>
       </Pressable>
 

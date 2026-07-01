@@ -7,11 +7,13 @@ import type { RootStackParamList } from '../../App';
 import { styles } from './LoginScreen.styles';
 import { feedbackStyles } from './FeedbackStyles';
 import { sendPasswordReset } from '../services/authService';
+import { useI18n } from '../i18n';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation<Navigation>();
+  const { t } = useI18n();
   const [email, setEmail] = React.useState('');
   const [success, setSuccess] = React.useState('');
   const [error, setError] = React.useState('');
@@ -22,17 +24,17 @@ export default function ForgotPasswordScreen() {
     setError('');
 
     if (!email) {
-      setError('Informe seu email.');
+      setError(t.emailRequired);
       return;
     }
 
     setLoading(true);
     try {
       await sendPasswordReset(email.trim());
-      setSuccess('Email enviado! Verifique sua caixa de entrada para redefinir a senha (pode estar no spam).');
+      setSuccess(t.resetSuccess);
     } catch (err: any) {
-      const raw = err?.message ?? 'Não foi possível enviar o email de recuperação.';
-      setError(`Não entre em pânico e manda esse erro pra Babi: ${raw}`);
+      const raw = err?.message ?? t.resetDefaultError;
+      setError(t.resetError(raw));
     } finally {
       setLoading(false);
     }
@@ -41,14 +43,14 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Recuperar senha</Text>
-        <Text style={styles.subtitle}>Digite seu email para receber o link de recuperação.</Text>
+        <Text style={styles.title}>{t.recoverPassword}</Text>
+        <Text style={styles.subtitle}>{t.recoverPasswordSubtitle}</Text>
 
         <TextInput
           style={styles.input}
           autoCapitalize="none"
           keyboardType="email-address"
-          placeholder="seu@email.com"
+          placeholder={t.emailPlaceholder}
           value={email}
           onChangeText={setEmail}
         />
@@ -70,11 +72,11 @@ export default function ForgotPasswordScreen() {
           onPress={handleReset}
           disabled={loading}
         >
-          <Text style={styles.buttonLabel}>{loading ? 'Enviando...' : 'Enviar link'}</Text>
+          <Text style={styles.buttonLabel}>{loading ? t.sending : t.sendLink}</Text>
         </Pressable>
 
         <Pressable onPress={() => navigation.navigate('Login')} hitSlop={8} style={styles.linkWrap}>
-          <Text style={styles.linkLabel}>Voltar para login</Text>
+          <Text style={styles.linkLabel}>{t.backToLogin}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

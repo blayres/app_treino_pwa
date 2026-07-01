@@ -30,6 +30,7 @@ import { startWorkoutSession, stopWorkoutSession } from '../services/sessionServ
 import type { Exercise } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
 import { ExerciseLibraryCard } from '../components/ExerciseLibraryCard';
+import { useI18n } from '../i18n';
 
 const STALE_THRESHOLD_SECONDS = 2 * 60 * 60; // 2 hours
 
@@ -47,6 +48,7 @@ export default function WorkoutScreen() {
   const currentUser = useAppStore(state => state.currentUser);
   const activeSession = useAppStore(state => state.activeSession);
   const setActiveSession = useAppStore(state => state.setActiveSession);
+  const { t } = useI18n();
 
   const [focusedLoadInput, setFocusedLoadInput] = useState<string | null>(null);
   const routeTitle = route.params?.workoutTitle;
@@ -314,7 +316,7 @@ export default function WorkoutScreen() {
       >
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
-            <Text style={styles.backLabel}>Voltar</Text>
+            <Text style={styles.backLabel}>{t.back}</Text>
           </Pressable>
 
           <Text style={styles.title}>
@@ -336,20 +338,20 @@ export default function WorkoutScreen() {
             // ── Stale session banner ──────────────────────────────────────
             <View style={styles.staleBanner}>
               <Text style={styles.staleText}>
-                Esse treino está aberto há {staleLabel}. Esqueceu de finalizar?
+                {t.staleBannerText(staleLabel)}
               </Text>
               <View style={styles.staleActions}>
                 <Pressable
                   style={({ pressed }) => [styles.buttonSecondary, pressed && styles.buttonSecondaryPressed]}
                   onPress={() => handleStopWithConfirm(true)}
                 >
-                  <Text style={styles.buttonSecondaryLabel}>Cancelar treino</Text>
+                  <Text style={styles.buttonSecondaryLabel}>{t.cancelWorkout}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
                   onPress={() => handleStopWithConfirm(false)}
                 >
-                  <Text style={styles.buttonPrimaryLabel}>Finalizar</Text>
+                  <Text style={styles.buttonPrimaryLabel}>{t.finish}</Text>
                 </Pressable>
               </View>
             </View>
@@ -358,36 +360,24 @@ export default function WorkoutScreen() {
             <View style={styles.actions}>
               {!isSessionForThisWorkout ? (
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.buttonPrimary,
-                    pressed && styles.buttonPrimaryPressed,
-                  ]}
+                  style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
                   onPress={handleStart}
                 >
-                  <Text style={styles.buttonPrimaryLabel}>
-                    Iniciar treino
-                  </Text>
+                  <Text style={styles.buttonPrimaryLabel}>{t.startWorkout}</Text>
                 </Pressable>
               ) : (
                 <>
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.buttonSecondary,
-                      pressed && styles.buttonSecondaryPressed,
-                    ]}
+                    style={({ pressed }) => [styles.buttonSecondary, pressed && styles.buttonSecondaryPressed]}
                     onPress={() => handleStopWithConfirm(true)}
                   >
-                    <Text style={styles.buttonSecondaryLabel}>Parar (erro)</Text>
+                    <Text style={styles.buttonSecondaryLabel}>{t.stopError}</Text>
                   </Pressable>
-
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.buttonPrimary,
-                      pressed && styles.buttonPrimaryPressed,
-                    ]}
+                    style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
                     onPress={() => handleStopWithConfirm(false)}
                   >
-                    <Text style={styles.buttonPrimaryLabel}>Finalizar</Text>
+                    <Text style={styles.buttonPrimaryLabel}>{t.finish}</Text>
                   </Pressable>
                 </>
               )}
@@ -488,7 +478,7 @@ export default function WorkoutScreen() {
                         </Text>
 
                         <Text style={styles.rest}>
-                          Intervalo {restLabel}
+                          {t.restInterval(restLabel)}
                         </Text>
 
                         {item.exercise.tip ? (
@@ -504,7 +494,7 @@ export default function WorkoutScreen() {
 
                   {!isCompleted ? (
                     <View style={styles.loadColumn}>
-                      <Text style={styles.loadLabel}>Carga (kg)</Text>
+                      <Text style={styles.loadLabel}>{t.loadKg}</Text>
                       <TextInput
                         style={styles.loadInput}
                         keyboardType="decimal-pad"
@@ -522,9 +512,7 @@ export default function WorkoutScreen() {
                         }
                       />
 
-                      <Text style={styles.loadLabelProgression}>
-                        Progressão
-                      </Text>
+                    <Text style={styles.loadLabelProgression}>{t.progression}</Text>
 
                       <TextInput
                         style={styles.loadInput}
@@ -553,14 +541,10 @@ export default function WorkoutScreen() {
 
       <ConfirmModal
         visible={showConfirmModal}
-        title={isCancelAction ? 'Parar treino?' : 'Finalizar treino?'}
-        message={
-          isCancelAction
-            ? 'Tem certeza que deseja parar o treino? Esta ação não será contabilizada como treino concluído.'
-            : 'Tem certeza que deseja finalizar o treino? Esta ação será contabilizada como treino concluído.'
-        }
-        confirmLabel={isCancelAction ? 'Parar' : 'Finalizar'}
-        cancelLabel="Cancelar"
+        title={isCancelAction ? t.stopWorkoutTitle : t.finishWorkoutTitle}
+        message={isCancelAction ? t.stopWorkoutMsg : t.finishWorkoutMsg}
+        confirmLabel={isCancelAction ? t.stop : t.finish}
+        cancelLabel={t.cancel}
         onConfirm={confirmAction}
         onCancel={cancelAction}
         confirmDanger={isCancelAction}

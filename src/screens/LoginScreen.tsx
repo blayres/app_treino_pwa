@@ -8,12 +8,14 @@ import type { RootStackParamList } from '../../App';
 import { useAppStore } from '../store/useAppStore';
 import { backendMode } from '../services/backendMode';
 import { getLocalUsers, loginWithEmail, setLocalCurrentUser, signInWithGoogle, getSessionUser } from '../services/authService';
+import { useI18n } from '../i18n';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<Navigation>();
   const setCurrentUser = useAppStore(state => state.setCurrentUser);
+  const { t } = useI18n();
   const [users, setUsers] = React.useState<{ id: number; name: string }[]>([]);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -35,21 +37,13 @@ export default function LoginScreen() {
 
   const handleSupabaseLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Campos obrigatórios', 'Informe email e senha.');
+      Alert.alert(t.requiredFields, t.requiredFieldsMsg);
       return;
     }
     try {
       await loginWithEmail(email.trim(), password);
     } catch (error: any) {
-      Alert.alert('Erro de login', error?.message ?? 'Não foi possível entrar.');
-    }
-  };
-
-  const handleGoogle = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error: any) {
-      Alert.alert('Erro no Google', error?.message ?? 'Não foi possível autenticar com Google.');
+      Alert.alert(t.loginError, error?.message ?? t.loginErrorMsg);
     }
   };
 
@@ -58,12 +52,12 @@ export default function LoginScreen() {
       <View style={styles.container}>
         {backendMode === 'supabase' ? (
           <>
-            <Text style={styles.title}>Entrar</Text>
+            <Text style={styles.title}>{t.signIn}</Text>
             <TextInput
               style={styles.input}
               autoCapitalize="none"
               keyboardType="email-address"
-              placeholder="seu@email.com"
+              placeholder={t.emailPlaceholder}
               value={email}
               onChangeText={setEmail}
             />
@@ -71,7 +65,7 @@ export default function LoginScreen() {
               style={styles.input}
               autoCapitalize="none"
               secureTextEntry
-              placeholder="Senha"
+              placeholder={t.passwordPlaceholder}
               value={password}
               onChangeText={setPassword}
             />
@@ -79,27 +73,18 @@ export default function LoginScreen() {
               style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
               onPress={handleSupabaseLogin}
             >
-              <Text style={styles.buttonLabel}>Acessar</Text>
+              <Text style={styles.buttonLabel}>{t.accessButton}</Text>
             </Pressable>
-            {/* @TODO : No futuro permitir login social na tela de cadastro, mas por ora vamos focar no email/senha
-            {/* {Platform.OS === 'web' ? (
-              <Pressable
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
-                onPress={handleGoogle}
-              >
-                <Text style={styles.secondaryButtonLabel}>Entrar com Google</Text>
-              </Pressable>
-            ) : null} */}
             <Pressable onPress={() => navigation.navigate('ForgotPassword')} hitSlop={8} style={styles.linkWrap}>
-              <Text style={styles.linkLabel}>Esqueci minha senha</Text>
+              <Text style={styles.linkLabel}>{t.forgotPassword}</Text>
             </Pressable>
             <Pressable onPress={() => navigation.navigate('Signup')} hitSlop={8} style={styles.linkWrap}>
-              <Text style={styles.linkLabel}>Criar conta</Text>
+              <Text style={styles.linkLabel}>{t.createAccount}</Text>
             </Pressable>
           </>
         ) : (
           <>
-            <Text style={styles.title}>Escolha o perfil</Text>
+            <Text style={styles.title}>{t.chooseProfile}</Text>
             <View style={styles.buttons}>
               {users.map((user) => (
                 <Pressable

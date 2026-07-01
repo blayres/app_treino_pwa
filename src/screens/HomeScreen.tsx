@@ -10,6 +10,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { logout } from '../services/authService';
+import { useI18n } from '../i18n';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -21,6 +23,8 @@ export default function HomeScreen() {
   const hasFocusedOnceRef = useRef(false);
   const [checkInLabel, setCheckInLabel] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const { t } = useI18n();
 
   useFocusEffect(
     useCallback(() => {
@@ -42,7 +46,7 @@ export default function HomeScreen() {
       try {
         await logout();
       } catch (error: any) {
-        Alert.alert('Erro ao sair', error?.message ?? 'Falha ao encerrar sessão.');
+        Alert.alert(t.errorLogout, error?.message ?? t.errorLogoutMsg);
       }
     })();
     setCurrentUser(null);
@@ -60,19 +64,22 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Olá, {currentUser.name}</Text>
-            <Text style={styles.subtitle}>Bora treinar hoje?</Text>
+            <Text style={styles.greeting}>{t.greeting(currentUser.name)}</Text>
+            <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
           </View>
-          <Pressable onPress={handleLogout} hitSlop={8}>
-            <Text style={styles.logoutLabel}>Sair</Text>
-          </Pressable>
+          <View style={{ alignItems: 'flex-end', gap: 6 }}>
+            <LanguageSwitcher />
+            <Pressable onPress={handleLogout} hitSlop={8}>
+              <Text style={styles.logoutLabel}>{t.logout}</Text>
+            </Pressable>
+          </View>
         </View>
 
-        <SectionCard title="Treinos da semana">
+        <SectionCard title={t.workoutsThisWeek}>
           <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} />
         </SectionCard>
 
-        <SectionCard title="Frequência" rightLabel={checkInLabel}>
+        <SectionCard title={t.frequency} rightLabel={checkInLabel}>
           <CalendarFrequency
             ref={calendarRef}
             userId={currentUser.id}

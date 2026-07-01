@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Text, View } from 'react-native';
+import { useI18n } from '../i18n';
 import { styles } from './Timer.styles';
 
 type Props = {
@@ -28,6 +29,7 @@ function getElapsed(startedAt: string): number {
  */
 export function LiveTimer({ startedAt, capSeconds }: Props) {
   const [seconds, setSeconds] = useState(() => getElapsed(startedAt));
+  const { t } = useI18n();
 
   const sync = useCallback(() => {
     const elapsed = getElapsed(startedAt);
@@ -57,7 +59,7 @@ export function LiveTimer({ startedAt, capSeconds }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Duração do treino</Text>
+      <Text style={styles.label}>{t.workoutDuration}</Text>
       <Text style={styles.time}>{formatDuration(seconds)}</Text>
     </View>
   );

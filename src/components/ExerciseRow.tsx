@@ -4,6 +4,7 @@ import { styles } from '../screens/WorkoutScreen.styles';
 import { CircularCheckbox } from './CircularCheckbox';
 import { ExerciseLibraryCard } from './ExerciseLibraryCard';
 import type { Exercise } from '../services/types';
+import { useI18n } from '../i18n';
 
 type Props = {
   exerciseRowId: number;
@@ -40,6 +41,7 @@ export const ExerciseRow = memo(function ExerciseRow({
 }: Props) {
   const scheme = exercise.scheme;
   const [mainScheme, progression] = scheme.split(' e ');
+  const { t } = useI18n();
 
   const [normalSelection, setNormalSelection] = useState<{ start: number; end: number } | undefined>();
   const [progressionSelection, setProgressionSelection] = useState<{ start: number; end: number } | undefined>();

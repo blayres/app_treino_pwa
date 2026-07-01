@@ -7,11 +7,13 @@ import type { RootStackParamList } from '../../App';
 import { styles } from './LoginScreen.styles';
 import { feedbackStyles } from './FeedbackStyles';
 import { signUpWithEmail } from '../services/authService';
+import { useI18n } from '../i18n';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
 
 export default function SignupScreen() {
   const navigation = useNavigation<Navigation>();
+  const { t } = useI18n();
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -24,17 +26,17 @@ export default function SignupScreen() {
     setError('');
 
     if (!email || !password) {
-      setError('Preencha email e senha.');
+      setError(t.signupDefaultError);
       return;
     }
 
     setLoading(true);
     try {
       await signUpWithEmail(email.trim(), password, name.trim() || undefined);
-      setSuccess('Conta criada com sucesso! Verifique seu email para continuar (pode estar no spam).');
+      setSuccess(t.signupSuccess);
     } catch (err: any) {
-      const raw = err?.message ?? 'Não foi possível criar a conta.';
-      setError(`Não entre em pânico e manda esse erro pra Babi: ${raw}`);
+      const raw = err?.message ?? t.signupDefaultError;
+      setError(t.signupError(raw));
     } finally {
       setLoading(false);
     }
@@ -43,13 +45,13 @@ export default function SignupScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Criar conta</Text>
-        <Text style={styles.subtitle}>Use email e senha para começar.</Text>
+        <Text style={styles.title}>{t.createAccountTitle}</Text>
+        <Text style={styles.subtitle}>{t.createAccountSubtitle}</Text>
 
         <TextInput
           style={styles.input}
           autoCapitalize="words"
-          placeholder="Nome"
+          placeholder={t.namePlaceholder}
           value={name}
           onChangeText={setName}
         />
@@ -57,7 +59,7 @@ export default function SignupScreen() {
           style={styles.input}
           autoCapitalize="none"
           keyboardType="email-address"
-          placeholder="seu@email.com"
+          placeholder={t.emailPlaceholder}
           value={email}
           onChangeText={setEmail}
         />
@@ -65,7 +67,7 @@ export default function SignupScreen() {
           style={styles.input}
           autoCapitalize="none"
           secureTextEntry
-          placeholder="Senha"
+          placeholder={t.passwordPlaceholder}
           value={password}
           onChangeText={setPassword}
         />
@@ -87,11 +89,11 @@ export default function SignupScreen() {
           onPress={handleSignUp}
           disabled={loading}
         >
-          <Text style={styles.buttonLabel}>{loading ? 'Criando...' : 'Criar conta'}</Text>
+          <Text style={styles.buttonLabel}>{loading ? t.creating : t.createAccountTitle}</Text>
         </Pressable>
 
         <Pressable onPress={() => navigation.navigate('Login')} hitSlop={8} style={styles.linkWrap}>
-          <Text style={styles.linkLabel}>Já tenho conta</Text>
+          <Text style={styles.linkLabel}>{t.alreadyHaveAccount}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
