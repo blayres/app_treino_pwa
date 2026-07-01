@@ -67,9 +67,9 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>{t.greeting(currentUser.name)}</Text>
             <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
           </View>
-          <View style={{ alignItems: 'flex-end', gap: 6 }}>
+          <View style={styles.actionsRow}>
             <LanguageSwitcher />
-            <Pressable onPress={handleLogout} hitSlop={8}>
+            <Pressable onPress={handleLogout} hitSlop={8} style={styles.logoutButton}>
               <Text style={styles.logoutLabel}>{t.logout}</Text>
             </Pressable>
           </View>

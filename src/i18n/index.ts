@@ -2,15 +2,22 @@ import { create } from 'zustand';
 import type { Locale, Translations } from './translations';
 import { locales } from './translations';
 
-// Detect browser language on first load
+function isLocale(value: string | null | undefined): value is Locale {
+  return typeof value === 'string' && value in locales;
+}
+
+// Detect browser language on first load when no choice has been saved yet.
 function detectLocale(): Locale {
   try {
-    const stored = localStorage.getItem('locale') as Locale | null;
-    if (stored && stored in locales) return stored;
-    const browser = navigator.language.slice(0, 2) as Locale;
-    if (browser in locales) return browser;
+    const stored = localStorage.getItem('locale');
+    if (isLocale(stored)) return stored;
+
+    const browserLanguage = navigator.language?.toLowerCase();
+    const browserLocale = browserLanguage?.split('-')[0];
+    if (isLocale(browserLocale)) return browserLocale;
   } catch {}
-  return 'pt';
+
+  return 'en';
 }
 
 type I18nState = {

@@ -16,6 +16,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.xl,
+    overflow: 'visible',
   },
   greeting: {
     ...typography.h1,
@@ -24,6 +25,15 @@ export const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     marginTop: spacing.xs,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    overflow: 'visible',
+  },
+  logoutButton: {
+    paddingVertical: 2,
   },
   logoutLabel: {
     ...typography.caption,
