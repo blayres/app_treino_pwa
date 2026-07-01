@@ -3,26 +3,21 @@ import { View, Pressable, Text, StyleSheet } from 'react-native';
 import { useI18n, type Locale } from '../i18n';
 import { colors, spacing } from '../theme';
 
-const OPTIONS: { value: Locale; label: string }[] = [
-  { value: 'pt', label: 'PT' },
-  { value: 'en', label: 'EN' },
-  { value: 'es', label: 'ES' },
-  { value: 'fr', label: 'FR' },
-];
+const OPTIONS: Locale[] = ['pt', 'en', 'es', 'fr'];
 
 export function LanguageSwitcher() {
-  const { locale, setLocale } = useI18n();
+  const { locale, setLocale, t } = useI18n();
 
   return (
     <View style={styles.row}>
       {OPTIONS.map((opt) => (
         <Pressable
-          key={opt.value}
-          onPress={() => setLocale(opt.value)}
-          style={[styles.btn, locale === opt.value && styles.btnActive]}
+          key={opt}
+          onPress={() => setLocale(opt)}
+          style={[styles.btn, locale === opt && styles.btnActive]}
         >
-          <Text style={[styles.label, locale === opt.value && styles.labelActive]}>
-            {opt.label}
+          <Text style={[styles.label, locale === opt && styles.labelActive]}>
+            {t.localeLabels[opt]}
           </Text>
         </Pressable>
       ))}

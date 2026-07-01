@@ -83,7 +83,7 @@ export default function HomeScreen() {
           <CalendarFrequency
             ref={calendarRef}
             userId={currentUser.id}
-            onLoad={(count, total) => setCheckInLabel(`${count}/${total}`)}
+            onLoad={(count, total) => setCheckInLabel(t.checkInCountLabel(count, total))}
           />
         </SectionCard>
       </ScrollView>

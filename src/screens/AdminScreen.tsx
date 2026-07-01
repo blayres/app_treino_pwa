@@ -8,19 +8,11 @@ import { listUsers, replaceWorkoutExerciseOrder, saveExercise, saveWorkout } fro
 import { isCurrentUserAdmin } from '../services/authService';
 import { getStudentStats, type StudentStats } from '../services/adminStatsService';
 import { colors } from '../theme/colors';
-
-const dayOptions = [
-  { value: 1, label: 'Segunda' },
-  { value: 2, label: 'Terça' },
-  { value: 3, label: 'Quarta' },
-  { value: 4, label: 'Quinta' },
-  { value: 5, label: 'Sexta' },
-  { value: 6, label: 'Sábado' },
-  { value: 7, label: 'Domingo' },
-];
+import { useI18n } from '../i18n';
 
 export default function AdminScreen() {
   const navigation = useNavigation();
+  const { t } = useI18n();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -46,8 +38,16 @@ export default function AdminScreen() {
   });
 
   const selectedUserName = useMemo(
-    () => users.find((user) => user.id === selectedUserId)?.name ?? 'Selecione a aluna',
-    [users, selectedUserId],
+    () => users.find((user) => user.id === selectedUserId)?.name ?? t.selectStudent,
+    [users, selectedUserId, t.selectStudent],
+  );
+
+  const dayOptions = useMemo(
+    () => [1, 2, 3, 4, 5, 6, 7].map((value) => ({
+      value,
+      label: t.dayLabels[value],
+    })),
+    [t.dayLabels],
   );
 
   const loadStats = useCallback(async (userId: number) => {
@@ -108,11 +108,11 @@ export default function AdminScreen() {
         tip: exerciseForm.tip.trim() || null,
         exercise_library_id: null,
       });
-      Alert.alert('Sucesso', 'Exercício salvo.');
+      Alert.alert(t.savedSuccess, t.exerciseSaved);
       setExerciseForm({ id: '', name: '', primary: '', secondary: '', rest: '90', scheme: '3x10-12', tip: '' });
       setExercises(await listExercises());
     } catch (error: any) {
-      Alert.alert('Erro', error?.message ?? 'Não foi possível salvar exercício.');
+      Alert.alert(t.saveError, error?.message ?? t.couldNotSaveExercise);
     }
   };
 
@@ -130,11 +130,11 @@ export default function AdminScreen() {
         .map((value) => Number(value.trim()))
         .filter((value) => Number.isFinite(value) && value > 0);
       await replaceWorkoutExerciseOrder(workoutId, parsedExerciseIds);
-      Alert.alert('Sucesso', 'Treino salvo.');
+      Alert.alert(t.savedSuccess, t.workoutSaved);
       setWorkoutForm({ id: '', title: '', day: '1', exerciseIds: '' });
       setWorkouts(await getWorkoutsByUser(selectedUserId));
     } catch (error: any) {
-      Alert.alert('Erro', error?.message ?? 'Não foi possível salvar treino.');
+      Alert.alert(t.saveError, error?.message ?? t.couldNotSaveWorkout);
     }
   };
 
@@ -142,10 +142,10 @@ export default function AdminScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
-          <Text style={styles.title}>Acesso negado</Text>
-          <Text style={styles.description}>Sua conta não tem permissão de admin.</Text>
+          <Text style={styles.title}>{t.accessDenied}</Text>
+          <Text style={styles.description}>{t.accessDeniedMsg}</Text>
           <Pressable style={styles.button} onPress={() => navigation.goBack()}>
-            <Text style={styles.buttonLabel}>Voltar</Text>
+            <Text style={styles.buttonLabel}>{t.back}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -155,11 +155,11 @@ export default function AdminScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Painel Admin</Text>
-        <Text style={styles.description}>Crie e edite treinos/exercícios sem mexer no app da aluna.</Text>
+        <Text style={styles.title}>{t.adminPanel}</Text>
+        <Text style={styles.description}>{t.adminPanelDesc}</Text>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Aluna ativa</Text>
+          <Text style={styles.cardTitle}>{t.activeStudent}</Text>
           <Text style={styles.helper}>{selectedUserName}</Text>
           <View style={styles.chipRow}>
             {users.map((user) => (
@@ -176,92 +176,92 @@ export default function AdminScreen() {
 
         {/* ── Student dashboard ─────────────────────────────────────────── */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Dashboard — {selectedUserName}</Text>
+          <Text style={styles.cardTitle}>{t.dashboard(selectedUserName)}</Text>
 
           {loadingStats ? (
-            <Text style={styles.emptyText}>Carregando dados...</Text>
+            <Text style={styles.emptyText}>{t.loadingData}</Text>
           ) : stats ? (
             <>
               {/* Top stats row */}
               <View style={styles.statRow}>
                 <View style={styles.statBox}>
                   <View style={[styles.checkinDot, { backgroundColor: stats.checkedInToday ? colors.success : colors.danger }]} />
-                  <Text style={styles.statValue}>{stats.checkedInToday ? 'Sim' : 'Não'}</Text>
-                  <Text style={styles.statLabel}>Check-in hoje</Text>
+                  <Text style={styles.statValue}>{stats.checkedInToday ? t.yes : t.no}</Text>
+                  <Text style={styles.statLabel}>{t.checkinToday}</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={styles.statValue}>{stats.weeklyFrequency}x</Text>
-                  <Text style={styles.statLabel}>Treinos (7 dias)</Text>
+                  <Text style={styles.statValue}>{`${stats.weeklyFrequency}${t.timesSuffix}`}</Text>
+                  <Text style={styles.statLabel}>{t.workouts7Days}</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={styles.statValue}>{stats.lastDurationMinutes > 0 ? `${stats.lastDurationMinutes}` : '—'}</Text>
-                  <Text style={styles.statLabel}>Último treino (min)</Text>
+                  <Text style={styles.statValue}>{stats.lastDurationMinutes > 0 ? `${stats.lastDurationMinutes}` : t.notAvailable}</Text>
+                  <Text style={styles.statLabel}>{t.lastWorkoutMin}</Text>
                 </View>
               </View>
 
               {/* Loads table */}
-              <Text style={[styles.helper, styles.spaced]}>Cargas registradas</Text>
+              <Text style={[styles.helper, styles.spaced]}>{t.loadsRegistered}</Text>
               {stats.loads.length === 0 ? (
-                <Text style={styles.emptyText}>Nenhuma carga registrada ainda.</Text>
+                <Text style={styles.emptyText}>{t.noLoads}</Text>
               ) : (
                 stats.loads.map((row) => (
                   <View key={row.exercise_id} style={styles.loadRow}>
                     <Text style={styles.loadName}>{row.exercise_name}</Text>
                     <Text style={styles.loadValue}>
-                      {row.load_kg != null ? `${row.load_kg} kg` : '—'}
+                      {row.load_kg != null ? `${row.load_kg} ${t.kgUnit}` : t.notAvailable}
                     </Text>
                     {row.progression_kg != null ? (
-                      <Text style={styles.loadProgression}>+{row.progression_kg} kg</Text>
+                      <Text style={styles.loadProgression}>+{row.progression_kg} {t.kgUnit}</Text>
                     ) : null}
                   </View>
                 ))
               )}
             </>
           ) : (
-            <Text style={styles.emptyText}>Selecione uma aluna para ver os dados.</Text>
+            <Text style={styles.emptyText}>{t.selectStudentToSee}</Text>
           )}
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>CRUD de exercícios</Text>
-          <TextInput style={styles.input} placeholder="ID (deixe vazio para criar)" value={exerciseForm.id} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, id: value }))} />
-          <TextInput style={styles.input} placeholder="Nome" value={exerciseForm.name} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, name: value }))} />
-          <TextInput style={styles.input} placeholder="Músculo primário" value={exerciseForm.primary} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, primary: value }))} />
-          <TextInput style={styles.input} placeholder="Músculo secundário" value={exerciseForm.secondary} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, secondary: value }))} />
-          <TextInput style={styles.input} placeholder="Descanso (segundos)" keyboardType="number-pad" value={exerciseForm.rest} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, rest: value }))} />
-          <TextInput style={styles.input} placeholder="Série (ex: 4x8-10)" value={exerciseForm.scheme} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, scheme: value }))} />
-          <TextInput style={styles.input} placeholder="Comentário (ex: joelhos alinhados com os pés)" value={exerciseForm.tip} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, tip: value }))} multiline />
+          <Text style={styles.cardTitle}>{t.exerciseCrud}</Text>
+          <TextInput style={styles.input} placeholder={t.idPlaceholder} value={exerciseForm.id} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, id: value }))} />
+          <TextInput style={styles.input} placeholder={t.exerciseNamePlaceholder} value={exerciseForm.name} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, name: value }))} />
+          <TextInput style={styles.input} placeholder={t.primaryMusclePlaceholder} value={exerciseForm.primary} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, primary: value }))} />
+          <TextInput style={styles.input} placeholder={t.secondaryMusclePlaceholder} value={exerciseForm.secondary} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, secondary: value }))} />
+          <TextInput style={styles.input} placeholder={t.restPlaceholder} keyboardType="number-pad" value={exerciseForm.rest} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, rest: value }))} />
+          <TextInput style={styles.input} placeholder={t.schemePlaceholder} value={exerciseForm.scheme} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, scheme: value }))} />
+          <TextInput style={styles.input} placeholder={t.tipPlaceholder} value={exerciseForm.tip} onChangeText={(value) => setExerciseForm((prev) => ({ ...prev, tip: value }))} multiline />
           <Pressable style={styles.button} onPress={handleSaveExercise}>
-            <Text style={styles.buttonLabel}>Salvar exercício</Text>
+            <Text style={styles.buttonLabel}>{t.saveExercise}</Text>
           </Pressable>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>CRUD de treinos</Text>
-          <TextInput style={styles.input} placeholder="ID do treino (vazio para criar)" value={workoutForm.id} onChangeText={(value) => setWorkoutForm((prev) => ({ ...prev, id: value }))} />
-          <TextInput style={styles.input} placeholder="Título do treino" value={workoutForm.title} onChangeText={(value) => setWorkoutForm((prev) => ({ ...prev, title: value }))} />
-          <TextInput style={styles.input} placeholder="Dia da semana (1-7)" keyboardType="number-pad" value={workoutForm.day} onChangeText={(value) => setWorkoutForm((prev) => ({ ...prev, day: value }))} />
+          <Text style={styles.cardTitle}>{t.workoutCrud}</Text>
+          <TextInput style={styles.input} placeholder={t.exerciseIdPlaceholder} value={workoutForm.id} onChangeText={(value) => setWorkoutForm((prev) => ({ ...prev, id: value }))} />
+          <TextInput style={styles.input} placeholder={t.workoutTitlePlaceholder} value={workoutForm.title} onChangeText={(value) => setWorkoutForm((prev) => ({ ...prev, title: value }))} />
+          <TextInput style={styles.input} placeholder={t.weekdayPlaceholder} keyboardType="number-pad" value={workoutForm.day} onChangeText={(value) => setWorkoutForm((prev) => ({ ...prev, day: value }))} />
           <TextInput
             style={styles.input}
-            placeholder="IDs dos exercícios separados por vírgula"
+            placeholder={t.exerciseIdsPlaceholder}
             value={workoutForm.exerciseIds}
             onChangeText={(value) => setWorkoutForm((prev) => ({ ...prev, exerciseIds: value }))}
           />
           <Pressable style={styles.button} onPress={handleSaveWorkout}>
-            <Text style={styles.buttonLabel}>Salvar treino</Text>
+            <Text style={styles.buttonLabel}>{t.saveWorkout}</Text>
           </Pressable>
-          <Text style={styles.helper}>Dias: {dayOptions.map((day) => `${day.value}=${day.label}`).join(' | ')}</Text>
+          <Text style={styles.helper}>{t.daysRef} {dayOptions.map((day) => `${day.value}=${day.label}`).join(' | ')}</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Referência rápida</Text>
-          <Text style={styles.helper}>Treinos atuais</Text>
+          <Text style={styles.cardTitle}>{t.quickRef}</Text>
+          <Text style={styles.helper}>{t.currentWorkouts}</Text>
           {workouts.map((workout) => (
             <Text key={workout.id} style={styles.listItem}>
               #{workout.id} · D{workout.day_of_week} · {workout.title}
             </Text>
           ))}
-          <Text style={[styles.helper, styles.spaced]}>Exercícios atuais</Text>
+          <Text style={[styles.helper, styles.spaced]}>{t.currentExercises}</Text>
           {exercises.map((exercise) => (
             <Text key={exercise.id} style={styles.listItem}>
               #{exercise.id} · {exercise.name} · {exercise.scheme}

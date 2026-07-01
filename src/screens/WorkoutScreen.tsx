@@ -437,10 +437,10 @@ export default function WorkoutScreen() {
               const restMin = Math.floor(restSecs / 60);
               const restRemSec = restSecs % 60;
               const restLabel = restMin > 0 && restRemSec > 0
-                ? `${restMin}min ${restRemSec}s`
+                ? `${restMin}${t.minuteShort} ${restRemSec}${t.secondShort}`
                 : restMin > 0
-                  ? `${restMin}min`
-                  : `${restRemSec}s`;
+                  ? `${restMin}${t.minuteShort}`
+                  : `${restRemSec}${t.secondShort}`;
 
               return (
                 <Pressable
@@ -508,7 +508,7 @@ export default function WorkoutScreen() {
                         }}
                         onBlur={() => setFocusedLoadInput(null)}
                         placeholder={
-                          focusedLoadInput === `${item.exercise.id}-normal` ? '' : '0'
+                          focusedLoadInput === `${item.exercise.id}-normal` ? '' : t.loadPlaceholder
                         }
                       />
 
@@ -527,7 +527,7 @@ export default function WorkoutScreen() {
                         }}
                         onBlur={() => setFocusedLoadInput(null)}
                         placeholder={
-                          focusedLoadInput === `${item.exercise.id}-progression` ? '' : '0'
+                          focusedLoadInput === `${item.exercise.id}-progression` ? '' : t.loadPlaceholder
                         }
                       />
                     </View>

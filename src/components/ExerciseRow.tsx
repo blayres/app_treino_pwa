@@ -19,12 +19,12 @@ type Props = {
   onFocus: () => void;
 };
 
-function restLabel(restSecs: number): string {
+function restLabel(restSecs: number, minuteShort: string, secondShort: string): string {
   const restMin = Math.floor(restSecs / 60);
   const restRemSec = restSecs % 60;
-  if (restMin > 0 && restRemSec > 0) return `${restMin}min ${restRemSec}s`;
-  if (restMin > 0) return `${restMin}min`;
-  return `${restRemSec}s`;
+  if (restMin > 0 && restRemSec > 0) return `${restMin}${minuteShort} ${restRemSec}${secondShort}`;
+  if (restMin > 0) return `${restMin}${minuteShort}`;
+  return `${restRemSec}${secondShort}`;
 }
 
 export const ExerciseRow = memo(function ExerciseRow({
@@ -68,7 +68,7 @@ export const ExerciseRow = memo(function ExerciseRow({
           {mainScheme}
           {progression ? ` · ${progression}` : ''}
         </Text>
-        <Text style={styles.rest}>Intervalo {restLabel(exercise.rest_seconds)}</Text>
+        <Text style={styles.rest}>{t.restInterval(restLabel(exercise.rest_seconds, t.minuteShort, t.secondShort))}</Text>
         {exercise.tip ? (
           <Text style={styles.tip}>{exercise.tip}</Text>
         ) : null}
@@ -78,7 +78,7 @@ export const ExerciseRow = memo(function ExerciseRow({
       </Pressable>
 
       <View style={styles.loadColumn}>
-        <Text style={styles.loadLabel}>Carga (kg)</Text>
+        <Text style={styles.loadLabel}>{t.loadKg}</Text>
         <TextInput
           style={styles.loadInput}
           keyboardType="decimal-pad"
@@ -93,9 +93,9 @@ export const ExerciseRow = memo(function ExerciseRow({
             setNormalSelection(nativeEvent.selection);
           }}
           selection={normalSelection}
-          placeholder="0"
+          placeholder={t.loadPlaceholder}
         />
-        <Text style={styles.loadLabelProgression}>Progressão</Text>
+        <Text style={styles.loadLabelProgression}>{t.progression}</Text>
         <TextInput
           style={styles.loadInput}
           keyboardType="decimal-pad"
@@ -110,7 +110,7 @@ export const ExerciseRow = memo(function ExerciseRow({
             setProgressionSelection(nativeEvent.selection);
           }}
           selection={progressionSelection}
-          placeholder="0"
+          placeholder={t.loadPlaceholder}
         />
       </View>
     </Pressable>

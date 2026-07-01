@@ -11,6 +11,7 @@ import {
   getWorkoutExercises,
   getExerciseLoadsByUser,
 } from '../services/workoutService';
+import { useI18n } from '../i18n';
 
 type Props = {
   userId: number;
@@ -18,16 +19,6 @@ type Props = {
 };
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
-
-const dayLabels: Record<number, string> = {
-  1: 'Segunda',
-  2: 'Terça',
-  3: 'Quarta',
-  4: 'Quinta',
-  5: 'Sexta',
-  6: 'Sábado',
-  7: 'Domingo',
-};
 
 function getParisDateKey(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -53,35 +44,36 @@ function diffCalendarDaysInParis(from: Date, to: Date): number {
   return Math.floor((toUtc.getTime() - fromUtc.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function formatRelativeDate(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr);
-
-  const diffDays = diffCalendarDaysInParis(date, now);
-  const diffWeeks = Math.floor(diffDays / 7);
-
-  const nowKey = getParisDateKey(now);
-  const dateKey = getParisDateKey(date);
-
-  const [nowYear, nowMonth] = nowKey.split('-').map(Number);
-  const [dateYear, dateMonth] = dateKey.split('-').map(Number);
-
-  const diffMonths = (nowYear - dateYear) * 12 + (nowMonth - dateMonth);
-
-  if (diffDays <= 0) return 'feito hoje';
-  if (diffDays === 1) return 'feito há 1 dia';
-  if (diffDays < 7) return `feito há ${diffDays} dias`;
-  if (diffWeeks === 1) return 'feito há 1 semana';
-  if (diffMonths < 1) return `feito há ${diffWeeks} semanas`;
-  if (diffMonths === 1) return 'feito há 1 mês';
-
-  return `feito há ${diffMonths} meses`;
-}
-
 export function DayWorkouts({ userId, refreshKey }: Props) {
   const navigation = useNavigation<Navigation>();
+  const { t } = useI18n();
   const [workouts, setWorkouts] = useState<WorkoutWithLastDone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const formatRelativeDate = (dateStr: string): string => {
+    const now = new Date();
+    const date = new Date(dateStr);
+
+    const diffDays = diffCalendarDaysInParis(date, now);
+    const diffWeeks = Math.floor(diffDays / 7);
+
+    const nowKey = getParisDateKey(now);
+    const dateKey = getParisDateKey(date);
+
+    const [nowYear, nowMonth] = nowKey.split('-').map(Number);
+    const [dateYear, dateMonth] = dateKey.split('-').map(Number);
+
+    const diffMonths = (nowYear - dateYear) * 12 + (nowMonth - dateMonth);
+
+    if (diffDays <= 0) return t.doneToday;
+    if (diffDays === 1) return t.done1Day;
+    if (diffDays < 7) return t.doneDays(diffDays);
+    if (diffWeeks === 1) return t.done1Week;
+    if (diffMonths < 1) return t.doneWeeks(diffWeeks);
+    if (diffMonths === 1) return t.done1Month;
+
+    return t.doneMonths(diffMonths);
+  };
 
   useEffect(() => {
     (async () => {
@@ -150,7 +142,7 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
             disabled={isRest}
           >
             <View>
-              <Text style={styles.dayLabel}>{dayLabels[item.day_of_week]}</Text>
+              <Text style={styles.dayLabel}>{t.dayLabels[item.day_of_week]}</Text>
               <Text style={[styles.title, isRest && styles.titleRest]}>{item.title}</Text>
             </View>
             <Text style={styles.lastDone}>

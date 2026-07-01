@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
+import { useI18n } from '../i18n';
 import { styles } from './Timer.styles';
 
 type TimerProps = {
@@ -13,9 +14,11 @@ function formatDuration(totalSeconds: number) {
 }
 
 export function Timer({ seconds }: TimerProps) {
+  const { t } = useI18n();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Duração do treino</Text>
+      <Text style={styles.label}>{t.workoutDuration}</Text>
       <Text style={styles.time}>{formatDuration(seconds)}</Text>
     </View>
   );

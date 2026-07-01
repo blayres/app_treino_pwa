@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
+import { useI18n } from '../i18n';
 import { styles } from './Timer.styles';
 
 type Props = {
@@ -18,6 +19,7 @@ function formatDuration(totalSeconds: number): string {
  * the parent WorkoutScreen or the exercise FlatList.
  */
 export const WorkoutTimer = React.memo(function WorkoutTimer({ startedAt }: Props) {
+  const { t } = useI18n();
   const [seconds, setSeconds] = useState(() =>
     Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000),
   );
@@ -31,7 +33,7 @@ export const WorkoutTimer = React.memo(function WorkoutTimer({ startedAt }: Prop
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Duração do treino</Text>
+      <Text style={styles.label}>{t.workoutDuration}</Text>
       <Text style={styles.time}>{formatDuration(seconds)}</Text>
     </View>
   );

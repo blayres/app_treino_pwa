@@ -10,6 +10,7 @@ import { styles } from './CalendarFrequency.styles';
 import { typography } from '../theme';
 import { getAttendanceDatesByMonth } from '../services/attendanceService';
 import { Skeleton } from './Skeleton';
+import { useI18n } from '../i18n';
 
 type Props = {
   userId: number;
@@ -31,6 +32,7 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
     const [weeks, setWeeks] = useState<WeekRow[]>([]);
     const [offset, setOffset] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
+    const { t } = useI18n();
 
     const cacheRef = useRef<Record<string, WeekRow[]>>({});
 
@@ -136,10 +138,7 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
       refresh: () => loadCalendar(offset, true),
     }));
 
-    const monthNames = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-    ];
+    const monthNames = t.months;
 
     const today = new Date();
     const displayDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
@@ -147,7 +146,7 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
     const currentYearLabel = displayDate.getFullYear();
     const isCurrentMonth = offset === 0;
 
-    const dayHeaders = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const dayHeaders = t.dayHeaders;
 
     if (isLoading) {
       return (
