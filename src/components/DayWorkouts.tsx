@@ -12,6 +12,7 @@ import {
   getExerciseLoadsByUser,
 } from '../services/workoutService';
 import { useI18n } from '../i18n';
+import { useAppStore } from '../store/useAppStore';
 
 type Props = {
   userId: number;
@@ -47,6 +48,7 @@ function diffCalendarDaysInParis(from: Date, to: Date): number {
 export function DayWorkouts({ userId, refreshKey }: Props) {
   const navigation = useNavigation<Navigation>();
   const { t } = useI18n();
+  const beginActiveWorkout = useAppStore(state => state.beginActiveWorkout);
   const [workouts, setWorkouts] = useState<WorkoutWithLastDone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -114,6 +116,13 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
       // ignora erros, a tela busca novamente se necessário
     }
 
+    // Native stack hides the previous screen with aria-hidden on web.
+    // Release focus first so the pressed workout card isn't hidden while focused.
+    if (typeof document !== 'undefined') {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    }
+
+    beginActiveWorkout({ userId, workoutId, workoutTitle });
     navigation.navigate('Workout', {
       workoutId,
       workoutTitle,
@@ -154,4 +163,3 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
     </View>
   );
 }
-
