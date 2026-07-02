@@ -1,35 +1,25 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Platform } from 'react-native';
-import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
+import { View, Animated } from 'react-native';
 
-type Props = {
-  width: DimensionValue;
-  height: DimensionValue;
-  style?: StyleProp<ViewStyle>;
-};
-
-export function Skeleton({ width, height, style }: Props) {
+export function Skeleton({ width, height, style }: any) {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    const animation = Animated.loop(
+    Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
           toValue: 0.6,
           duration: 800,
-          useNativeDriver: Platform.OS !== 'web',
+          useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 0.3,
           duration: 800,
-          useNativeDriver: Platform.OS !== 'web',
+          useNativeDriver: true,
         }),
       ])
-    );
-
-    animation.start();
-    return () => animation.stop();
-  }, [opacity]);
+    ).start();
+  }, []);
 
   return (
     <Animated.View
@@ -46,3 +36,4 @@ export function Skeleton({ width, height, style }: Props) {
     />
   );
 }
+

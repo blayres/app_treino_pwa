@@ -19,7 +19,6 @@ export default function HomeScreen() {
   const navigation = useNavigation<Navigation>();
   const currentUser = useAppStore(state => state.currentUser);
   const setCurrentUser = useAppStore(state => state.setCurrentUser);
-  const clearActiveWorkout = useAppStore(state => state.clearActiveWorkout);
   const calendarRef = useRef<{ refresh: () => void }>(null);
   const hasFocusedOnceRef = useRef(false);
   const [checkInLabel, setCheckInLabel] = useState('');
@@ -46,14 +45,10 @@ export default function HomeScreen() {
     (async () => {
       try {
         await logout();
-      } catch (error: unknown) {
-        Alert.alert(
-          t.errorLogout,
-          error instanceof Error ? error.message : t.errorLogoutMsg,
-        );
+      } catch (error: any) {
+        Alert.alert(t.errorLogout, error?.message ?? t.errorLogoutMsg);
       }
     })();
-    clearActiveWorkout();
     setCurrentUser(null);
     navigation.reset({
       index: 0,

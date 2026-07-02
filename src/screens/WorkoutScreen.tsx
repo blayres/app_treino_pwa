@@ -47,79 +47,58 @@ export default function WorkoutScreen() {
   const { workoutId } = route.params;
   const currentUser = useAppStore(state => state.currentUser);
   const activeSession = useAppStore(state => state.activeSession);
-  const activeWorkout = useAppStore(state => state.activeWorkout);
   const setActiveSession = useAppStore(state => state.setActiveSession);
-  const setActiveWorkoutTitle = useAppStore(state => state.setActiveWorkoutTitle);
-  const setActiveWorkoutLoad = useAppStore(state => state.setActiveWorkoutLoad);
-  const setActiveWorkoutLoads = useAppStore(state => state.setActiveWorkoutLoads);
-  const toggleCompletedExercise = useAppStore(state => state.toggleCompletedExercise);
-  const clearActiveWorkout = useAppStore(state => state.clearActiveWorkout);
-  const setActiveWorkoutScreen = useAppStore(state => state.setActiveWorkoutScreen);
-  const beginActiveWorkout = useAppStore(state => state.beginActiveWorkout);
   const { t } = useI18n();
 
   const [focusedLoadInput, setFocusedLoadInput] = useState<string | null>(null);
   const routeTitle = route.params?.workoutTitle;
+  const [workoutTitle, setWorkoutTitle] = useState(routeTitle ?? '');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
+  const [loads, setLoads] = useState<Record<number, { normal: string; progression: string }>>({});
+  const [completedIds, setCompletedIds] = useState<Set<number>>(() => {
+    // Restore checked exercises from sessionStorage so they survive
+    // PWA backgrounding (iOS/Android suspending the tab to free memory).
+    try {
+      const key = `completedIds:${workoutId}`;
+      const raw = sessionStorage.getItem(key);
+      if (raw) return new Set<number>(JSON.parse(raw));
+    } catch { }
+    return new Set<number>();
+  });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isCancelAction, setIsCancelAction] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
-  const exerciseToRestoreRef = useRef(activeWorkout?.currentExerciseId ?? null);
 
+  // Keep sessionStorage in sync whenever completedIds changes.
   useEffect(() => {
-    if (!currentUser) return;
+    try {
+      const key = `completedIds:${workoutId}`;
+      sessionStorage.setItem(key, JSON.stringify([...completedIds]));
+    } catch { }
+  }, [completedIds, workoutId]);
 
-    setActiveWorkoutScreen('Workout');
-
-    if (
-      activeWorkout?.userId !== currentUser.id
-      || activeWorkout.workoutId !== workoutId
-    ) {
-      beginActiveWorkout({
-        userId: currentUser.id,
-        workoutId,
-        workoutTitle: routeTitle ?? null,
-      });
-    } else if (
-      routeTitle != null
-      && activeWorkout.workoutTitle !== routeTitle
-    ) {
-      setActiveWorkoutTitle(routeTitle);
-    }
-  }, [
-    activeWorkout?.userId,
-    activeWorkout?.workoutId,
-    activeWorkout?.workoutTitle,
-    beginActiveWorkout,
-    currentUser,
-    routeTitle,
-    setActiveWorkoutScreen,
-    setActiveWorkoutTitle,
-    workoutId,
-  ]);
-
-  useEffect(
-    () => navigation.addListener('beforeRemove', () => {
-      setActiveWorkoutScreen('Home');
-    }),
-    [navigation, setActiveWorkoutScreen],
-  );
-
+  // Re-read completedIds from sessionStorage when the user returns to the tab.
+  // iOS/Android may discard the JS heap while backgrounded — on resume the page
+  // reloads and the lazy initializer above handles it. But for soft tab switches
+  // (Spotify, notifications), the state is still in memory and the interval
+  // that was driving renders may have been paused by the browser.
+  // We re-read here to ensure the checkboxes match storage on every resume.
   useEffect(() => {
-    const exerciseId = exerciseToRestoreRef.current;
-    if (exerciseId == null || exercises.length === 0) return;
-
-    const index = exercises.findIndex(item => item.exercise.id === exerciseId);
-    exerciseToRestoreRef.current = null;
-    if (index < 0) return;
-
-    const timeout = setTimeout(() => {
-      flatListRef.current?.scrollToIndex({ index, animated: false });
-    }, 0);
-
-    return () => clearTimeout(timeout);
-  }, [exercises]);
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const key = `completedIds:${workoutId}`;
+        const raw = sessionStorage.getItem(key);
+        if (raw) {
+          const restored = new Set<number>(JSON.parse(raw));
+          setCompletedIds(restored);
+        }
+      } catch { }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [workoutId]);
 
   const isSessionForThisWorkout =
     activeSession && activeSession.workoutId === workoutId && activeSession.isRunning;
@@ -139,7 +118,7 @@ export default function WorkoutScreen() {
         };
       });
 
-      setActiveWorkoutLoads(map);
+      setLoads(map);
     };
 
     const cachedExercises = getCachedWorkoutExercises(workoutId);
@@ -176,7 +155,7 @@ export default function WorkoutScreen() {
 
         if (cancelled) return;
 
-        setActiveWorkoutTitle(title);
+        setWorkoutTitle(title);
 
         setExercises(
           workoutExercises.map(row => ({
@@ -200,11 +179,6 @@ export default function WorkoutScreen() {
 
   const handleStart = async () => {
     if (!currentUser || isSessionForThisWorkout) return;
-    beginActiveWorkout({
-      userId: currentUser.id,
-      workoutId,
-      workoutTitle: activeWorkout?.workoutTitle ?? routeTitle ?? null,
-    });
     const session = await startWorkoutSession(currentUser.id, workoutId);
     setActiveSession(session);
   };
@@ -224,7 +198,9 @@ export default function WorkoutScreen() {
       invalidateWorkoutsByUserCache(currentUser.id);
     }
 
-    clearActiveWorkout();
+    // Clear persisted checkboxes — workout is done
+    try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch { }
+
     setActiveSession(null);
     navigation.goBack();
   };
@@ -277,41 +253,40 @@ export default function WorkoutScreen() {
   ) => {
     if (!currentUser) return;
 
-    const current = (activeWorkout?.loads?.[exerciseId] || { normal: '', progression: '' });
-    const updated = {
-      ...activeWorkout?.loads,
-      [exerciseId]: {
-        ...current,
-        [type]: value,
-      },
-    };
+    setLoads(prev => {
+      const current = prev[exerciseId] || { normal: '', progression: '' };
+      const updated = {
+        ...prev,
+        [exerciseId]: {
+          ...current,
+          [type]: value,
+        },
+      };
 
-    setActiveWorkoutLoad(exerciseId, {
-      ...current,
-      [type]: value,
+      // Save to database
+      const numeric = Number(value.replace(',', '.'));
+      const normalValue =
+        type === 'normal'
+          ? numeric || null
+          : Number(updated[exerciseId].normal.replace(',', '.')) || null;
+      const progressionValue =
+        type === 'progression'
+          ? numeric || null
+          : Number(updated[exerciseId].progression.replace(',', '.')) || null;
+
+      if (!Number.isNaN(numeric) || value === '') {
+        (async () => {
+          await upsertExerciseLoad({
+            userId: currentUser.id,
+            exerciseId,
+            loadKg: normalValue,
+            progressionKg: progressionValue,
+          });
+        })();
+      }
+
+      return updated;
     });
-
-    // Save to database
-    const numeric = Number(value.replace(',', '.'));
-    const normalValue =
-      type === 'normal'
-        ? numeric || null
-        : Number(updated[exerciseId].normal.replace(',', '.')) || null;
-    const progressionValue =
-      type === 'progression'
-        ? numeric || null
-        : Number(updated[exerciseId].progression.replace(',', '.')) || null;
-
-    if (!Number.isNaN(numeric) || value === '') {
-      (async () => {
-        await upsertExerciseLoad({
-          userId: currentUser.id,
-          exerciseId,
-          loadKg: normalValue,
-          progressionKg: progressionValue,
-        });
-      })();
-    }
   };
 
   const handleInputFocus = (index: number) => {
@@ -321,7 +296,15 @@ export default function WorkoutScreen() {
   };
 
   const toggleCompleted = (exerciseId: number) => {
-    toggleCompletedExercise(exerciseId);
+    setCompletedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) {
+        next.delete(exerciseId);
+      } else {
+        next.add(exerciseId);
+      }
+      return next;
+    });
   };
 
   return (
@@ -337,7 +320,7 @@ export default function WorkoutScreen() {
           </Pressable>
 
           <Text style={styles.title}>
-            {(activeWorkout?.workoutTitle ?? routeTitle ?? '') || <Skeleton width={250} height={22} />}
+            {workoutTitle || <Skeleton width={250} height={22} />}
           </Text>
         </View>
 
@@ -447,8 +430,8 @@ export default function WorkoutScreen() {
               const scheme = item.exercise.scheme;
               const [mainScheme, progression] = scheme.split(' e ');
               const currentLoads =
-                activeWorkout?.loads?.[item.exercise.id] || { normal: '', progression: '' };
-              const isCompleted = (activeWorkout?.completedExerciseIds ?? []).includes(item.exercise.id);
+                loads[item.exercise.id] || { normal: '', progression: '' };
+              const isCompleted = completedIds.has(item.exercise.id);
 
               const restSecs = item.exercise.rest_seconds;
               const restMin = Math.floor(restSecs / 60);
@@ -569,3 +552,4 @@ export default function WorkoutScreen() {
     </SafeAreaView>
   );
 }
+
