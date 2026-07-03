@@ -7,9 +7,22 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.backgroundLight,
   },
   scrollContent: {
+    paddingBottom: spacing.xxl,
+  },
+  logoBar: {
+    width: '100%',
+    backgroundColor: colors.oliveLogo,
+    alignItems: 'center',
+    paddingBottom: spacing.sm,
+  },
+  content: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
+  },
+  logo: {
+    width: '75%',
+    maxWidth: 280,
+    height: 52,
   },
   header: {
     flexDirection: 'row',

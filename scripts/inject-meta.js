@@ -1,10 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-// Copia todos os arquivos da public/ para dist/
 const publicDir = path.join(__dirname, '../public');
+const assetsDir = path.join(__dirname, '../assets');
 const distDir = path.join(__dirname, '../dist');
 
+// Copia arquivos estáticos de public/ para dist/
 fs.readdirSync(publicDir).forEach(file => {
   fs.copyFileSync(
     path.join(publicDir, file),
@@ -13,14 +14,15 @@ fs.readdirSync(publicDir).forEach(file => {
   console.log(`📦 Copiado: ${file}`);
 });
 
+// Favicon e splash usam a mesma imagem — fonte única em assets/
+const faviconSrc = path.join(assetsDir, 'favicon.png');
+fs.copyFileSync(faviconSrc, path.join(distDir, 'favicon.png'));
+console.log('📦 Copiado: favicon.png (de assets/)');
+
 // Injeta meta tags no index.html
 const distHtml = path.join(distDir, 'index.html');
 let html = fs.readFileSync(distHtml, 'utf8');
 html = html.replace(/<meta name="theme-color" content="[^"]*">\s*/g, '');
-
-// Find the actual hashed favicon asset path from the built HTML
-const faviconMatch = html.match(/src="([^"]*favicon[^"]*\.png[^"]*)"/);
-const faviconPath = faviconMatch ? faviconMatch[1] : null;
 
 const metaTags = `
     <meta name="theme-color" content="#F8F8F2">
@@ -28,9 +30,10 @@ const metaTags = `
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Treino">
-    <link rel="apple-touch-icon" href="/icon-192x192.png">
-    <link rel="manifest" href="/manifest.json">${faviconPath ? `
-    <link rel="preload" as="image" href="${faviconPath}" fetchpriority="high">` : ''}`;
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/favicon.png">
+    <link rel="preload" as="image" href="/favicon.png" fetchpriority="high">
+    <link rel="manifest" href="/manifest.json">`;
 
 const baseStyles = `
     <style>

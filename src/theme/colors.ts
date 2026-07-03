@@ -3,6 +3,7 @@ export const colors = {
   olive: '#556B2F',
   oliveDark: '#3C4A22',
   oliveLight: '#7C8F4E',
+  oliveLogo: '#A7AF88',
 
   // Accents
   accent: '#A3C586',

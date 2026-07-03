@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, Pressable, ScrollView, Alert, Image } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles } from './HomeScreen.styles';
 import { useAppStore } from '../store/useAppStore';
 import { SectionCard } from '../components/SectionCard';
@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
 
   useFocusEffect(
     useCallback(() => {
@@ -57,35 +58,47 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{t.greeting(currentUser.name)}</Text>
-            <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
-          </View>
-          <View style={styles.actionsRow}>
-            <LanguageSwitcher />
-            <Pressable onPress={handleLogout} hitSlop={8} style={styles.logoutButton}>
-              <Text style={styles.logoutLabel}>{t.logout}</Text>
-            </Pressable>
-          </View>
+        <View style={[styles.logoBar, { paddingTop: insets.top }]}>
+          <Image
+            source={require('../../assets/logo_completed_light_background.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+          />
         </View>
 
-        <SectionCard title={t.workoutsThisWeek}>
-          <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} />
-        </SectionCard>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greeting}>{t.greeting(currentUser.name)}</Text>
+              <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
+            </View>
+            <View style={styles.actionsRow}>
+              <LanguageSwitcher />
+              <Pressable onPress={handleLogout} hitSlop={8} style={styles.logoutButton}>
+                <Text style={styles.logoutLabel}>{t.logout}</Text>
+              </Pressable>
+            </View>
+          </View>
 
-        <SectionCard title={t.frequency} rightLabel={checkInLabel}>
-          <CalendarFrequency
-            ref={calendarRef}
-            userId={currentUser.id}
-            onLoad={(count, total) => setCheckInLabel(t.checkInCountLabel(count, total))}
-          />
-        </SectionCard>
+          <SectionCard title={t.workoutsThisWeek}>
+            <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} />
+          </SectionCard>
+
+          <SectionCard title={t.frequency} rightLabel={checkInLabel}>
+            <CalendarFrequency
+              ref={calendarRef}
+              userId={currentUser.id}
+              onLoad={(count, total) => setCheckInLabel(t.checkInCountLabel(count, total))}
+            />
+          </SectionCard>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
