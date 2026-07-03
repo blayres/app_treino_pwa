@@ -16,7 +16,7 @@ export const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
   },
   logo: {
     width: '75%',
