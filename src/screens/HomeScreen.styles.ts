@@ -13,11 +13,10 @@ export const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: colors.oliveLogo,
     alignItems: 'center',
-    paddingBottom: spacing.sm,
   },
   content: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
   },
   logo: {
     width: '75%',
