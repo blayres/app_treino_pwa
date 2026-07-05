@@ -30,6 +30,33 @@ export const styles = StyleSheet.create({
     marginBottom: spacing.xl,
     overflow: 'visible',
   },
+  successToast: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    borderRadius: 16,
+    backgroundColor: colors.olive,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+  },
+
+  successToastText: {
+    ...typography.body,
+    color: '#FFF',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   greeting: {
     ...typography.h1,
     color: colors.oliveDark,

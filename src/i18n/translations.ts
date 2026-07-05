@@ -6,6 +6,7 @@ export type Translations = typeof pt;
 export const pt = {
   // Home
   greeting: (name: string) => `Olá, ${name}`,
+  workoutCompleted: 'Parabéns! Treino concluído',
   homeSubtitle: 'Bora treinar hoje?',
   logout: 'Sair',
   workoutsThisWeek: 'Treinos da semana',
@@ -143,6 +144,7 @@ export const pt = {
 // ── English ───────────────────────────────────────────────────────────────────
 export const en: Translations = {
   greeting: (name) => `Hi, ${name}`,
+  workoutCompleted: 'Great job! Workout completed',
   homeSubtitle: "Let's train today?",
   logout: 'Sign out',
   workoutsThisWeek: 'This week',
@@ -268,6 +270,7 @@ export const en: Translations = {
 // ── Spanish ───────────────────────────────────────────────────────────────────
 export const es: Translations = {
   greeting: (name) => `Hola, ${name}`,
+  workoutCompleted: '¡Felicidades! Entrenamiento completado',
   homeSubtitle: '¿Entrenamos hoy?',
   logout: 'Salir',
   workoutsThisWeek: 'Entrenamientos',
@@ -393,6 +396,7 @@ export const es: Translations = {
 // ── French ────────────────────────────────────────────────────────────────────
 export const fr: Translations = {
   greeting: (name) => `Salut, ${name}`,
+  workoutCompleted: 'Bravo ! Entraînement terminé',
   homeSubtitle: 'On s\'entraîne aujourd\'hui ?',
   logout: 'Se déconnecter',
   workoutsThisWeek: 'Séances',

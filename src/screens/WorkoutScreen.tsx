@@ -201,6 +201,17 @@ export default function WorkoutScreen() {
     // Clear persisted checkboxes — workout is done
     try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch { }
 
+    if (result.completed) {
+      await markAttendance(currentUser.id, result.endedAt);
+      invalidateWorkoutsByUserCache(currentUser.id);
+
+      sessionStorage.setItem('workoutCompletedToast', 'true');
+    }
+
+    try {
+      sessionStorage.removeItem(`completedIds:${workoutId}`);
+    } catch { }
+
     setActiveSession(null);
     navigation.goBack();
   };
@@ -512,7 +523,7 @@ export default function WorkoutScreen() {
                         }
                       />
 
-                    <Text style={styles.loadLabelProgression}>{t.progression}</Text>
+                      <Text style={styles.loadLabelProgression}>{t.progression}</Text>
 
                       <TextInput
                         style={styles.loadInput}

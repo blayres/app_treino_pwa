@@ -23,6 +23,7 @@ export default function HomeScreen() {
   const hasFocusedOnceRef = useRef(false);
   const [checkInLabel, setCheckInLabel] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showWorkoutCompleted, setShowWorkoutCompleted] = useState(false);
 
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
@@ -36,6 +37,16 @@ export default function HomeScreen() {
 
       calendarRef.current?.refresh();
       setRefreshKey(k => k + 1);
+
+      if (sessionStorage.getItem('workoutCompletedToast')) {
+        sessionStorage.removeItem('workoutCompletedToast');
+
+        setShowWorkoutCompleted(true);
+
+        setTimeout(() => {
+          setShowWorkoutCompleted(false);
+        }, 3000);
+      }
     }, []),
   );
 
@@ -59,6 +70,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      {showWorkoutCompleted && (
+        <View style={[styles.successToast, { top: insets.top + 16 }]}>
+          <Text style={styles.successToastText}>
+            ✓ {t.workoutCompleted}
+          </Text>
+        </View>
+      )}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
