@@ -36,6 +36,9 @@ export const pt = {
   signupDefaultError: 'Não foi possível criar a conta.',
   creating: 'Criando...',
   alreadyHaveAccount: 'Já tenho conta',
+  signupButtonLabel: 'Criar conta',
+  confirmPasswordPlaceholder: 'Confirmar senha',
+  passwordMismatch: 'As senhas não coincidem.',
 
   // Forgot Password
   recoverPassword: 'Recuperar senha',
@@ -43,10 +46,22 @@ export const pt = {
   sendLink: 'Enviar link',
   sending: 'Enviando...',
   backToLogin: 'Voltar para login',
-  emailRequired: 'Informe seu email.',
   resetSuccess: 'Email enviado! Verifique sua caixa de entrada para redefinir a senha (pode estar no spam).',
   resetError: (raw: string) => `Não entre em pânico e manda esse erro pra Babi: ${raw}`,
   resetDefaultError: 'Não foi possível enviar o email de recuperação.',
+
+  // Erros 
+  nameRequired: 'Informe seu nome.',
+  emailRequired: 'Informe seu e-mail.',
+  invalidEmail: 'Digite um e-mail válido.',
+  passwordRequired: 'Informe sua senha.',
+  passwordTooShort: 'A senha deve ter pelo menos 8 caracteres.',
+  invalidCredentials: 'E-mail ou senha incorretos.',
+  emailNotConfirmed: 'Confirme seu e-mail antes de entrar.',
+  accountAlreadyExists: 'Já existe uma conta com este e-mail.',
+  passwordTooWeak: 'Escolha uma senha mais segura.',
+  networkError: 'Erro de conexão. Tente novamente.',
+  genericError: 'Algo deu errado. Tente novamente.',
 
   // Workout
   back: 'Voltar',
@@ -81,12 +96,12 @@ export const pt = {
   hideAnimation: 'Ocultar animação',
 
   // Calendar — month names
-  months: ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+  months: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
   // Calendar — day headers
-  dayHeaders: ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],
+  dayHeaders: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
 
   // DayWorkouts — day labels
-  dayLabels: { 1:'Segunda', 2:'Terça', 3:'Quarta', 4:'Quinta', 5:'Sexta', 6:'Sábado', 7:'Domingo' } as Record<number,string>,
+  dayLabels: { 1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado', 7: 'Domingo' } as Record<number, string>,
   // DayWorkouts — relative dates
   doneToday: 'feito hoje',
   done1Day: 'feito há 1 dia',
@@ -138,7 +153,7 @@ export const pt = {
   weekdayPlaceholder: 'Dia da semana (1-7)',
   exerciseIdsPlaceholder: 'IDs dos exercícios separados por vírgula',
   daysRef: 'Dias:',
-  adminDayLabels: { 1:'Segunda', 2:'Terça', 3:'Quarta', 4:'Quinta', 5:'Sexta', 6:'Sábado', 7:'Domingo' } as Record<number,string>,
+  adminDayLabels: { 1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado', 7: 'Domingo' } as Record<number, string>,
 };
 
 // ── English ───────────────────────────────────────────────────────────────────
@@ -172,16 +187,30 @@ export const en: Translations = {
   signupDefaultError: 'Could not create account.',
   creating: 'Creating...',
   alreadyHaveAccount: 'Already have an account',
+  signupButtonLabel: 'Create account',
+  confirmPasswordPlaceholder: 'Confirm password',
+  passwordMismatch: 'Passwords do not match.',
 
   recoverPassword: 'Recover password',
   recoverPasswordSubtitle: 'Enter your email to receive the recovery link.',
   sendLink: 'Send link',
   sending: 'Sending...',
   backToLogin: 'Back to login',
-  emailRequired: 'Enter your email.',
   resetSuccess: 'Email sent! Check your inbox to reset your password (check spam too).',
   resetError: (raw) => `Don't panic, send this error to Babi: ${raw}`,
   resetDefaultError: 'Could not send recovery email.',
+
+  nameRequired: 'Please enter your name.',
+  emailRequired: 'Please enter your email.',
+  invalidEmail: 'Please enter a valid email.',
+  passwordRequired: 'Please enter your password.',
+  passwordTooShort: 'Password must contain at least 8 characters.',
+  invalidCredentials: 'Incorrect email or password.',
+  emailNotConfirmed: 'Please confirm your email before signing in.',
+  accountAlreadyExists: 'An account with this email already exists.',
+  passwordTooWeak: 'Please choose a stronger password.',
+  networkError: 'Connection error. Please try again.',
+  genericError: 'Something went wrong. Please try again.',
 
   back: 'Back',
   startWorkout: 'Start workout',
@@ -211,9 +240,9 @@ export const en: Translations = {
   showAnimation: 'View animation',
   hideAnimation: 'Hide animation',
 
-  months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
-  dayHeaders: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
-  dayLabels: { 1:'Monday', 2:'Tuesday', 3:'Wednesday', 4:'Thursday', 5:'Friday', 6:'Saturday', 7:'Sunday' },
+  months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  dayHeaders: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  dayLabels: { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' },
 
   doneToday: 'done today',
   done1Day: 'done 1 day ago',
@@ -264,7 +293,7 @@ export const en: Translations = {
   weekdayPlaceholder: 'Day of week (1-7)',
   exerciseIdsPlaceholder: 'Exercise IDs separated by comma',
   daysRef: 'Days:',
-  adminDayLabels: { 1:'Mon', 2:'Tue', 3:'Wed', 4:'Thu', 5:'Fri', 6:'Sat', 7:'Sun' },
+  adminDayLabels: { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' },
 };
 
 // ── Spanish ───────────────────────────────────────────────────────────────────
@@ -298,16 +327,30 @@ export const es: Translations = {
   signupDefaultError: 'No se pudo crear la cuenta.',
   creating: 'Creando...',
   alreadyHaveAccount: 'Ya tengo cuenta',
+  signupButtonLabel: 'Crear cuenta',
+  confirmPasswordPlaceholder: 'Confirmar contraseña',
+  passwordMismatch: 'Las contraseñas no coinciden.',
 
   recoverPassword: 'Recuperar contraseña',
   recoverPasswordSubtitle: 'Ingresa tu email para recibir el link de recuperación.',
   sendLink: 'Enviar link',
   sending: 'Enviando...',
   backToLogin: 'Volver al inicio',
-  emailRequired: 'Ingresa tu email.',
   resetSuccess: '¡Email enviado! Revisa tu bandeja de entrada (puede estar en spam).',
   resetError: (raw) => `No te asustes, envía este error a Babi: ${raw}`,
   resetDefaultError: 'No se pudo enviar el email de recuperación.',
+
+  nameRequired: 'Introduce tu nombre.',
+  emailRequired: 'Introduce tu correo electrónico.',
+  invalidEmail: 'Introduce un correo electrónico válido.',
+  passwordRequired: 'Introduce tu contraseña.',
+  passwordTooShort: 'La contraseña debe tener al menos 8 caracteres.',
+  invalidCredentials: 'Correo electrónico o contraseña incorrectos.',
+  emailNotConfirmed: 'Confirma tu correo electrónico antes de iniciar sesión.',
+  accountAlreadyExists: 'Ya existe una cuenta con este correo electrónico.',
+  passwordTooWeak: 'Elige una contraseña más segura.',
+  networkError: 'Error de conexión. Inténtalo de nuevo.',
+  genericError: 'Ha ocurrido un error. Inténtalo de nuevo.',
 
   back: 'Volver',
   startWorkout: 'Iniciar entrenamiento',
@@ -337,9 +380,9 @@ export const es: Translations = {
   showAnimation: 'Ver animación',
   hideAnimation: 'Ocultar animación',
 
-  months: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
-  dayHeaders: ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],
-  dayLabels: { 1:'Lunes', 2:'Martes', 3:'Miércoles', 4:'Jueves', 5:'Viernes', 6:'Sábado', 7:'Domingo' },
+  months: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+  dayHeaders: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+  dayLabels: { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' },
 
   doneToday: 'hecho hoy',
   done1Day: 'hace 1 día',
@@ -390,7 +433,7 @@ export const es: Translations = {
   weekdayPlaceholder: 'Día de la semana (1-7)',
   exerciseIdsPlaceholder: 'IDs de ejercicios separados por coma',
   daysRef: 'Días:',
-  adminDayLabels: { 1:'Lun', 2:'Mar', 3:'Mié', 4:'Jue', 5:'Vie', 6:'Sáb', 7:'Dom' },
+  adminDayLabels: { 1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom' },
 };
 
 // ── French ────────────────────────────────────────────────────────────────────
@@ -424,16 +467,30 @@ export const fr: Translations = {
   signupDefaultError: 'Impossible de créer le compte.',
   creating: 'Création...',
   alreadyHaveAccount: 'J\'ai déjà un compte',
+  signupButtonLabel: 'Créer un compte',
+  confirmPasswordPlaceholder: 'Confirmer le mot de passe',
+  passwordMismatch: 'Les mots de passe ne correspondent pas.',
 
   recoverPassword: 'Récupérer le mot de passe',
   recoverPasswordSubtitle: 'Entrez votre email pour recevoir le lien de récupération.',
   sendLink: 'Envoyer le lien',
   sending: 'Envoi...',
   backToLogin: 'Retour à la connexion',
-  emailRequired: 'Entrez votre email.',
   resetSuccess: 'Email envoyé ! Vérifiez votre boîte de réception (vérifiez les spams).',
   resetError: (raw) => `Ne paniquez pas, envoyez cette erreur à Babi : ${raw}`,
   resetDefaultError: 'Impossible d\'envoyer l\'email de récupération.',
+
+  nameRequired: 'Veuillez saisir votre nom.',
+  emailRequired: 'Veuillez saisir votre adresse e-mail.',
+  invalidEmail: 'Veuillez saisir une adresse e-mail valide.',
+  passwordRequired: 'Veuillez saisir votre mot de passe.',
+  passwordTooShort: 'Le mot de passe doit contenir au moins 8 caractères.',
+  invalidCredentials: 'Adresse e-mail ou mot de passe incorrect.',
+  emailNotConfirmed: 'Veuillez confirmer votre adresse e-mail avant de vous connecter.',
+  accountAlreadyExists: 'Un compte existe déjà avec cette adresse e-mail.',
+  passwordTooWeak: 'Veuillez choisir un mot de passe plus sécurisé.',
+  networkError: 'Erreur de connexion. Veuillez réessayer.',
+  genericError: 'Une erreur est survenue. Veuillez réessayer.',
 
   back: 'Retour',
   startWorkout: 'Démarrer la séance',
@@ -463,9 +520,9 @@ export const fr: Translations = {
   showAnimation: 'Voir l\'animation',
   hideAnimation: 'Masquer l\'animation',
 
-  months: ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
-  dayHeaders: ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'],
-  dayLabels: { 1:'Lundi', 2:'Mardi', 3:'Mercredi', 4:'Jeudi', 5:'Vendredi', 6:'Samedi', 7:'Dimanche' },
+  months: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
+  dayHeaders: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
+  dayLabels: { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche' },
 
   doneToday: 'fait aujourd\'hui',
   done1Day: 'il y a 1 jour',
@@ -516,7 +573,7 @@ export const fr: Translations = {
   weekdayPlaceholder: 'Jour de la semaine (1-7)',
   exerciseIdsPlaceholder: 'IDs des exercices séparés par virgule',
   daysRef: 'Jours :',
-  adminDayLabels: { 1:'Lun', 2:'Mar', 3:'Mer', 4:'Jeu', 5:'Ven', 6:'Sam', 7:'Dim' },
+  adminDayLabels: { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven', 6: 'Sam', 7: 'Dim' },
 };
 
 // ── Locale map ────────────────────────────────────────────────────────────────

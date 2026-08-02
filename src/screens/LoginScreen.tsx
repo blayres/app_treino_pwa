@@ -1,24 +1,32 @@
 import React from 'react';
-import { View, Text, Pressable, TextInput, Alert, Platform } from 'react-native';
+import { View, Text, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './LoginScreen.styles';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { useAppStore } from '../store/useAppStore';
 import { backendMode } from '../services/backendMode';
-import { getLocalUsers, loginWithEmail, setLocalCurrentUser, signInWithGoogle, getSessionUser } from '../services/authService';
+import { getLocalUsers, loginWithEmail, setLocalCurrentUser } from '../services/authService';
+import { mapAuthError } from '../services/authErrorMapper';
+import { feedbackStyles } from './FeedbackStyles';
 import { useI18n } from '../i18n';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+type Route = NativeStackScreenProps<RootStackParamList, 'Login'>['route'];
 
 export default function LoginScreen() {
   const navigation = useNavigation<Navigation>();
+  const route = useRoute<Route>();
   const setCurrentUser = useAppStore(state => state.setCurrentUser);
   const { t } = useI18n();
   const [users, setUsers] = React.useState<{ id: number; name: string }[]>([]);
-  const [email, setEmail] = React.useState('');
+  const [email, setEmail] = React.useState(route.params?.email ?? '');
   const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState('');
+
+  const passwordRef = React.useRef<TextInput>(null);
 
   React.useEffect(() => {
     if (backendMode !== 'local') return;
@@ -36,20 +44,34 @@ export default function LoginScreen() {
   };
 
   const handleSupabaseLogin = async () => {
+    setError('');
+
     if (!email || !password) {
-      Alert.alert(t.requiredFields, t.requiredFieldsMsg);
+      setError(t.requiredFieldsMsg);
       return;
     }
     try {
       await loginWithEmail(email.trim(), password);
-    } catch (error: any) {
-      Alert.alert(t.loginError, error?.message ?? t.loginErrorMsg);
+    } catch (err: any) {
+      setError(
+        mapAuthError(err?.message, {
+          invalidCredentials: t.invalidCredentials,
+          emailNotConfirmed: t.emailNotConfirmed,
+          accountAlreadyExists: t.accountAlreadyExists,
+          passwordTooWeak: t.passwordTooWeak,
+          networkError: t.networkError,
+          genericError: t.genericError,
+        }),
+      );
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
+        <View style={{ alignItems: 'flex-end', marginBottom: 12 }}>
+          <LanguageSwitcher />
+        </View>
         {backendMode === 'supabase' ? (
           <>
             <Text style={styles.title}>{t.signIn}</Text>
@@ -57,28 +79,58 @@ export default function LoginScreen() {
               style={styles.input}
               autoCapitalize="none"
               keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
               placeholder={t.emailPlaceholder}
+              returnKeyType="next"
               value={email}
               onChangeText={setEmail}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              accessibilityLabel={t.emailPlaceholder}
             />
             <TextInput
+              ref={passwordRef}
               style={styles.input}
               autoCapitalize="none"
               secureTextEntry
+              autoComplete="current-password"
+              textContentType="password"
               placeholder={t.passwordPlaceholder}
+              returnKeyType="done"
               value={password}
               onChangeText={setPassword}
+              onSubmitEditing={handleSupabaseLogin}
+              accessibilityLabel={t.passwordPlaceholder}
             />
+
+            {error ? (
+              <View style={feedbackStyles.errorBox}>
+                <Text style={feedbackStyles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
             <Pressable
               style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
               onPress={handleSupabaseLogin}
+              accessibilityRole="button"
+              accessibilityLabel={t.accessButton}
             >
               <Text style={styles.buttonLabel}>{t.accessButton}</Text>
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('ForgotPassword')} hitSlop={8} style={styles.linkWrap}>
+            <Pressable
+              onPress={() => navigation.navigate('ForgotPassword')}
+              hitSlop={8}
+              style={styles.linkWrap}
+              accessibilityRole="link"
+            >
               <Text style={styles.linkLabel}>{t.forgotPassword}</Text>
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('Signup')} hitSlop={8} style={styles.linkWrap}>
+            <Pressable
+              onPress={() => navigation.navigate('Signup')}
+              hitSlop={8}
+              style={styles.linkWrap}
+              accessibilityRole="link"
+            >
               <Text style={styles.linkLabel}>{t.createAccount}</Text>
             </Pressable>
           </>
@@ -91,6 +143,8 @@ export default function LoginScreen() {
                   key={user.id}
                   style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
                   onPress={() => handleSelectUser(user.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={user.name}
                 >
                   <Text style={styles.buttonLabel}>{user.name}</Text>
                 </Pressable>

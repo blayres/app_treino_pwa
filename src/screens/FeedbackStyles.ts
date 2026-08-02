@@ -27,6 +27,5 @@ export const feedbackStyles = StyleSheet.create({
     color: colors.danger,
     fontSize: 13,
     lineHeight: 19,
-    fontFamily: 'monospace',
   },
 });

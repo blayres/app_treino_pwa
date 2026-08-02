@@ -27,7 +27,7 @@ import { backendMode } from './src/services/backendMode';
 import { supabase } from './src/services/supabaseClient';
 
 export type RootStackParamList = {
-  Login: undefined;
+  Login: { email?: string } | undefined;
   Signup: undefined;
   ForgotPassword: undefined;
   Home: undefined;

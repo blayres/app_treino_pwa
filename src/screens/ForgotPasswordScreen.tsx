@@ -8,6 +8,7 @@ import { styles } from './LoginScreen.styles';
 import { feedbackStyles } from './FeedbackStyles';
 import { sendPasswordReset } from '../services/authService';
 import { useI18n } from '../i18n';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
@@ -43,6 +44,9 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <View style={{ alignItems: 'flex-end', marginBottom: 12 }}>
+          <LanguageSwitcher />
+        </View>
         <Text style={styles.title}>{t.recoverPassword}</Text>
         <Text style={styles.subtitle}>{t.recoverPasswordSubtitle}</Text>
 

@@ -21,11 +21,16 @@ export async function loginWithEmail(email: string, password: string) {
 export async function signUpWithEmail(email: string, password: string, name?: string) {
   ensureSupabaseEnabled();
 
+  const redirectTo =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/login`
+      : 'https://app-treino-pwa-pi.vercel.app/login';
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: 'https://app-treino-pwa-pi.vercel.app/login',
+      emailRedirectTo: redirectTo,
       data: name ? { name } : undefined,
     },
   });
