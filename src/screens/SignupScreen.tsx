@@ -16,11 +16,13 @@ import type { RootStackParamList } from '../../App';
 import { styles } from './LoginScreen.styles';
 import { feedbackStyles } from './FeedbackStyles';
 
-import { signUpWithEmail } from '../services/authService';
+import { signUpWithEmail, signInWithGoogle } from '../services/authService';
 import { mapAuthError } from '../services/authErrorMapper';
 
 import { useI18n } from '../i18n';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { OrDivider } from '../components/OrDivider';
 import { colors } from '../theme/colors';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
@@ -40,6 +42,7 @@ export default function SignupScreen() {
   const [error, setError] = React.useState('');
 
   const [loading, setLoading] = React.useState(false);
+  const [googleLoading, setGoogleLoading] = React.useState(false);
 
   const emailRef = React.useRef<TextInput>(null);
   const passwordRef = React.useRef<TextInput>(null);
@@ -110,6 +113,29 @@ export default function SignupScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setSuccess('');
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // OAuth opens the browser — App.tsx handles the session on return.
+    } catch (err: any) {
+      setError(
+        mapAuthError(err?.message, {
+          invalidCredentials: t.invalidCredentials,
+          emailNotConfirmed: t.emailNotConfirmed,
+          accountAlreadyExists: t.accountAlreadyExists,
+          passwordTooWeak: t.passwordTooWeak,
+          networkError: t.networkError,
+          genericError: t.genericError,
+        }),
+      );
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -234,6 +260,13 @@ export default function SignupScreen() {
               {t.signupButtonLabel}
             </Text>
           </Pressable>
+
+          <OrDivider />
+
+          <GoogleSignInButton
+            onPress={handleGoogleSignIn}
+            disabled={loading || googleLoading}
+          />
 
           <Pressable
             disabled={loading}

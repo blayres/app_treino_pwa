@@ -39,6 +39,8 @@ export const pt = {
   signupButtonLabel: 'Criar conta',
   confirmPasswordPlaceholder: 'Confirmar senha',
   passwordMismatch: 'As senhas não coincidem.',
+  continueWithGoogle: 'Continuar com Google',
+  orDivider: 'ou',
 
   // Forgot Password
   recoverPassword: 'Recuperar senha',
@@ -190,6 +192,8 @@ export const en: Translations = {
   signupButtonLabel: 'Create account',
   confirmPasswordPlaceholder: 'Confirm password',
   passwordMismatch: 'Passwords do not match.',
+  continueWithGoogle: 'Continue with Google',
+  orDivider: 'or',
 
   recoverPassword: 'Recover password',
   recoverPasswordSubtitle: 'Enter your email to receive the recovery link.',
@@ -330,6 +334,8 @@ export const es: Translations = {
   signupButtonLabel: 'Crear cuenta',
   confirmPasswordPlaceholder: 'Confirmar contraseña',
   passwordMismatch: 'Las contraseñas no coinciden.',
+  continueWithGoogle: 'Continuar con Google',
+  orDivider: 'o',
 
   recoverPassword: 'Recuperar contraseña',
   recoverPasswordSubtitle: 'Ingresa tu email para recibir el link de recuperación.',
@@ -470,6 +476,8 @@ export const fr: Translations = {
   signupButtonLabel: 'Créer un compte',
   confirmPasswordPlaceholder: 'Confirmer le mot de passe',
   passwordMismatch: 'Les mots de passe ne correspondent pas.',
+  continueWithGoogle: 'Continuer avec Google',
+  orDivider: 'ou',
 
   recoverPassword: 'Récupérer le mot de passe',
   recoverPasswordSubtitle: 'Entrez votre email pour recevoir le lien de récupération.',

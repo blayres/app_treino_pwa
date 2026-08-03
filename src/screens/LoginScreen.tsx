@@ -12,6 +12,9 @@ import { mapAuthError } from '../services/authErrorMapper';
 import { feedbackStyles } from './FeedbackStyles';
 import { useI18n } from '../i18n';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { OrDivider } from '../components/OrDivider';
+import { signInWithGoogle } from '../services/authService';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 type Route = NativeStackScreenProps<RootStackParamList, 'Login'>['route'];
@@ -25,6 +28,7 @@ export default function LoginScreen() {
   const [email, setEmail] = React.useState(route.params?.email ?? '');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
+  const [googleLoading, setGoogleLoading] = React.useState(false);
 
   const passwordRef = React.useRef<TextInput>(null);
 
@@ -63,6 +67,29 @@ export default function LoginScreen() {
           genericError: t.genericError,
         }),
       );
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // OAuth opens the browser — the auth state change listener in App.tsx
+      // handles the session once the user returns from the Google consent screen.
+    } catch (err: any) {
+      setError(
+        mapAuthError(err?.message, {
+          invalidCredentials: t.invalidCredentials,
+          emailNotConfirmed: t.emailNotConfirmed,
+          accountAlreadyExists: t.accountAlreadyExists,
+          passwordTooWeak: t.passwordTooWeak,
+          networkError: t.networkError,
+          genericError: t.genericError,
+        }),
+      );
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -117,6 +144,14 @@ export default function LoginScreen() {
             >
               <Text style={styles.buttonLabel}>{t.accessButton}</Text>
             </Pressable>
+
+            <OrDivider />
+
+            <GoogleSignInButton
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading}
+            />
+
             <Pressable
               onPress={() => navigation.navigate('ForgotPassword')}
               hitSlop={8}
