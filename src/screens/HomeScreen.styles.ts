@@ -57,6 +57,11 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  greetingWrapper: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: spacing.sm,
+  },
   greeting: {
     ...typography.h1,
     color: colors.oliveDark,

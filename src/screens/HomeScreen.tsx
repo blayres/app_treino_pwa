@@ -93,8 +93,8 @@ export default function HomeScreen() {
 
         <View style={styles.content}>
           <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>{t.greeting(currentUser.name)}</Text>
+            <View style={styles.greetingWrapper}>
+              <Text style={styles.greeting} numberOfLines={1} ellipsizeMode="tail">{t.greeting(currentUser.name)}</Text>
               <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
             </View>
             <View style={styles.actionsRow}>
