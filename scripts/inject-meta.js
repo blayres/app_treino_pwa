@@ -24,6 +24,16 @@ const distHtml = path.join(distDir, 'index.html');
 let html = fs.readFileSync(distHtml, 'utf8');
 html = html.replace(/<meta name="theme-color" content="[^"]*">\s*/g, '');
 
+// Resolve the content-hashed logo filename from the dist/assets folder
+const assetsOutputDir = path.join(distDir, 'assets', 'assets');
+let logoPreloadTag = '';
+try {
+  const logoFile = fs.readdirSync(assetsOutputDir).find(f => f.startsWith('logo_completed_light_background'));
+  if (logoFile) {
+    logoPreloadTag = `\n    <link rel="preload" as="image" href="/assets/assets/${logoFile}" fetchpriority="high">`;
+  }
+} catch { /* assets dir may not exist in all build configs */ }
+
 const metaTags = `
     <meta name="theme-color" content="#F8F8F2">
     <meta name="background-color" content="#F8F8F2">
@@ -32,7 +42,7 @@ const metaTags = `
     <meta name="apple-mobile-web-app-title" content="Treino">
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="apple-touch-icon" href="/favicon.png">
-    <link rel="preload" as="image" href="/favicon.png" fetchpriority="high">
+    <link rel="preload" as="image" href="/favicon.png" fetchpriority="high">${logoPreloadTag}
     <link rel="manifest" href="/manifest.json">`;
 
 const baseStyles = `

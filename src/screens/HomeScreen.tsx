@@ -88,6 +88,8 @@ export default function HomeScreen() {
             resizeMode="contain"
             accessibilityElementsHidden
             importantForAccessibility="no"
+            // @ts-ignore — web-only prop; tells the browser not to lazy-load this above-fold image
+            loading="eager"
           />
         </View>
 
