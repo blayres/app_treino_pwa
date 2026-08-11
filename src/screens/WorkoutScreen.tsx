@@ -186,34 +186,24 @@ export default function WorkoutScreen() {
   const handleStop = async (cancelOnly: boolean) => {
     if (!currentUser || !activeSession) return;
 
-    const result = await stopWorkoutSession({
+    // Clear UI and navigate immediately — don't wait on network calls
+    try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch { }
+    setActiveSession(null);
+    navigation.goBack();
+
+    // Fire-and-forget background work
+    stopWorkoutSession({
       userId: currentUser.id,
       sessionId: activeSession.sessionId,
       startedAt: activeSession.startedAt,
       cancelOnly,
-    });
-
-    if (result.completed) {
-      await markAttendance(currentUser.id, result.endedAt);
-      invalidateWorkoutsByUserCache(currentUser.id);
-    }
-
-    // Clear persisted checkboxes — workout is done
-    try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch { }
-
-    if (result.completed) {
-      await markAttendance(currentUser.id, result.endedAt);
-      invalidateWorkoutsByUserCache(currentUser.id);
-
-      sessionStorage.setItem('workoutCompletedToast', 'true');
-    }
-
-    try {
-      sessionStorage.removeItem(`completedIds:${workoutId}`);
-    } catch { }
-
-    setActiveSession(null);
-    navigation.goBack();
+    }).then(async result => {
+      if (result.completed) {
+        await markAttendance(currentUser.id, result.endedAt);
+        invalidateWorkoutsByUserCache(currentUser.id);
+        sessionStorage.setItem('workoutCompletedToast', 'true');
+      }
+    }).catch(console.error);
   };
 
   // Stale detection — recheck when user returns from background
