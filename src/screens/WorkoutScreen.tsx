@@ -25,7 +25,7 @@ import {
   getCachedWorkoutExercises,
   getCachedExerciseLoads,
 } from '../services/workoutService';
-import { markAttendance } from '../services/attendanceService';
+import { markAttendance, invalidateAttendanceCache } from '../services/attendanceService';
 import { startWorkoutSession, stopWorkoutSession } from '../services/sessionService';
 import type { Exercise } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
@@ -188,6 +188,11 @@ export default function WorkoutScreen() {
 
     // Clear UI and navigate immediately — don't wait on network calls
     try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch { }
+    // Bust both caches now so HomeScreen sees fresh data on re-focus,
+    // even though the actual writes (markAttendance, stopWorkoutSession)
+    // complete asynchronously after navigation.
+    invalidateAttendanceCache(currentUser.id);
+    invalidateWorkoutsByUserCache(currentUser.id);
     setActiveSession(null);
     navigation.goBack();
 
@@ -200,7 +205,6 @@ export default function WorkoutScreen() {
     }).then(async result => {
       if (result.completed) {
         await markAttendance(currentUser.id, result.endedAt);
-        invalidateWorkoutsByUserCache(currentUser.id);
         sessionStorage.setItem('workoutCompletedToast', 'true');
       }
     }).catch(console.error);

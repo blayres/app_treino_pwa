@@ -77,6 +77,14 @@ export async function getAttendanceDatesByMonth(params: {
   return response;
 }
 
+export function invalidateAttendanceCache(userId: number) {
+  for (const cacheKey of attendanceCache.keys()) {
+    if (cacheKey.startsWith(`${userId}:`)) {
+      attendanceCache.delete(cacheKey);
+    }
+  }
+}
+
 export async function markAttendance(userId: number, date: Date) {
   const dateStr = formatLocalDate(date);
 
