@@ -186,28 +186,35 @@ export default function WorkoutScreen() {
   const handleStop = async (cancelOnly: boolean) => {
     if (!currentUser || !activeSession) return;
 
-    // Clear UI and navigate immediately — don't wait on network calls
+    // Clear local UI state immediately so the screen feels responsive.
     try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch { }
-    // Bust both caches now so HomeScreen sees fresh data on re-focus,
-    // even though the actual writes (markAttendance, stopWorkoutSession)
-    // complete asynchronously after navigation.
-    invalidateAttendanceCache(currentUser.id);
-    invalidateWorkoutsByUserCache(currentUser.id);
     setActiveSession(null);
-    navigation.goBack();
 
-    // Fire-and-forget background work
-    stopWorkoutSession({
-      userId: currentUser.id,
-      sessionId: activeSession.sessionId,
-      startedAt: activeSession.startedAt,
-      cancelOnly,
-    }).then(async result => {
+    // Run the session stop + attendance write before navigating so that
+    // HomeScreen's useFocusEffect finds fresh data in Supabase when it
+    // re-fetches the calendar and workout list.
+    try {
+      const result = await stopWorkoutSession({
+        userId: currentUser.id,
+        sessionId: activeSession.sessionId,
+        startedAt: activeSession.startedAt,
+        cancelOnly,
+      });
+
       if (result.completed) {
         await markAttendance(currentUser.id, result.endedAt);
         sessionStorage.setItem('workoutCompletedToast', 'true');
       }
-    }).catch(console.error);
+    } catch (err) {
+      console.error(err);
+    }
+
+    // Bust both in-memory caches after the writes so HomeScreen re-fetches
+    // with up-to-date data rather than a stale snapshot.
+    invalidateAttendanceCache(currentUser.id);
+    invalidateWorkoutsByUserCache(currentUser.id);
+
+    navigation.goBack();
   };
 
   // Stale detection — recheck when user returns from background
