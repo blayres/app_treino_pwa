@@ -75,11 +75,12 @@ async function upsertDefaultExercises(): Promise<Record<string, number>> {
 export async function seedDefaultWorkoutsForUser(profileId: number): Promise<void> {
   ensureSupabaseEnabled();
 
-  // Skip if user already has workouts
+  // Skip if user already has active workouts
   const { count } = await supabase
     .from('workouts')
     .select('id', { count: 'exact', head: true })
-    .eq('user_id', profileId);
+    .eq('user_id', profileId)
+    .is('archived_at', null);
 
   if ((count ?? 0) > 0) return;
 

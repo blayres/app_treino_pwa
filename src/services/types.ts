@@ -25,6 +25,7 @@ export type Workout = {
   user_id: number;
   day_of_week: number;
   title: string;
+  archived_at?: string | null;
 };
 
 export type WorkoutWithLastDone = Workout & {

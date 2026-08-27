@@ -101,5 +101,23 @@ export const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textPrimary,
   },
+  sectionDescription: {
+    ...typography.body,
+    marginBottom: spacing.md,
+  },
+  customizeButton: {
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    backgroundColor: colors.olive,
+    alignItems: 'center',
+  },
+  customizeButtonPressed: {
+    opacity: 0.85,
+  },
+  customizeButtonLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimaryDark,
+  },
 });
 

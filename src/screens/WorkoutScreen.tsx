@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './WorkoutScreen.styles';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import type { RootStackParamList } from '../../App';
+import type { RootStackParamList } from '../navigation/types';
 import { useAppStore } from '../store/useAppStore';
 import { LiveTimer } from '../components/LiveTimer';
 import { CircularCheckbox } from '../components/CircularCheckbox';

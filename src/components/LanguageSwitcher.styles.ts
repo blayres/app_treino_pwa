@@ -38,7 +38,7 @@ export const styles = StyleSheet.create({
   },
   menu: {
     position: 'absolute',
-    minWidth: 72,
+    width: 80,
     paddingVertical: 4,
     paddingHorizontal: 4,
     borderRadius: 10,

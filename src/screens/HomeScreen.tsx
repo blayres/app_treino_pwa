@@ -8,7 +8,7 @@ import { CalendarFrequency } from '../components/CalendarFrequency';
 import { DayWorkouts } from '../components/DayWorkouts';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../App';
+import type { RootStackParamList } from '../navigation/types';
 import { logout } from '../services/authService';
 import { useI18n } from '../i18n';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -117,6 +117,16 @@ export default function HomeScreen() {
               userId={currentUser.id}
               onLoad={(count, total) => setCheckInLabel(t.checkInCountLabel(count, total))}
             />
+          </SectionCard>
+
+          <SectionCard title={t.myWorkout}>
+            <Text style={styles.sectionDescription}>{t.myWorkoutDescription}</Text>
+            <Pressable
+              style={({ pressed }) => [styles.customizeButton, pressed && styles.customizeButtonPressed]}
+              onPress={() => navigation.navigate('MyWorkout')}
+            >
+              <Text style={styles.customizeButtonLabel}>{t.customizeMyWorkout}</Text>
+            </Pressable>
           </SectionCard>
         </View>
       </ScrollView>

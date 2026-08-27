@@ -21,8 +21,13 @@ create table if not exists workouts (
   user_id bigint not null references profiles(id),
   day_of_week integer not null,
   title text not null,
-  unique (user_id, day_of_week)
+  archived_at timestamptz default null
 );
+
+-- One active workout per day. Archived workouts are retained with their history.
+create unique index if not exists workouts_user_day_active_unique
+  on workouts (user_id, day_of_week)
+  where archived_at is null;
 
 create table if not exists workout_exercises (
   id bigint generated always as identity primary key,

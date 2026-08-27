@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Dimensions, Modal, Pressable, Text, View } from 'react-native';
 import { useI18n, type Locale } from '../i18n';
 import { styles } from './LanguageSwitcher.styles';
 
 const OPTIONS: Locale[] = ['pt', 'en', 'es', 'fr'];
+const MENU_WIDTH = 80;
+const SCREEN_EDGE_GAP = 8;
 
 export function LanguageSwitcher() {
   const { locale, setLocale, t } = useI18n();
@@ -12,8 +14,14 @@ export function LanguageSwitcher() {
   const triggerRef = useRef<any>(null);
 
   const updateMenuPosition = () => {
-    triggerRef.current?.measureInWindow?.((x: number, y: number, _width: number, height: number) => {
-      setMenuPosition({ top: y + height + 4, left: x });
+    triggerRef.current?.measureInWindow?.((x: number, y: number, width: number, height: number) => {
+      const screenWidth = Dimensions.get('window').width;
+      const alignedLeft = x + width - MENU_WIDTH;
+      const left = Math.max(
+        SCREEN_EDGE_GAP,
+        Math.min(alignedLeft, screenWidth - MENU_WIDTH - SCREEN_EDGE_GAP),
+      );
+      setMenuPosition({ top: y + height + 4, left });
     });
   };
 
@@ -73,4 +81,3 @@ export function LanguageSwitcher() {
     </>
   );
 }
-

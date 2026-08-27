@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState, lazy, Suspense } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -12,12 +12,17 @@ import { StatusBar } from 'expo-status-bar';
 // Critical screens — loaded eagerly (on the initial render path)
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import { lazyScreen } from './src/navigation/lazyScreen';
+import type { RootStackParamList } from './src/navigation/types';
 
 // Non-critical screens — lazy loaded after first paint
-const WorkoutScreen = lazy(() => import('./src/screens/WorkoutScreen'));
-const AdminScreen = lazy(() => import('./src/screens/AdminScreen'));
-const SignupScreen = lazy(() => import('./src/screens/SignupScreen'));
-const ForgotPasswordScreen = lazy(() => import('./src/screens/ForgotPasswordScreen'));
+const WorkoutScreen = lazyScreen(() => import('./src/screens/WorkoutScreen'));
+const AdminScreen = lazyScreen(() => import('./src/screens/AdminScreen'));
+const SignupScreen = lazyScreen(() => import('./src/screens/SignupScreen'));
+const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'));
+const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen'));
+const EditWorkoutScreen = lazyScreen(() => import('./src/screens/EditWorkoutScreen'));
+const AddTrainingDayScreen = lazyScreen(() => import('./src/screens/AddTrainingDayScreen'));
 
 import { colors } from './src/theme/colors';
 import { useAppStore } from './src/store/useAppStore';
@@ -26,14 +31,7 @@ import { getSessionUser, getOrCreateProfile } from './src/services/authService';
 import { backendMode } from './src/services/backendMode';
 import { supabase } from './src/services/supabaseClient';
 
-export type RootStackParamList = {
-  Login: { email?: string } | undefined;
-  Signup: undefined;
-  ForgotPassword: undefined;
-  Home: undefined;
-  Workout: { workoutId: number; workoutTitle?: string };
-  Admin: undefined;
-};
+export type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -174,6 +172,9 @@ export default function App() {
             Home: 'home',
             Workout: 'workout/:workoutId',
             Admin: 'admin',
+            MyWorkout: 'my-workout',
+            EditWorkout: 'my-workout/edit/:workoutId',
+            AddTrainingDay: 'my-workout/add',
           },
         },
       }}
@@ -210,6 +211,9 @@ export default function App() {
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="Workout" component={WorkoutScreen} />
               <Stack.Screen name="Admin" component={AdminScreen} />
+              <Stack.Screen name="MyWorkout" component={MyWorkoutScreen} />
+              <Stack.Screen name="EditWorkout" component={EditWorkoutScreen} />
+              <Stack.Screen name="AddTrainingDay" component={AddTrainingDayScreen} />
             </>
           ) : (
             <>

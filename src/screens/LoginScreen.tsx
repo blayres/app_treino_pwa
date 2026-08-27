@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { styles } from './LoginScreen.styles';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../App';
+import type { RootStackParamList } from '../navigation/types';
 import { useAppStore } from '../store/useAppStore';
 import { backendMode } from '../services/backendMode';
 import { getLocalUsers, loginWithEmail, setLocalCurrentUser } from '../services/authService';

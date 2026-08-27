@@ -3,7 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import { styles } from './DayWorkouts.styles';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../App';
+import type { RootStackParamList } from '../navigation/types';
 import type { WorkoutWithLastDone } from '../services/types';
 import { Skeleton } from './Skeleton';
 import {

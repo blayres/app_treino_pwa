@@ -18,11 +18,17 @@ const exerciseLoadsCache = new Map<number, { expiresAt: number; data: ExerciseLo
 
 export function getCachedWorkoutExercises(workoutId: number): WorkoutExercise[] | null {
   const cached = workoutExercisesCache.get(workoutId);
-
   if (cached && cached.expiresAt > Date.now()) {
     return cached.data;
   }
+  return null;
+}
 
+export function getCachedWorkoutsByUser(userId: number): WorkoutWithLastDone[] | null {
+  const cached = workoutsByUserCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
   return null;
 }
 
@@ -62,31 +68,52 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
 
-    const [{ data: workouts, error: workoutsError }, { data: sessions, error: sessionsError }] =
-      await Promise.all([
-        supabase.from('workouts').select('*').eq('user_id', userId).order('day_of_week', { ascending: true }),
-        supabase
-          .from('workout_sessions')
-          .select('workout_id, ended_at')
-          .eq('user_id', userId)
-          .eq('completed', 1)
-          .not('ended_at', 'is', null),
-      ]);
+    // Try with archived_at filter (post-migration). If the column doesn't
+    // exist yet (pre-migration, error code 42703), fall back to fetching all
+    // rows and filtering client-side on the returned field.
+    let workoutsResult = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('user_id', userId)
+      .is('archived_at', null)
+      .order('day_of_week', { ascending: true });
 
-    if (workoutsError) throw workoutsError;
+    if (workoutsResult.error?.code === '42703') {
+      // Column does not exist yet — migration hasn't been run.
+      // Fall back to fetching without the filter; no rows will be archived.
+      workoutsResult = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('day_of_week', { ascending: true });
+    }
+
+    if (workoutsResult.error) throw workoutsResult.error;
+
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('workout_sessions')
+      .select('workout_id, ended_at')
+      .eq('user_id', userId)
+      .eq('completed', 1)
+      .not('ended_at', 'is', null);
+
     if (sessionsError) throw sessionsError;
 
     const lastDoneMap: Record<number, string> = {};
     (sessions ?? []).forEach((session) => {
       const workoutId = Number(session.workout_id);
       const endedAt = String(session.ended_at);
-
       if (!lastDoneMap[workoutId] || endedAt > lastDoneMap[workoutId]) {
         lastDoneMap[workoutId] = endedAt;
       }
     });
 
-    const response = (workouts ?? []).map((workout) => ({
+    // Client-side filter: hide anything that was archived (post-migration rows
+    // that have archived_at set will be excluded here even if the server-side
+    // filter wasn't applied above).
+    const activeWorkouts = (workoutsResult.data ?? []).filter((w: any) => !w.archived_at);
+
+    const response = activeWorkouts.map((workout) => ({
       ...(workout as Workout),
       last_done: lastDoneMap[Number(workout.id)] ?? null,
     }));
@@ -103,7 +130,7 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
 
   const rows = await db.getAllAsync<Workout>(
     `SELECT * FROM workouts
-     WHERE user_id = ?
+     WHERE user_id = ? AND archived_at IS NULL
      ORDER BY day_of_week ASC;`,
     userId,
   );
@@ -132,6 +159,183 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
   });
 
   return response;
+}
+
+// ── Workout customization functions ──────────────────────────────────────────
+
+export async function updateWorkoutTitle(workoutId: number, title: string): Promise<void> {
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { data, error } = await supabase
+      .from('workouts')
+      .update({ title })
+      .eq('id', workoutId)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Treino não encontrado ou sem permissão para editá-lo.');
+    return;
+  }
+
+  const db = await getLocalDb();
+  await db.runAsync(
+    `UPDATE workouts SET title = ? WHERE id = ?;`,
+    title,
+    workoutId,
+  );
+}
+
+export async function createWorkoutForUser(params: {
+  userId: number;
+  dayOfWeek: number;
+  title: string;
+  exerciseIds: number[];
+}): Promise<number> {
+  const { userId, dayOfWeek, title, exerciseIds } = params;
+
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { data: workoutRow, error: workoutError } = await supabase
+      .from('workouts')
+      .insert({ user_id: userId, day_of_week: dayOfWeek, title })
+      .select('id')
+      .single();
+    if (workoutError) throw workoutError;
+    const workoutId = Number(workoutRow.id);
+
+    if (exerciseIds.length > 0) {
+      const rows = exerciseIds.map((exerciseId, index) => ({
+        workout_id: workoutId,
+        exercise_id: exerciseId,
+        order_index: index,
+      }));
+      const { error: exError } = await supabase.from('workout_exercises').insert(rows);
+      if (exError) throw exError;
+    }
+
+    return workoutId;
+  }
+
+  const db = await getLocalDb();
+  const result = await db.runAsync(
+    `INSERT INTO workouts (user_id, day_of_week, title) VALUES (?, ?, ?);`,
+    userId,
+    dayOfWeek,
+    title,
+  );
+  const workoutId = result.lastInsertRowId!;
+
+  for (let index = 0; index < exerciseIds.length; index++) {
+    await db.runAsync(
+      `INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (?, ?, ?);`,
+      workoutId,
+      exerciseIds[index],
+      index,
+    );
+  }
+
+  return workoutId;
+}
+
+export async function addExerciseToWorkout(workoutId: number, exerciseId: number): Promise<void> {
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    // Get current max order_index
+    const { data, error: fetchError } = await supabase
+      .from('workout_exercises')
+      .select('order_index')
+      .eq('workout_id', workoutId)
+      .order('order_index', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    const nextIndex = data ? Number(data.order_index) + 1 : 0;
+
+    const { error } = await supabase.from('workout_exercises').insert({
+      workout_id: workoutId,
+      exercise_id: exerciseId,
+      order_index: nextIndex,
+    });
+    if (error) throw error;
+    return;
+  }
+
+  const db = await getLocalDb();
+  const row = await db.getFirstAsync<{ max_idx: number }>(
+    `SELECT MAX(order_index) as max_idx FROM workout_exercises WHERE workout_id = ?;`,
+    workoutId,
+  );
+  const nextIndex = row?.max_idx != null ? row.max_idx + 1 : 0;
+  await db.runAsync(
+    `INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (?, ?, ?);`,
+    workoutId,
+    exerciseId,
+    nextIndex,
+  );
+}
+
+export async function removeExerciseFromWorkout(workoutExerciseId: number): Promise<void> {
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { data, error } = await supabase
+      .from('workout_exercises')
+      .delete()
+      .eq('id', workoutExerciseId)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Exercício não encontrado ou sem permissão para removê-lo.');
+    return;
+  }
+
+  const db = await getLocalDb();
+  await db.runAsync(
+    `DELETE FROM workout_exercises WHERE id = ?;`,
+    workoutExerciseId,
+  );
+}
+
+export async function archiveWorkout(workoutId: number): Promise<void> {
+  const archivedAt = new Date().toISOString();
+
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { data, error } = await supabase
+      .from('workouts')
+      .update({ archived_at: archivedAt })
+      .eq('id', workoutId)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Treino não encontrado ou sem permissão para editá-lo.');
+    return;
+  }
+
+  const db = await getLocalDb();
+  await db.runAsync(
+    `UPDATE workouts SET archived_at = ? WHERE id = ?;`,
+    archivedAt,
+    workoutId,
+  );
+}
+
+export async function getWorkoutExerciseCount(workoutId: number): Promise<number> {
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { count, error } = await supabase
+      .from('workout_exercises')
+      .select('id', { count: 'exact', head: true })
+      .eq('workout_id', workoutId);
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  const db = await getLocalDb();
+  const row = await db.getFirstAsync<{ cnt: number }>(
+    `SELECT COUNT(*) as cnt FROM workout_exercises WHERE workout_id = ?;`,
+    workoutId,
+  );
+  return row?.cnt ?? 0;
 }
 
 export function invalidateWorkoutsByUserCache(userId?: number) {

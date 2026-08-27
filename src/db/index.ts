@@ -191,7 +191,7 @@ export async function initDatabase() {
       user_id INTEGER NOT NULL,
       day_of_week INTEGER NOT NULL,
       title TEXT NOT NULL,
-      UNIQUE (user_id, day_of_week),
+      archived_at TEXT DEFAULT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
     CREATE TABLE IF NOT EXISTS workout_exercises (
@@ -241,6 +241,23 @@ export async function initDatabase() {
     );
   `);
   await seedDatabase(db);
+
+  // ── Schema migrations for existing databases ──────────────────────────────
+  // Run these after CREATE TABLE IF NOT EXISTS so they apply to pre-existing DBs.
+  try {
+    await db.execAsync(`ALTER TABLE workouts ADD COLUMN archived_at TEXT DEFAULT NULL;`);
+  } catch {
+    // Column already exists — ignore
+  }
+  try {
+    await db.execAsync(
+      `CREATE UNIQUE INDEX IF NOT EXISTS workouts_user_day_active_unique
+       ON workouts (user_id, day_of_week)
+       WHERE archived_at IS NULL;`,
+    );
+  } catch {
+    // Index already exists — ignore
+  }
 }
 
 // async function seedDatabase(db: DB) {
