@@ -161,9 +161,6 @@ export const styles = StyleSheet.create({
 });
 
 export const pickerStyles = StyleSheet.create({
-  keyboardAvoidingView: {
-    flex: 1,
-  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -215,6 +212,9 @@ export const pickerStyles = StyleSheet.create({
   loadingWrap: {
     paddingVertical: spacing.xl,
     alignItems: 'center',
+  },
+  exerciseList: {
+    flexShrink: 1,
   },
   emptyText: {
     ...typography.body,
