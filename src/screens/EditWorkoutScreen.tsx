@@ -56,6 +56,7 @@ export default function EditWorkoutScreen() {
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState('');
   const [isLoadingPicker, setIsLoadingPicker] = useState(false);
+  const [pickerLayout, setPickerLayout] = useState({ bottom: 0, maxHeight: undefined as number | undefined });
 
   // Confirm modals
   const [confirmRemoveExercise, setConfirmRemoveExercise] = useState<WorkoutExercise | null>(null);
@@ -90,6 +91,34 @@ export default function EditWorkoutScreen() {
   useEffect(() => {
     loadExercises();
   }, [loadExercises]);
+
+  // Mobile Safari keeps the layout viewport at full height when its keyboard
+  // opens. Use the visual viewport so the bottom sheet stays above it.
+  useEffect(() => {
+    if (!showPicker || typeof window === 'undefined' || !window.visualViewport) {
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const updatePickerLayout = () => {
+      const keyboardHeight = Math.max(
+        0,
+        window.innerHeight - viewport.height - viewport.offsetTop,
+      );
+      setPickerLayout({
+        bottom: keyboardHeight,
+        maxHeight: Math.max(220, viewport.height * 0.8),
+      });
+    };
+
+    updatePickerLayout();
+    viewport.addEventListener('resize', updatePickerLayout);
+    viewport.addEventListener('scroll', updatePickerLayout);
+    return () => {
+      viewport.removeEventListener('resize', updatePickerLayout);
+      viewport.removeEventListener('scroll', updatePickerLayout);
+    };
+  }, [showPicker]);
 
   const saveTitle = async (): Promise<boolean> => {
     // A title input blurs before the header button receives its press on some
@@ -312,7 +341,12 @@ export default function EditWorkoutScreen() {
             onPress={() => setShowPicker(false)}
             accessibilityLabel={t.cancel}
           />
-          <View style={pickerStyles.sheet}>
+          <View
+            style={[
+              pickerStyles.sheet,
+              { marginBottom: pickerLayout.bottom, maxHeight: pickerLayout.maxHeight },
+            ]}
+          >
             <View style={pickerStyles.header}>
               <Text style={pickerStyles.title}>{t.pickExerciseTitle}</Text>
               <Pressable hitSlop={12} onPress={() => setShowPicker(false)}>
