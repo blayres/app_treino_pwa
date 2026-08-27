@@ -54,7 +54,8 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMutedLight,
     borderWidth: 1,
     borderColor: colors.borderSoftLight,
-    fontSize: 15,
+    // iOS Safari zooms the page when an auto-focused input is below 16px.
+    fontSize: 16,
     color: colors.textPrimary,
   },
   spinner: {
@@ -168,6 +169,13 @@ export const pickerStyles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
   sheet: {
     backgroundColor: colors.surfaceLight,
     borderTopLeftRadius: 20,
@@ -200,7 +208,8 @@ export const pickerStyles = StyleSheet.create({
     backgroundColor: colors.surfaceMutedLight,
     borderWidth: 1,
     borderColor: colors.borderSoftLight,
-    fontSize: 15,
+    // This input opens focused; keep it at 16px to prevent iOS page zoom.
+    fontSize: 16,
     color: colors.textPrimary,
   },
   loadingWrap: {

@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   FlatList,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -310,9 +309,14 @@ export default function EditWorkoutScreen() {
       >
         <KeyboardAvoidingView
           style={pickerStyles.keyboardAvoidingView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior="height"
         >
           <View style={pickerStyles.overlay}>
+            <Pressable
+              style={pickerStyles.backdrop}
+              onPress={() => setShowPicker(false)}
+              accessibilityLabel={t.cancel}
+            />
             <View style={pickerStyles.sheet}>
               <View style={pickerStyles.header}>
                 <Text style={pickerStyles.title}>{t.pickExerciseTitle}</Text>
