@@ -114,10 +114,10 @@ export const pt = {
   doneMonths: (n: number) => `feito há ${n} meses`,
 
   // Workout Customization
-  myWorkout: 'Meu treino',
+  myWorkout: 'Editar meu treino',
   myWorkoutDescription: 'Personalize seus dias e exercícios',
-  customizeMyWorkout: 'Personalizar meu treino',
-  myWorkoutOverviewTitle: 'Meu treino',
+  customizeMyWorkout: 'Editar meu treino',
+  myWorkoutOverviewTitle: 'Editar meu treino',
   addTrainingDay: '+ Adicionar dia de treino',
   exerciseCount: (n: number) => `${n} exercício${n !== 1 ? 's' : ''}`,
   editWorkout: 'Editar',
@@ -295,10 +295,10 @@ export const en: Translations = {
   doneMonths: (n) => `done ${n} months ago`,
 
   // Workout Customization
-  myWorkout: 'My workout',
+  myWorkout: 'Edit my workout',
   myWorkoutDescription: 'Customize your training days and exercises',
-  customizeMyWorkout: 'Customize my workout',
-  myWorkoutOverviewTitle: 'My workout',
+  customizeMyWorkout: 'Edit my workout',
+  myWorkoutOverviewTitle: 'Edit my workout',
   addTrainingDay: '+ Add training day',
   exerciseCount: (n) => `${n} exercise${n !== 1 ? 's' : ''}`,
   editWorkout: 'Edit',
@@ -475,10 +475,10 @@ export const es: Translations = {
   doneMonths: (n) => `hace ${n} meses`,
 
   // Workout Customization
-  myWorkout: 'Mi entrenamiento',
+  myWorkout: 'Editar mi entrenamiento',
   myWorkoutDescription: 'Personaliza tus días y ejercicios',
-  customizeMyWorkout: 'Personalizar mi entrenamiento',
-  myWorkoutOverviewTitle: 'Mi entrenamiento',
+  customizeMyWorkout: 'Editar mi entrenamiento',
+  myWorkoutOverviewTitle: 'Editar mi entrenamiento',
   addTrainingDay: '+ Añadir día de entrenamiento',
   exerciseCount: (n) => `${n} ejercicio${n !== 1 ? 's' : ''}`,
   editWorkout: 'Editar',
@@ -655,10 +655,10 @@ export const fr: Translations = {
   doneMonths: (n) => `il y a ${n} mois`,
 
   // Workout Customization
-  myWorkout: 'Mon entraînement',
+  myWorkout: 'Modifier mon entraînement',
   myWorkoutDescription: 'Personnalisez vos jours et exercices',
-  customizeMyWorkout: 'Personnaliser mon entraînement',
-  myWorkoutOverviewTitle: 'Mon entraînement',
+  customizeMyWorkout: 'Modifier mon entraînement',
+  myWorkoutOverviewTitle: 'Modifier mon entraînement',
   addTrainingDay: '+ Ajouter un jour',
   exerciseCount: (n) => `${n} exercice${n !== 1 ? 's' : ''}`,
   editWorkout: 'Modifier',
