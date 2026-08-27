@@ -7,8 +7,10 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
   FlatList,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -306,72 +308,77 @@ export default function EditWorkoutScreen() {
         transparent
         onRequestClose={() => setShowPicker(false)}
       >
-        <View style={pickerStyles.overlay}>
-          <View style={pickerStyles.sheet}>
-            <View style={pickerStyles.header}>
-              <Text style={pickerStyles.title}>{t.pickExerciseTitle}</Text>
-              <Pressable hitSlop={12} onPress={() => setShowPicker(false)}>
-                <Text style={pickerStyles.close}>✕</Text>
-              </Pressable>
-            </View>
-
-            <TextInput
-              style={pickerStyles.searchInput}
-              value={search}
-              onChangeText={setSearch}
-              placeholder={t.searchExercises}
-              clearButtonMode="while-editing"
-              autoFocus
-            />
-
-            {isLoadingPicker ? (
-              <View style={pickerStyles.loadingWrap}>
-                <ActivityIndicator color={styles.spinner.color} />
+        <KeyboardAvoidingView
+          style={pickerStyles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={pickerStyles.overlay}>
+            <View style={pickerStyles.sheet}>
+              <View style={pickerStyles.header}>
+                <Text style={pickerStyles.title}>{t.pickExerciseTitle}</Text>
+                <Pressable hitSlop={12} onPress={() => setShowPicker(false)}>
+                  <Text style={pickerStyles.close}>✕</Text>
+                </Pressable>
               </View>
-            ) : filteredExercises.length === 0 ? (
-              <Text style={pickerStyles.emptyText}>{t.noExercisesFound}</Text>
-            ) : (
-              <FlatList
-                data={filteredExercises}
-                keyExtractor={(item) => String(item.id)}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item }) => {
-                  const alreadyAdded = exercises.some((we) => we.exercise_id === item.id);
-                  return (
-                    <Pressable
-                      style={({ pressed }) => [
-                        pickerStyles.exerciseItem,
-                        alreadyAdded && pickerStyles.exerciseItemDisabled,
-                        pressed && !alreadyAdded && pickerStyles.exerciseItemPressed,
-                      ]}
-                      onPress={() => handlePickExercise(item)}
-                      disabled={alreadyAdded}
-                    >
-                      <View style={pickerStyles.exerciseItemInfo}>
-                        <Text
-                          style={[
-                            pickerStyles.exerciseItemName,
-                            alreadyAdded && pickerStyles.exerciseItemNameDisabled,
-                          ]}
-                        >
-                          {item.name}
-                        </Text>
-                        {item.primary_muscle ? (
-                          <Text style={pickerStyles.exerciseItemMuscle}>
-                            {item.primary_muscle}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {alreadyAdded && (
-                        <Text style={pickerStyles.addedTag}>✓</Text>
-                      )}
-                    </Pressable>
-                  );
-                }}
+
+              <TextInput
+                style={pickerStyles.searchInput}
+                value={search}
+                onChangeText={setSearch}
+                placeholder={t.searchExercises}
+                clearButtonMode="while-editing"
+                autoFocus
               />
-            )}
+
+              {isLoadingPicker ? (
+                <View style={pickerStyles.loadingWrap}>
+                  <ActivityIndicator color={styles.spinner.color} />
+                </View>
+              ) : filteredExercises.length === 0 ? (
+                <Text style={pickerStyles.emptyText}>{t.noExercisesFound}</Text>
+              ) : (
+                <FlatList
+                  data={filteredExercises}
+                  keyExtractor={(item) => String(item.id)}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => {
+                    const alreadyAdded = exercises.some((we) => we.exercise_id === item.id);
+                    return (
+                      <Pressable
+                        style={({ pressed }) => [
+                          pickerStyles.exerciseItem,
+                          alreadyAdded && pickerStyles.exerciseItemDisabled,
+                          pressed && !alreadyAdded && pickerStyles.exerciseItemPressed,
+                        ]}
+                        onPress={() => handlePickExercise(item)}
+                        disabled={alreadyAdded}
+                      >
+                        <View style={pickerStyles.exerciseItemInfo}>
+                          <Text
+                            style={[
+                              pickerStyles.exerciseItemName,
+                              alreadyAdded && pickerStyles.exerciseItemNameDisabled,
+                            ]}
+                          >
+                            {item.name}
+                          </Text>
+                          {item.primary_muscle ? (
+                            <Text style={pickerStyles.exerciseItemMuscle}>
+                              {item.primary_muscle}
+                            </Text>
+                          ) : null}
+                        </View>
+                        {alreadyAdded && (
+                          <Text style={pickerStyles.addedTag}>✓</Text>
+                        )}
+                      </Pressable>
+                    );
+                  }}
+                />
+              )}
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Confirm remove exercise ── */}

@@ -160,6 +160,9 @@ export const styles = StyleSheet.create({
 });
 
 export const pickerStyles = StyleSheet.create({
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
