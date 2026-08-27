@@ -7,6 +7,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Dimensions,
   Modal,
   FlatList,
 } from 'react-native';
@@ -56,7 +57,10 @@ export default function EditWorkoutScreen() {
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState('');
   const [isLoadingPicker, setIsLoadingPicker] = useState(false);
-  const [pickerLayout, setPickerLayout] = useState({ bottom: 0, maxHeight: undefined as number | undefined });
+  const [pickerLayout, setPickerLayout] = useState(() => ({
+    bottom: 0,
+    height: Dimensions.get('window').height * 0.8,
+  }));
 
   // Confirm modals
   const [confirmRemoveExercise, setConfirmRemoveExercise] = useState<WorkoutExercise | null>(null);
@@ -107,7 +111,7 @@ export default function EditWorkoutScreen() {
       );
       setPickerLayout({
         bottom: keyboardHeight,
-        maxHeight: Math.max(220, viewport.height * 0.8),
+        height: Math.max(220, viewport.height * 0.8),
       });
     };
 
@@ -344,7 +348,7 @@ export default function EditWorkoutScreen() {
           <View
             style={[
               pickerStyles.sheet,
-              { marginBottom: pickerLayout.bottom, maxHeight: pickerLayout.maxHeight },
+              { marginBottom: pickerLayout.bottom, height: pickerLayout.height },
             ]}
           >
             <View style={pickerStyles.header}>

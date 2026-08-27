@@ -214,7 +214,7 @@ export const pickerStyles = StyleSheet.create({
     alignItems: 'center',
   },
   exerciseList: {
-    flexShrink: 1,
+    flex: 1,
   },
   emptyText: {
     ...typography.body,
