@@ -153,10 +153,10 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
         // Render month nav + skeleton grid at fixed height to prevent CLS.
         // The structure matches the real calendar so no layout shift occurs.
         <View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <View style={{ width: 18, height: 18 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ width: 25, height: 25 }} />
             <Skeleton width={80} height={14} />
-            <View style={{ width: 18, height: 18 }} />
+            <View style={{ width: 25, height: 25 }} />
           </View>
           <View style={{ height: 320 }}>
             <Skeleton width="100%" height={320} />
@@ -167,9 +167,9 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
 
     return (
       <View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Pressable onPress={() => setOffset(o => o - 1)}>
-            <Text style={{ fontSize: 18 }}>‹</Text>
+            <Text style={{ fontSize: 25 }}>‹</Text>
           </Pressable>
 
           <Text style={typography.caption}>
@@ -178,7 +178,7 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
           </Text>
 
           <Pressable onPress={() => setOffset(o => o + 1)} disabled={isCurrentMonth}>
-            <Text style={{ fontSize: 18, opacity: isCurrentMonth ? 0.2 : 1 }}>›</Text>
+            <Text style={{ fontSize: 25, opacity: isCurrentMonth ? 0.2 : 1 }}>›</Text>
           </Pressable>
         </View>
 
@@ -211,4 +211,3 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
 );
 
 CalendarFrequency.displayName = 'CalendarFrequency';
-
