@@ -4,6 +4,9 @@ const path = require('path');
 const publicDir = path.join(__dirname, '../public');
 const assetsDir = path.join(__dirname, '../assets');
 const distDir = path.join(__dirname, '../dist');
+const appName = 'Focus Improve Train';
+const appShortName = 'FIT';
+const appIcon = '/favicon.png';
 
 // Copia arquivos estáticos de public/ para dist/
 fs.readdirSync(publicDir).forEach(file => {
@@ -39,10 +42,10 @@ const metaTags = `
     <meta name="background-color" content="#F8F8F2">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Treino">
-    <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="apple-touch-icon" href="/favicon.png">
-    <link rel="preload" as="image" href="/favicon.png" fetchpriority="high">${logoPreloadTag}
+    <meta name="apple-mobile-web-app-title" content="${appShortName}">
+    <link rel="icon" type="image/png" href="${appIcon}">
+    <link rel="apple-touch-icon" href="${appIcon}">
+    <link rel="preload" as="image" href="${appIcon}" fetchpriority="high">${logoPreloadTag}
     <link rel="manifest" href="/manifest.json">`;
 
 const baseStyles = `
@@ -78,7 +81,15 @@ const initialSplash = `
   </div>
 `;
 
-html = html.replace('<title>App Treino</title>', `${metaTags}\n${baseStyles}\n    <title>App Treino</title>`);
+// Expo's exported title can depend on the active route (for example, "Home").
+// Normalize it and replace Expo's default icon tag so Safari receives our PWA
+// identity even when the manifest is not consulted during Add to Home Screen.
+html = html
+  .replace(/<title>[^<]*<\/title>/i, `<title>${appName}</title>`)
+  .replace(/\s*<link rel="icon"[^>]*>/gi, '')
+  .replace(/\s*<link rel="apple-touch-icon"[^>]*>/gi, '')
+  .replace(/\s*<link rel="manifest"[^>]*>/gi, '')
+  .replace('</head>', `${metaTags}\n${baseStyles}\n  </head>`);
 html = html.replace('<body>', `<body>${initialSplash}`);
 
 fs.writeFileSync(distHtml, html);
