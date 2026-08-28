@@ -78,19 +78,21 @@ export default function HomeScreen() {
         <View style={styles.content}>
           <View style={styles.header}>
             <View style={styles.greetingWrapper}>
-              <Text style={styles.greeting} numberOfLines={1} ellipsizeMode="tail">{t.greeting(currentUser.name)}</Text>
+              <View style={styles.greetingRow}>
+                <Text style={styles.greeting} numberOfLines={1} ellipsizeMode="tail">{t.greeting(currentUser.name)}</Text>
+                <View style={styles.actionsRow}>
+                  <Pressable
+                    onPress={() => navigation.navigate('Settings')}
+                    hitSlop={10}
+                    style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsButtonPressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.settings}
+                  >
+                    <Text style={styles.settingsIcon}>⚙︎</Text>
+                  </Pressable>
+                </View>
+              </View>
               <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
-            </View>
-            <View style={styles.actionsRow}>
-              <Pressable
-                onPress={() => navigation.navigate('Settings')}
-                hitSlop={10}
-                style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsButtonPressed]}
-                accessibilityRole="button"
-                accessibilityLabel={t.settings}
-              >
-                <Text style={styles.settingsIcon}>⚙︎</Text>
-              </Pressable>
             </View>
           </View>
 

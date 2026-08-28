@@ -60,11 +60,17 @@ export const styles = StyleSheet.create({
   greetingWrapper: {
     flex: 1,
     minWidth: 0,
-    marginRight: spacing.sm,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   greeting: {
     ...typography.h1,
     color: colors.oliveDark,
+    flex: 1,
+    minWidth: 0,
+    marginRight: spacing.sm,
   },
   subtitle: {
     ...typography.body,
@@ -90,7 +96,7 @@ export const styles = StyleSheet.create({
     opacity: 0.7,
   },
   settingsIcon: {
-    fontSize: 20,
+    fontSize: 25,
     color: colors.olive,
   },
   toolsRow: {
