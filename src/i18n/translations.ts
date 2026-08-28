@@ -16,6 +16,7 @@ export const pt = {
 
   // Settings
   settings: 'Configurações',
+  email: 'E-mail',
   language: 'Idioma',
   account: 'Conta',
   plan: 'Plano',
@@ -226,6 +227,7 @@ export const en: Translations = {
   errorLogoutMsg: 'Failed to sign out.',
 
   settings: 'Settings',
+  email: 'Email',
   language: 'Language',
   account: 'Account',
   plan: 'Plan',
@@ -423,6 +425,7 @@ export const es: Translations = {
   errorLogoutMsg: 'No se pudo cerrar sesión.',
 
   settings: 'Configuración',
+  email: 'Email',
   language: 'Idioma',
   account: 'Cuenta',
   plan: 'Plan',
@@ -620,6 +623,7 @@ export const fr: Translations = {
   errorLogoutMsg: 'Impossible de se déconnecter.',
 
   settings: 'Paramètres',
+  email: 'E-mail',
   language: 'Langue',
   account: 'Compte',
   plan: 'Forfait',

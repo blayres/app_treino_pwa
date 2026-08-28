@@ -10,7 +10,7 @@ const SCREEN_EDGE_GAP = 8;
 export function LanguageSwitcher() {
   const { locale, setLocale, t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<any>(null);
 
   const updateMenuPosition = () => {
@@ -36,7 +36,13 @@ export function LanguageSwitcher() {
 
   const handleSelect = (value: Locale) => {
     setLocale(value);
+    setMenuPosition(null);
     setOpen(false);
+  };
+
+  const toggleMenu = () => {
+    if (!open) setMenuPosition(null);
+    setOpen((value) => !value);
   };
 
   return (
@@ -52,7 +58,7 @@ export function LanguageSwitcher() {
               updateMenuPosition();
             }
           }}
-          onPress={() => setOpen((value) => !value)}
+          onPress={toggleMenu}
           style={({ pressed }) => [styles.trigger, pressed && styles.triggerPressed]}
         >
           <Text style={styles.triggerText}>{t.localeLabels[locale]}</Text>
@@ -62,20 +68,22 @@ export function LanguageSwitcher() {
 
       <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)}>
-          <View style={[styles.menu, { top: menuPosition.top, left: menuPosition.left }]}> 
-            {OPTIONS.map((opt) => (
-              <Pressable
-                key={opt}
-                accessibilityRole="menuitem"
-                onPress={() => handleSelect(opt)}
-                style={[styles.option, locale === opt && styles.optionActive]}
-              >
-                <Text style={[styles.optionLabel, locale === opt && styles.optionLabelActive]}>
-                  {t.localeLabels[opt]}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {menuPosition && (
+            <View style={[styles.menu, menuPosition]}>
+              {OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt}
+                  accessibilityRole="menuitem"
+                  onPress={() => handleSelect(opt)}
+                  style={[styles.option, locale === opt && styles.optionActive]}
+                >
+                  <Text style={[styles.optionLabel, locale === opt && styles.optionLabelActive]}>
+                    {t.localeLabels[opt]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </Pressable>
       </Modal>
     </>

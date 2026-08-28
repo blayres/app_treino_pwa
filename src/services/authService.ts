@@ -74,6 +74,15 @@ export async function logout() {
   localStorage.removeItem(LAST_USER_KEY);
 }
 
+export async function getCurrentUserEmail(): Promise<string> {
+  if (backendMode !== 'supabase') return '';
+
+  ensureSupabaseEnabled();
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  return data.user?.email ?? '';
+}
+
 export async function updateCurrentUserName(userId: number, name: string): Promise<User> {
   const trimmedName = name.trim();
   if (!trimmedName) throw new Error('Name is required.');

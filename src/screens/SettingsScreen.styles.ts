@@ -35,6 +35,9 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     color: colors.textPrimary,
   },
+  readOnlyInput: {
+    color: colors.textSecondary,
+  },
   saveButton: { backgroundColor: colors.olive, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   saveButtonSaving: { backgroundColor: colors.oliveLight },
   saveButtonLabel: { fontSize: 13, fontWeight: '600', color: colors.textPrimaryDark },

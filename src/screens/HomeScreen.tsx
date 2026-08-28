@@ -89,7 +89,7 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t.settings}
               >
-                <Text style={styles.settingsIcon}>⚙</Text>
+                <Text style={styles.settingsIcon}>⚙︎</Text>
               </Pressable>
             </View>
           </View>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useI18n } from '../i18n';
-import { deleteCurrentAccount, logout, updateCurrentUserName } from '../services/authService';
+import { deleteCurrentAccount, getCurrentUserEmail, logout, updateCurrentUserName } from '../services/authService';
 import { useAppStore } from '../store/useAppStore';
 import { styles } from './SettingsScreen.styles';
 
@@ -19,8 +19,13 @@ export default function SettingsScreen() {
   const setActiveSession = useAppStore((state) => state.setActiveSession);
   const { t } = useI18n();
   const [name, setName] = useState(currentUser?.name ?? '');
+  const [email, setEmail] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    getCurrentUserEmail().then(setEmail).catch(() => setEmail(''));
+  }, []);
 
   if (!currentUser) return null;
 
@@ -96,6 +101,15 @@ export default function SettingsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t.account}</Text>
+          <Text style={styles.fieldLabel}>{t.email}</Text>
+          <TextInput
+            value={email}
+            placeholder="—"
+            editable={false}
+            selectTextOnFocus
+            style={[styles.input, styles.readOnlyInput]}
+            accessibilityLabel={t.email}
+          />
           <Text style={styles.fieldLabel}>{t.changeUsername}</Text>
           <View style={styles.usernameRow}>
             <TextInput
