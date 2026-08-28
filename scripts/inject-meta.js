@@ -11,13 +11,13 @@ fs.readdirSync(publicDir).forEach(file => {
     path.join(publicDir, file),
     path.join(distDir, file)
   );
-  console.log(`📦 Copiado: ${file}`);
+  console.log(`📦 ${file}`);
 });
 
 // Favicon e splash usam a mesma imagem — fonte única em assets/
 const faviconSrc = path.join(assetsDir, 'favicon.png');
 fs.copyFileSync(faviconSrc, path.join(distDir, 'favicon.png'));
-console.log('📦 Copiado: favicon.png (de assets/)');
+console.log('📦 favicon.png (de assets/)');
 
 // Injeta meta tags no index.html
 const distHtml = path.join(distDir, 'index.html');
@@ -82,4 +82,3 @@ html = html.replace('<title>App Treino</title>', `${metaTags}\n${baseStyles}\n  
 html = html.replace('<body>', `<body>${initialSplash}`);
 
 fs.writeFileSync(distHtml, html);
-console.log('Meta tags injetadas com sucesso');
