@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles } from './HomeScreen.styles';
 import { useAppStore } from '../store/useAppStore';
@@ -9,16 +9,13 @@ import { DayWorkouts } from '../components/DayWorkouts';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { logout } from '../services/authService';
 import { useI18n } from '../i18n';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<Navigation>();
   const currentUser = useAppStore(state => state.currentUser);
-  const setCurrentUser = useAppStore(state => state.setCurrentUser);
   const calendarRef = useRef<{ refresh: () => void }>(null);
   const hasFocusedOnceRef = useRef(false);
   const [checkInLabel, setCheckInLabel] = useState('');
@@ -53,21 +50,6 @@ export default function HomeScreen() {
   // currentUser is guaranteed by authStatus === 'authenticated' in App.tsx
   if (!currentUser) return null;
 
-  const handleLogout = () => {
-    (async () => {
-      try {
-        await logout();
-      } catch (error: any) {
-        Alert.alert(t.errorLogout, error?.message ?? t.errorLogoutMsg);
-      }
-    })();
-    setCurrentUser(null);
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
-  };
-
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       {showWorkoutCompleted && (
@@ -100,9 +82,14 @@ export default function HomeScreen() {
               <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
             </View>
             <View style={styles.actionsRow}>
-              <LanguageSwitcher />
-              <Pressable onPress={handleLogout} hitSlop={8} style={styles.logoutButton}>
-                <Text style={styles.logoutLabel}>{t.logout}</Text>
+              <Pressable
+                onPress={() => navigation.navigate('Settings')}
+                hitSlop={10}
+                style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsButtonPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={t.settings}
+              >
+                <Text style={styles.settingsIcon}>⚙</Text>
               </Pressable>
             </View>
           </View>

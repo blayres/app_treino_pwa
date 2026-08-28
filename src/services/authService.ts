@@ -74,6 +74,52 @@ export async function logout() {
   localStorage.removeItem(LAST_USER_KEY);
 }
 
+export async function updateCurrentUserName(userId: number, name: string): Promise<User> {
+  const trimmedName = name.trim();
+  if (!trimmedName) throw new Error('Name is required.');
+
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    if (!authData.user) throw new Error(AUTH_SESSION_MISSING);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ name: trimmedName })
+      .eq('id', userId)
+      .eq('auth_id', authData.user.id)
+      .select('id, name')
+      .single();
+    if (error) throw error;
+    return { id: Number(data.id), name: String(data.name) };
+  }
+
+  const db = await getDb();
+  await db.runAsync('UPDATE users SET name = ? WHERE id = ?;', trimmedName, userId);
+  return { id: userId, name: trimmedName };
+}
+
+export async function deleteCurrentAccount(): Promise<void> {
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { error } = await supabase.rpc('delete_own_account');
+    if (error) throw error;
+    return;
+  }
+
+  const db = await getDb();
+  const lastUserId = Number(localStorage.getItem(LAST_USER_KEY));
+  if (!lastUserId) return;
+  await db.runAsync('DELETE FROM workout_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE user_id = ?);', lastUserId);
+  await db.runAsync('DELETE FROM workout_sessions WHERE user_id = ?;', lastUserId);
+  await db.runAsync('DELETE FROM attendance WHERE user_id = ?;', lastUserId);
+  await db.runAsync('DELETE FROM exercise_loads WHERE user_id = ?;', lastUserId);
+  await db.runAsync('DELETE FROM workouts WHERE user_id = ?;', lastUserId);
+  await db.runAsync('DELETE FROM users WHERE id = ?;', lastUserId);
+  localStorage.removeItem(LAST_USER_KEY);
+}
+
 export async function getSessionUser(): Promise<User | null> {
   if (backendMode === 'supabase') {
     try {

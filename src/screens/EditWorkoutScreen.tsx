@@ -30,7 +30,6 @@ import {
   invalidateWorkoutExercisesCache,
 } from '../services/workoutService';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import type { Exercise, WorkoutExercise } from '../services/types';
 import { styles, pickerStyles } from './EditWorkoutScreen.styles';
 
@@ -255,12 +254,9 @@ export default function EditWorkoutScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <View style={styles.headerActions}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
-            <Text style={styles.backLabel}>{t.back}</Text>
-          </Pressable>
-          <LanguageSwitcher />
-        </View>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
+          <Text style={styles.backLabel}>{t.back}</Text>
+        </Pressable>
         <Text style={styles.screenTitle}>{t.editWorkoutTitle}</Text>
       </View>
 

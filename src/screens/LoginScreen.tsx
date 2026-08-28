@@ -11,7 +11,6 @@ import { getLocalUsers, loginWithEmail, setLocalCurrentUser } from '../services/
 import { mapAuthError } from '../services/authErrorMapper';
 import { feedbackStyles } from './FeedbackStyles';
 import { useI18n } from '../i18n';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { OrDivider } from '../components/OrDivider';
 import { signInWithGoogle } from '../services/authService';
@@ -96,9 +95,6 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <View style={{ alignItems: 'flex-end', marginBottom: 12 }}>
-          <LanguageSwitcher />
-        </View>
         {backendMode === 'supabase' ? (
           <>
             <Text style={styles.title}>{t.signIn}</Text>

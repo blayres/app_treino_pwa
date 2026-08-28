@@ -3,6 +3,7 @@ export type RootStackParamList = {
   Signup: undefined;
   ForgotPassword: undefined;
   Home: undefined;
+  Settings: undefined;
   Workout: { workoutId: number; workoutTitle?: string };
   Admin: undefined;
   MyWorkout: undefined;

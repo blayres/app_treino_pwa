@@ -20,7 +20,6 @@ import { signUpWithEmail, signInWithGoogle } from '../services/authService';
 import { mapAuthError } from '../services/authErrorMapper';
 
 import { useI18n } from '../i18n';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { OrDivider } from '../components/OrDivider';
 import { colors } from '../theme/colors';
@@ -150,11 +149,6 @@ export default function SignupScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.container}
         >
-
-          <View style={{ alignItems: 'flex-end', marginBottom: 12 }}>
-            <LanguageSwitcher />
-          </View>
-
           <Text style={styles.title}>
             {t.createAccountTitle}
           </Text>

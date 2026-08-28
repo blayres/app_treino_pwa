@@ -11,11 +11,6 @@ export const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   backLabel: {
     ...typography.caption,
     color: colors.olive,

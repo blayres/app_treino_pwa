@@ -21,6 +21,7 @@ const AdminScreen = lazyScreen(() => import('./src/screens/AdminScreen'));
 const SignupScreen = lazyScreen(() => import('./src/screens/SignupScreen'));
 const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'));
 const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen'));
+const SettingsScreen = lazyScreen(() => import('./src/screens/SettingsScreen'));
 const EditWorkoutScreen = lazyScreen(() => import('./src/screens/EditWorkoutScreen'));
 const AddTrainingDayScreen = lazyScreen(() => import('./src/screens/AddTrainingDayScreen'));
 
@@ -170,6 +171,7 @@ export default function App() {
             Signup: 'signup',
             ForgotPassword: 'forgot-password',
             Home: 'home',
+            Settings: 'settings',
             Workout: 'workout/:workoutId',
             Admin: 'admin',
             MyWorkout: 'my-workout',
@@ -209,6 +211,7 @@ export default function App() {
           {authStatus === 'authenticated' ? (
             <>
               <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
               <Stack.Screen name="Workout" component={WorkoutScreen} />
               <Stack.Screen name="Admin" component={AdminScreen} />
               <Stack.Screen name="MyWorkout" component={MyWorkoutScreen} />
@@ -227,4 +230,3 @@ export default function App() {
     </NavigationContainer>
   );
 }
-

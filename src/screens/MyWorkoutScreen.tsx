@@ -20,7 +20,6 @@ import {
 } from '../services/workoutService';
 import type { WorkoutWithLastDone } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { styles } from './MyWorkoutScreen.styles';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'MyWorkout'>;
@@ -92,12 +91,9 @@ export default function MyWorkoutScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <View style={styles.headerActions}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
-            <Text style={styles.backLabel}>{t.back}</Text>
-          </Pressable>
-          <LanguageSwitcher />
-        </View>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
+          <Text style={styles.backLabel}>{t.back}</Text>
+        </Pressable>
         <Text style={styles.screenTitle}>{t.myWorkoutOverviewTitle}</Text>
       </View>
 

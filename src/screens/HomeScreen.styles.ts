@@ -76,13 +76,22 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     overflow: 'visible',
   },
-  logoutButton: {
-    paddingVertical: 2,
+  settingsButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.borderSoftLight,
+    backgroundColor: colors.surfaceMutedLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  logoutLabel: {
-    ...typography.caption,
+  settingsButtonPressed: {
+    opacity: 0.7,
+  },
+  settingsIcon: {
+    fontSize: 20,
     color: colors.olive,
-    textDecorationLine: 'underline',
   },
   toolsRow: {
     flexDirection: 'row',
@@ -120,4 +129,3 @@ export const styles = StyleSheet.create({
     color: colors.textPrimaryDark,
   },
 });
-
