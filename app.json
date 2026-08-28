@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "app_treino",
+    "name": "Focus Improve Train",
     "slug": "app_treino",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -29,9 +29,9 @@
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/favicon.png",
-      "name": "App Treino",
-      "shortName": "Treino",
-      "description": "App de acompanhamento de treinos",
+      "name": "Focus Improve Train",
+      "shortName": "F I T",
+      "description": "Workout tracking app",
       "themeColor": "#000000",
       "backgroundColor": "#ffffff"
     },

@@ -1,7 +1,7 @@
 {
-    "name": "App Treino",
-    "short_name": "Treino",
-    "description": "App de acompanhamento de treinos",
+    "name": "Focus Improve Train",
+    "short_name": "F I T",
+    "description": "Workout tracking app",
     "start_url": "/home",
     "scope": "/",
     "display": "standalone",
