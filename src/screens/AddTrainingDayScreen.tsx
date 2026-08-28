@@ -7,6 +7,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Dimensions,
   Modal,
   FlatList,
 } from 'react-native';
@@ -45,6 +46,10 @@ export default function AddTrainingDayScreen() {
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState('');
   const [isLoadingPicker, setIsLoadingPicker] = useState(false);
+  const [pickerLayout, setPickerLayout] = useState(() => ({
+    bottom: 0,
+    height: Dimensions.get('window').height * 0.8,
+  }));
 
   // Load already-used days so we can disable them
   useEffect(() => {
@@ -58,6 +63,34 @@ export default function AddTrainingDayScreen() {
       }
     })();
   }, [currentUser]);
+
+  // Mobile Safari keeps the layout viewport at full height when its keyboard
+  // opens. Use the visual viewport so the bottom sheet stays above it.
+  useEffect(() => {
+    if (!showPicker || typeof window === 'undefined' || !window.visualViewport) {
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const updatePickerLayout = () => {
+      const keyboardHeight = Math.max(
+        0,
+        window.innerHeight - viewport.height - viewport.offsetTop,
+      );
+      setPickerLayout({
+        bottom: keyboardHeight,
+        height: Math.max(220, viewport.height * 0.8),
+      });
+    };
+
+    updatePickerLayout();
+    viewport.addEventListener('resize', updatePickerLayout);
+    viewport.addEventListener('scroll', updatePickerLayout);
+    return () => {
+      viewport.removeEventListener('resize', updatePickerLayout);
+      viewport.removeEventListener('scroll', updatePickerLayout);
+    };
+  }, [showPicker]);
 
   const handleOpenPicker = async () => {
     setShowPicker(true);
@@ -250,7 +283,17 @@ export default function AddTrainingDayScreen() {
         onRequestClose={() => setShowPicker(false)}
       >
         <View style={pickerStyles.overlay}>
-          <View style={pickerStyles.sheet}>
+          <Pressable
+            style={pickerStyles.backdrop}
+            onPress={() => setShowPicker(false)}
+            accessibilityLabel={t.cancel}
+          />
+          <View
+            style={[
+              pickerStyles.sheet,
+              { marginBottom: pickerLayout.bottom, height: pickerLayout.height },
+            ]}
+          >
             <View style={pickerStyles.header}>
               <Text style={pickerStyles.title}>{t.pickExerciseTitle}</Text>
               <Pressable hitSlop={12} onPress={() => setShowPicker(false)}>
@@ -264,7 +307,6 @@ export default function AddTrainingDayScreen() {
               onChangeText={setSearch}
               placeholder={t.searchExercises}
               clearButtonMode="while-editing"
-              autoFocus
             />
 
             {isLoadingPicker ? (
@@ -275,6 +317,7 @@ export default function AddTrainingDayScreen() {
               <Text style={pickerStyles.emptyText}>{t.noExercisesFound}</Text>
             ) : (
               <FlatList
+                style={pickerStyles.exerciseList}
                 data={filteredExercises}
                 keyExtractor={(item) => String(item.id)}
                 keyboardShouldPersistTaps="handled"

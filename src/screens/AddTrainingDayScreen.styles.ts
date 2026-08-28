@@ -160,6 +160,13 @@ export const pickerStyles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
   sheet: {
     backgroundColor: colors.surfaceLight,
     borderTopLeftRadius: 20,
@@ -192,12 +199,15 @@ export const pickerStyles = StyleSheet.create({
     backgroundColor: colors.surfaceMutedLight,
     borderWidth: 1,
     borderColor: colors.borderSoftLight,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.textPrimary,
   },
   loadingWrap: {
     paddingVertical: spacing.xl,
     alignItems: 'center',
+  },
+  exerciseList: {
+    flex: 1,
   },
   emptyText: {
     ...typography.body,
