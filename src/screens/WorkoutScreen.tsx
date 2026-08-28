@@ -56,11 +56,12 @@ export default function WorkoutScreen() {
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loads, setLoads] = useState<Record<number, { normal: string; progression: string }>>({});
   const [completedIds, setCompletedIds] = useState<Set<number>>(() => {
-    // Restore checked exercises from sessionStorage so they survive
-    // PWA backgrounding (iOS/Android suspending the tab to free memory).
+    // localStorage survives iOS discarding the PWA's web process while it is
+    // backgrounded. sessionStorage is used only as a one-time fallback for
+    // checkmarks stored by older versions of the app.
     try {
       const key = `completedIds:${workoutId}`;
-      const raw = sessionStorage.getItem(key);
+      const raw = localStorage.getItem(key) ?? sessionStorage.getItem(key);
       if (raw) return new Set<number>(JSON.parse(raw));
     } catch { }
     return new Set<number>();
@@ -70,26 +71,21 @@ export default function WorkoutScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
-  // Keep sessionStorage in sync whenever completedIds changes.
+  // Keep durable storage in sync whenever completedIds changes.
   useEffect(() => {
     try {
       const key = `completedIds:${workoutId}`;
-      sessionStorage.setItem(key, JSON.stringify([...completedIds]));
+      localStorage.setItem(key, JSON.stringify([...completedIds]));
     } catch { }
   }, [completedIds, workoutId]);
 
-  // Re-read completedIds from sessionStorage when the user returns to the tab.
-  // iOS/Android may discard the JS heap while backgrounded — on resume the page
-  // reloads and the lazy initializer above handles it. But for soft tab switches
-  // (Spotify, notifications), the state is still in memory and the interval
-  // that was driving renders may have been paused by the browser.
-  // We re-read here to ensure the checkboxes match storage on every resume.
+  // Re-read the durable checklist when the user returns to the tab.
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return;
       try {
         const key = `completedIds:${workoutId}`;
-        const raw = sessionStorage.getItem(key);
+        const raw = localStorage.getItem(key) ?? sessionStorage.getItem(key);
         if (raw) {
           const restored = new Set<number>(JSON.parse(raw));
           setCompletedIds(restored);
@@ -180,6 +176,11 @@ export default function WorkoutScreen() {
   const handleStart = async () => {
     if (!currentUser || isSessionForThisWorkout) return;
     const session = await startWorkoutSession(currentUser.id, workoutId);
+    try {
+      localStorage.removeItem(`completedIds:${workoutId}`);
+      sessionStorage.removeItem(`completedIds:${workoutId}`);
+    } catch { }
+    setCompletedIds(new Set());
     setActiveSession(session);
   };
 
@@ -187,7 +188,10 @@ export default function WorkoutScreen() {
     if (!currentUser || !activeSession) return;
 
     // Clear local UI state immediately so the screen feels responsive.
-    try { sessionStorage.removeItem(`completedIds:${workoutId}`); } catch { }
+    try {
+      localStorage.removeItem(`completedIds:${workoutId}`);
+      sessionStorage.removeItem(`completedIds:${workoutId}`);
+    } catch { }
     setActiveSession(null);
 
     // Run the session stop + attendance write before navigating so that
@@ -564,4 +568,3 @@ export default function WorkoutScreen() {
     </SafeAreaView>
   );
 }
-

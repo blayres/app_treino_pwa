@@ -4,6 +4,7 @@ import {
   NavigationContainer,
   DefaultTheme,
   DarkTheme,
+  useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useColorScheme, View, Image } from 'react-native';
@@ -40,11 +41,16 @@ export default function App() {
   const scheme = useColorScheme();
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
   const setActiveSession = useAppStore((s) => s.setActiveSession);
+  const activeSession = useAppStore((s) => s.activeSession);
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
   // 'loading'         — waiting for the first auth event, show spinner
   // 'authenticated'   — session confirmed, show Home stack
   // 'unauthenticated' — no session, show Login stack
   const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const [restoredWorkoutId, setRestoredWorkoutId] = useState<number | null>(null);
+  const [navigationReady, setNavigationReady] = useState(false);
   const lastAuthUserIdRef = React.useRef<string | null>(null);
+  const didRestoreWorkoutRouteRef = React.useRef(false);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -64,7 +70,10 @@ export default function App() {
             setCurrentUser(user);
             await closeStaleSessions(user.id);
             const session = await restoreActiveSessionByUser(user.id);
-            if (session) setActiveSession(session);
+            if (session) {
+              setActiveSession(session);
+              setRestoredWorkoutId(session.workoutId);
+            }
             setAuthStatus('authenticated');
           } else {
             setAuthStatus('unauthenticated');
@@ -101,17 +110,19 @@ export default function App() {
           );
           if (user) {
             setCurrentUser(user);
-            // Render home immediately — don't block on session cleanup
+            // Restore an in-progress workout before mounting the authenticated
+            // navigator, so a PWA restart returns the user to that workout.
+            const activeSession = await restoreActiveSessionByUser(user.id);
+            if (activeSession) {
+              setActiveSession(activeSession);
+              setRestoredWorkoutId(activeSession.workoutId);
+            }
             setAuthStatus('authenticated');
 
             if (!booted) {
               // Run non-critical boot work after first paint
-              Promise.all([
-                closeStaleSessions(user.id),
-                restoreActiveSessionByUser(user.id),
-              ]).then(([, activeSession]) => {
-                if (activeSession) setActiveSession(activeSession);
-              }).catch(err => console.warn('Boot cleanup error:', err));
+              closeStaleSessions(user.id)
+                .catch(err => console.warn('Boot cleanup error:', err));
             }
             return;
           }
@@ -121,6 +132,8 @@ export default function App() {
           lastAuthUserIdRef.current = null;
           setCurrentUser(null);
           setActiveSession(null);
+          setRestoredWorkoutId(null);
+          didRestoreWorkoutRouteRef.current = false;
           setAuthStatus('unauthenticated');
         }
 
@@ -149,6 +162,25 @@ export default function App() {
     };
   }, [setCurrentUser, setActiveSession]);
 
+  useEffect(() => {
+    if (
+      authStatus !== 'authenticated'
+      || !navigationReady
+      || restoredWorkoutId == null
+      || didRestoreWorkoutRouteRef.current
+    ) {
+      return;
+    }
+
+    // iOS launches the installed PWA at /home. Linking can therefore override
+    // Stack.Navigator's initialRouteName; reset the route once after recovery.
+    navigationRef.resetRoot({
+      index: 0,
+      routes: [{ name: 'Workout', params: { workoutId: restoredWorkoutId } }],
+    });
+    didRestoreWorkoutRouteRef.current = true;
+  }, [authStatus, navigationReady, restoredWorkoutId, navigationRef]);
+
   if (authStatus === 'loading') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F8F2' }}>
@@ -163,6 +195,8 @@ export default function App() {
 
   return (
     <NavigationContainer
+      ref={navigationRef}
+      onReady={() => setNavigationReady(true)}
       linking={{
         prefixes: [],
         config: {
@@ -207,12 +241,19 @@ export default function App() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
       <Suspense fallback={null}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator
+          initialRouteName={activeSession ? 'Workout' : 'Home'}
+          screenOptions={{ headerShown: false }}
+        >
           {authStatus === 'authenticated' ? (
             <>
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="Settings" component={SettingsScreen} />
-              <Stack.Screen name="Workout" component={WorkoutScreen} />
+              <Stack.Screen
+                name="Workout"
+                component={WorkoutScreen}
+                initialParams={activeSession ? { workoutId: activeSession.workoutId } : undefined}
+              />
               <Stack.Screen name="Admin" component={AdminScreen} />
               <Stack.Screen name="MyWorkout" component={MyWorkoutScreen} />
               <Stack.Screen name="EditWorkout" component={EditWorkoutScreen} />
