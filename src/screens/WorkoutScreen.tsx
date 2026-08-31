@@ -184,8 +184,10 @@ export default function WorkoutScreen() {
     setActiveSession(session);
   };
 
-  const handleStop = async (cancelOnly: boolean) => {
+  const handleStop = (cancelOnly: boolean) => {
     if (!currentUser || !activeSession) return;
+    const sessionToStop = activeSession;
+    const userId = currentUser.id;
 
     // Clear local UI state immediately so the screen feels responsive.
     try {
@@ -194,31 +196,35 @@ export default function WorkoutScreen() {
     } catch { }
     setActiveSession(null);
 
-    // Run the session stop + attendance write before navigating so that
-    // HomeScreen's useFocusEffect finds fresh data in Supabase when it
-    // re-fetches the calendar and workout list.
-    try {
-      const result = await stopWorkoutSession({
-        userId: currentUser.id,
-        sessionId: activeSession.sessionId,
-        startedAt: activeSession.startedAt,
-        cancelOnly,
-      });
-
-      if (result.completed) {
-        await markAttendance(currentUser.id, result.endedAt);
+    // Return to Home immediately. Persistence continues in the background,
+    // and Home refreshes when the write has completed.
+    if (!cancelOnly) {
+      try {
         sessionStorage.setItem('workoutCompletedToast', 'true');
-      }
-    } catch (err) {
-      console.error(err);
+      } catch { }
     }
-
-    // Bust both in-memory caches after the writes so HomeScreen re-fetches
-    // with up-to-date data rather than a stale snapshot.
-    invalidateAttendanceCache(currentUser.id);
-    invalidateWorkoutsByUserCache(currentUser.id);
-
     navigation.goBack();
+
+    void (async () => {
+      try {
+        const result = await stopWorkoutSession({
+          userId,
+          sessionId: sessionToStop.sessionId,
+          startedAt: sessionToStop.startedAt,
+          cancelOnly,
+        });
+
+        if (result.completed) {
+          await markAttendance(userId, result.endedAt);
+        }
+
+        invalidateAttendanceCache(userId);
+        invalidateWorkoutsByUserCache(userId);
+        document.dispatchEvent(new Event('workoutSessionUpdated'));
+      } catch (err) {
+        console.error(err);
+      }
+    })();
   };
 
   // Stale detection — recheck when user returns from background

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles } from './HomeScreen.styles';
@@ -25,6 +25,17 @@ export default function HomeScreen() {
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
 
+  const refreshHomeData = useCallback(() => {
+    calendarRef.current?.refresh();
+    setRefreshKey(k => k + 1);
+  }, []);
+
+  useEffect(() => {
+    const handleWorkoutSessionUpdated = () => refreshHomeData();
+    document.addEventListener('workoutSessionUpdated', handleWorkoutSessionUpdated);
+    return () => document.removeEventListener('workoutSessionUpdated', handleWorkoutSessionUpdated);
+  }, [refreshHomeData]);
+
   useFocusEffect(
     useCallback(() => {
       if (!hasFocusedOnceRef.current) {
@@ -32,8 +43,7 @@ export default function HomeScreen() {
         return;
       }
 
-      calendarRef.current?.refresh();
-      setRefreshKey(k => k + 1);
+      refreshHomeData();
 
       if (sessionStorage.getItem('workoutCompletedToast')) {
         sessionStorage.removeItem('workoutCompletedToast');
@@ -44,7 +54,7 @@ export default function HomeScreen() {
           setShowWorkoutCompleted(false);
         }, 3000);
       }
-    }, []),
+    }, [refreshHomeData]),
   );
 
   // currentUser is guaranteed by authStatus === 'authenticated' in App.tsx
