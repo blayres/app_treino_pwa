@@ -173,7 +173,7 @@ export default function App() {
     }
 
     // iOS launches the installed PWA at /home. Linking can therefore override
-    // Stack.Navigator's initialRouteName; reset the route once after recovery.
+    // the default stack route; reset the route once after recovery.
     navigationRef.resetRoot({
       index: 0,
       routes: [{ name: 'Workout', params: { workoutId: restoredWorkoutId } }],
@@ -241,10 +241,7 @@ export default function App() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
       <Suspense fallback={null}>
-        <Stack.Navigator
-          initialRouteName={activeSession ? 'Workout' : 'Home'}
-          screenOptions={{ headerShown: false }}
-        >
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
           {authStatus === 'authenticated' ? (
             <>
               <Stack.Screen name="Home" component={HomeScreen} />
