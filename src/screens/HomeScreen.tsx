@@ -118,6 +118,17 @@ export default function HomeScreen() {
             />
           </SectionCard>
 
+          <SectionCard title={t.progress}>
+            <Text style={styles.sectionDescription}>{t.progressSubtitle}</Text>
+            <Pressable
+              style={({ pressed }) => [styles.customizeButton, pressed && styles.customizeButtonPressed]}
+              onPress={() => navigation.navigate('Progress')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.customizeButtonLabel}>{t.viewMyProgress}</Text>
+            </Pressable>
+          </SectionCard>
+
           <SectionCard title={t.myWorkout}>
             <Text style={styles.sectionDescription}>{t.myWorkoutDescription}</Text>
             <Pressable

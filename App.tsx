@@ -25,6 +25,7 @@ const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen')
 const SettingsScreen = lazyScreen(() => import('./src/screens/SettingsScreen'));
 const EditWorkoutScreen = lazyScreen(() => import('./src/screens/EditWorkoutScreen'));
 const AddTrainingDayScreen = lazyScreen(() => import('./src/screens/AddTrainingDayScreen'));
+const ProgressScreen = lazyScreen(() => import('./src/screens/ProgressScreen'));
 
 import { colors } from './src/theme/colors';
 import { useAppStore } from './src/store/useAppStore';
@@ -211,6 +212,7 @@ export default function App() {
             MyWorkout: 'my-workout',
             EditWorkout: 'my-workout/edit/:workoutId',
             AddTrainingDay: 'my-workout/add',
+            Progress: 'progress',
           },
         },
       }}
@@ -255,6 +257,7 @@ export default function App() {
               <Stack.Screen name="MyWorkout" component={MyWorkoutScreen} />
               <Stack.Screen name="EditWorkout" component={EditWorkoutScreen} />
               <Stack.Screen name="AddTrainingDay" component={AddTrainingDayScreen} />
+              <Stack.Screen name="Progress" component={ProgressScreen} />
             </>
           ) : (
             <>

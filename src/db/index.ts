@@ -239,6 +239,15 @@ export async function initDatabase() {
       UNIQUE (user_id, date),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+    CREATE TABLE IF NOT EXISTS exercise_load_history (
+      id INTEGER PRIMARY KEY NOT NULL,
+      user_id INTEGER NOT NULL,
+      exercise_id INTEGER NOT NULL,
+      load_kg REAL NOT NULL,
+      recorded_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (exercise_id) REFERENCES exercises(id)
+    );
   `);
   await seedDatabase(db);
 
@@ -257,6 +266,23 @@ export async function initDatabase() {
     );
   } catch {
     // Index already exists — ignore
+  }
+
+  // exercise_load_history — added for progress tracking
+  try {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS exercise_load_history (
+        id INTEGER PRIMARY KEY NOT NULL,
+        user_id INTEGER NOT NULL,
+        exercise_id INTEGER NOT NULL,
+        load_kg REAL NOT NULL,
+        recorded_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (exercise_id) REFERENCES exercises(id)
+      );
+    `);
+  } catch {
+    // Already exists — ignore
   }
 }
 

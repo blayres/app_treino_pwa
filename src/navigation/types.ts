@@ -9,4 +9,5 @@ export type RootStackParamList = {
   MyWorkout: undefined;
   EditWorkout: { workoutId: number };
   AddTrainingDay: undefined;
+  Progress: undefined;
 };

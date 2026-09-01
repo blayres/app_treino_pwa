@@ -1,6 +1,7 @@
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import type { Exercise, ExerciseLoad, Workout, WorkoutExercise, WorkoutWithLastDone } from './types';
+import { recordLoadHistory } from './progressService';
 
 async function getLocalDb() {
   const { getDb } = await import('../db');
@@ -591,6 +592,11 @@ export async function upsertExerciseLoad(params: {
     );
 
     if (error) throw error;
+
+    // Record history snapshot for progress tracking (non-blocking)
+    if (params.loadKg != null && params.loadKg > 0) {
+      void recordLoadHistory({ userId: params.userId, exerciseId: params.exerciseId, loadKg: params.loadKg });
+    }
     return;
   }
 
@@ -607,6 +613,11 @@ export async function upsertExerciseLoad(params: {
     params.progressionKg,
     now,
   );
+
+  // Record history snapshot for progress tracking (non-blocking)
+  if (params.loadKg != null && params.loadKg > 0) {
+    void recordLoadHistory({ userId: params.userId, exerciseId: params.exerciseId, loadKg: params.loadKg });
+  }
 }
 
 export async function listExercises(): Promise<Exercise[]> {
