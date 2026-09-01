@@ -236,6 +236,7 @@ export const pt = {
   periodAll: 'Tudo',
   loadHistoryEmpty: 'Nenhum histórico de carga encontrado. Registre cargas nos seus treinos e elas aparecerão aqui.',
   progressError: 'Não foi possível carregar os dados de progresso.',
+  tryAgain: 'Tentar novamente',
   kgAbbrev: 'kg',
   prBadge: 'RP',
 };
@@ -459,6 +460,7 @@ export const en: Translations = {
   periodAll: 'All time',
   loadHistoryEmpty: 'No load history found. Log weights in your workouts and they will appear here.',
   progressError: 'Could not load progress data.',
+  tryAgain: 'Try again',
   kgAbbrev: 'kg',
   prBadge: 'PR',
 };
@@ -682,6 +684,7 @@ export const es: Translations = {
   periodAll: 'Todo',
   loadHistoryEmpty: 'Sin historial de carga. Registra pesos en tus entrenamientos y aparecerán aquí.',
   progressError: 'No se pudieron cargar los datos de progreso.',
+  tryAgain: 'Intentar de nuevo',
   kgAbbrev: 'kg',
   prBadge: 'RP',
 };
@@ -905,6 +908,7 @@ export const fr: Translations = {
   periodAll: 'Tout',
   loadHistoryEmpty: 'Aucun historique de charge. Enregistrez des poids lors de vos séances et ils apparaîtront ici.',
   progressError: 'Impossible de charger les données de progrès.',
+  tryAgain: 'Réessayer',
   kgAbbrev: 'kg',
   prBadge: 'RP',
 };

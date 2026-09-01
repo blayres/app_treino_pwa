@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +12,6 @@ import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../i18n';
 import { colors, spacing, typography } from '../theme';
 import { LineChart } from '../components/LineChart';
-import { Skeleton } from '../components/Skeleton';
 import {
   getLoadHistoryByUser,
   getTrackedExercises,
@@ -35,21 +33,25 @@ const PERIODS: PeriodKey[] = ['1m', '3m', '6m', 'all'];
 
 type TrackedExercise = { exercise_id: number; exercise_name: string };
 
+// Three possible states — never render "loading skeletons" so there is no flicker.
+// 'pending'  — first fetch not yet resolved; render nothing below the chrome.
+// 'ready'    — data fetched (may be empty or populated).
+// 'error'    — fetch failed.
+type LoadState = 'pending' | 'ready' | 'error';
+
 export default function ProgressScreen() {
   const navigation = useNavigation();
   const currentUser = useAppStore(state => state.currentUser);
   const { t } = useI18n();
   const { width: screenWidth } = useWindowDimensions();
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const [loadState, setLoadState] = useState<LoadState>('pending');
   const [history, setHistory] = useState<(LoadHistoryRow & { scheme: string })[]>([]);
   const [trackedExercises, setTrackedExercises] = useState<TrackedExercise[]>([]);
   const [period, setPeriod] = useState<PeriodKey>('3m');
   const [selectedExerciseId, setSelectedExerciseId] = useState<number | null>(null);
 
-  // Derived state
+  // Derived — recalculated synchronously after each state update, no extra renders.
   const now = new Date();
   const prs: PersonalRecord[] = calculatePersonalRecords(history);
   const volumeResult = calculateVolumeComparison(history, now, period);
@@ -61,8 +63,6 @@ export default function ProgressScreen() {
 
   const load = useCallback(async () => {
     if (!currentUser) return;
-    setIsLoading(true);
-    setError(null);
     try {
       const [hist, exercises] = await Promise.all([
         getLoadHistoryByUser(currentUser.id),
@@ -70,15 +70,14 @@ export default function ProgressScreen() {
       ]);
       setHistory(hist);
       setTrackedExercises(exercises);
-      if (exercises.length > 0 && selectedExerciseId === null) {
-        setSelectedExerciseId(exercises[0].exercise_id);
-      }
+      setSelectedExerciseId(id =>
+        id === null && exercises.length > 0 ? exercises[0].exercise_id : id,
+      );
+      setLoadState('ready');
     } catch {
-      setError(t.progressError);
-    } finally {
-      setIsLoading(false);
+      setLoadState('error');
     }
-  }, [currentUser, t.progressError]);
+  }, [currentUser]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -89,12 +88,11 @@ export default function ProgressScreen() {
     return t.periodAll;
   };
 
-  const isEmpty = !isLoading && history.length === 0;
-  const chartWidth = screenWidth - spacing.md * 2 - 2; // full card inner width
+  const chartWidth = screenWidth - spacing.md * 2 - 2;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      {/* Header */}
+      {/* Header — always visible immediately, no waiting */}
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
           <Text style={styles.backLabel}>{t.back}</Text>
@@ -103,7 +101,7 @@ export default function ProgressScreen() {
         <Text style={styles.subtitle}>{t.progressSubtitle}</Text>
       </View>
 
-      {/* Period filter */}
+      {/* Period filter — always visible */}
       <View style={styles.periodRow}>
         {PERIODS.map(p => (
           <Pressable
@@ -118,148 +116,122 @@ export default function ProgressScreen() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Error state */}
-        {error ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>{error}</Text>
-            <Pressable style={styles.retryBtn} onPress={load}>
-              <Text style={styles.retryLabel}>Tentar novamente</Text>
-            </Pressable>
-          </View>
-        ) : isEmpty ? (
-          /* Empty state */
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>{t.loadHistoryEmpty}</Text>
-          </View>
-        ) : (
-          <>
-            {/* ── Summary card ── */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{t.progressSummary}</Text>
-
-              {isLoading ? (
-                <>
-                  <Skeleton width="60%" height={14} style={{ marginTop: spacing.sm }} />
-                  <Skeleton width="50%" height={14} style={{ marginTop: spacing.xs }} />
-                  <Skeleton width="70%" height={14} style={{ marginTop: spacing.xs }} />
-                </>
-              ) : (
-                <>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryValue}>{improvedCount}</Text>
-                    <Text style={styles.summaryDesc}>
-                      {t.improvedExercises(improvedCount)}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryValue}>{newPRCount}</Text>
-                    <Text style={styles.summaryDesc}>
-                      {t.newPersonalRecords(newPRCount)}
-                    </Text>
-                  </View>
-                  <View style={[styles.summaryRow, { marginTop: spacing.sm }]}>
-                    <View>
-                      <Text style={styles.summaryLabel}>{t.volumeLabel}</Text>
-                      <Text style={styles.summaryValueLarge}>
-                        {volumeResult.current.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        <Text style={styles.summaryUnit}> {t.volumeUnit}</Text>
-                      </Text>
-                      <Text style={styles.summaryChange}>
-                        {volumeResult.changePercent !== null
-                          ? t.volumeVsPrevious(volumeResult.changePercent)
-                          : t.volumeNoPrevious}
-                      </Text>
-                    </View>
-                  </View>
-                </>
-              )}
+      {/* Content — only rendered once the fetch resolves (no skeleton flash) */}
+      {loadState === 'pending' ? null : (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {loadState === 'error' ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>{t.progressError}</Text>
+              <Pressable style={styles.retryBtn} onPress={load}>
+                <Text style={styles.retryLabel}>{t.tryAgain}</Text>
+              </Pressable>
             </View>
 
-            {/* ── Personal Records card ── */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{t.personalRecords}</Text>
+          ) : history.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>{t.loadHistoryEmpty}</Text>
+            </View>
 
-              {isLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} width="80%" height={13} style={{ marginTop: spacing.sm }} />
-                ))
-              ) : prs.length === 0 ? (
-                <Text style={styles.emptyCardText}>{t.noPersonalRecords}</Text>
-              ) : (
-                prs.map(pr => (
-                  <View key={pr.exercise_id} style={styles.prRow}>
-                    <Text style={styles.prName} numberOfLines={1}>{pr.exercise_name}</Text>
-                    <View style={styles.prRight}>
-                      <Text style={styles.prLoad}>
-                        {pr.load_kg % 1 === 0 ? pr.load_kg.toFixed(0) : pr.load_kg.toFixed(1)}
-                        {' '}{t.kgAbbrev}
-                      </Text>
-                      <View style={styles.prBadge}>
-                        <Text style={styles.prBadgeText}>{t.prBadge}</Text>
+          ) : (
+            <>
+              {/* ── Summary card ── */}
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>{t.progressSummary}</Text>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryValue}>{improvedCount}</Text>
+                  <Text style={styles.summaryDesc}>{t.improvedExercises(improvedCount)}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryValue}>{newPRCount}</Text>
+                  <Text style={styles.summaryDesc}>{t.newPersonalRecords(newPRCount)}</Text>
+                </View>
+                <View style={[styles.summaryRow, { marginTop: spacing.sm }]}>
+                  <View>
+                    <Text style={styles.summaryLabel}>{t.volumeLabel}</Text>
+                    <Text style={styles.summaryValueLarge}>
+                      {volumeResult.current.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      <Text style={styles.summaryUnit}> {t.volumeUnit}</Text>
+                    </Text>
+                    <Text style={styles.summaryChange}>
+                      {volumeResult.changePercent !== null
+                        ? t.volumeVsPrevious(volumeResult.changePercent)
+                        : t.volumeNoPrevious}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* ── Personal Records card ── */}
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>{t.personalRecords}</Text>
+                {prs.length === 0 ? (
+                  <Text style={styles.emptyCardText}>{t.noPersonalRecords}</Text>
+                ) : (
+                  prs.map(pr => (
+                    <View key={pr.exercise_id} style={styles.prRow}>
+                      <Text style={styles.prName} numberOfLines={1}>{pr.exercise_name}</Text>
+                      <View style={styles.prRight}>
+                        <Text style={styles.prLoad}>
+                          {pr.load_kg % 1 === 0 ? pr.load_kg.toFixed(0) : pr.load_kg.toFixed(1)}
+                          {' '}{t.kgAbbrev}
+                        </Text>
+                        <View style={styles.prBadge}>
+                          <Text style={styles.prBadgeText}>{t.prBadge}</Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))
-              )}
-            </View>
+                  ))
+                )}
+              </View>
 
-            {/* ── Exercise Progression card ── */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{t.exerciseProgression}</Text>
-
-              {/* Exercise selector */}
-              {isLoading ? (
-                <Skeleton width="70%" height={32} style={{ marginTop: spacing.sm, borderRadius: 8 }} />
-              ) : trackedExercises.length === 0 ? (
-                <Text style={styles.emptyCardText}>{t.noPersonalRecords}</Text>
-              ) : (
-                <>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.exerciseSelectorScroll}
-                    contentContainerStyle={styles.exerciseSelectorContent}
-                  >
-                    {trackedExercises.map(ex => (
-                      <Pressable
-                        key={ex.exercise_id}
-                        style={[
-                          styles.exerciseChip,
-                          selectedExerciseId === ex.exercise_id && styles.exerciseChipActive,
-                        ]}
-                        onPress={() => setSelectedExerciseId(ex.exercise_id)}
-                      >
-                        <Text
+              {/* ── Exercise Progression card ── */}
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>{t.exerciseProgression}</Text>
+                {trackedExercises.length === 0 ? (
+                  <Text style={styles.emptyCardText}>{t.noPersonalRecords}</Text>
+                ) : (
+                  <>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.exerciseSelectorScroll}
+                      contentContainerStyle={styles.exerciseSelectorContent}
+                    >
+                      {trackedExercises.map(ex => (
+                        <Pressable
+                          key={ex.exercise_id}
                           style={[
-                            styles.exerciseChipLabel,
-                            selectedExerciseId === ex.exercise_id && styles.exerciseChipLabelActive,
+                            styles.exerciseChip,
+                            selectedExerciseId === ex.exercise_id && styles.exerciseChipActive,
                           ]}
-                          numberOfLines={1}
+                          onPress={() => setSelectedExerciseId(ex.exercise_id)}
                         >
-                          {ex.exercise_name}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-
-                  {progressionData.length === 0 ? (
-                    <Text style={styles.emptyCardText}>{t.noProgressionData}</Text>
-                  ) : (
-                    <View style={styles.chartContainer}>
-                      <LineChart
-                        data={progressionData}
-                        width={chartWidth}
-                        height={180}
-                      />
-                    </View>
-                  )}
-                </>
-              )}
-            </View>
-          </>
-        )}
-      </ScrollView>
+                          <Text
+                            style={[
+                              styles.exerciseChipLabel,
+                              selectedExerciseId === ex.exercise_id && styles.exerciseChipLabelActive,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {ex.exercise_name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                    {progressionData.length === 0 ? (
+                      <Text style={styles.emptyCardText}>{t.noProgressionData}</Text>
+                    ) : (
+                      <View style={styles.chartContainer}>
+                        <LineChart data={progressionData} width={chartWidth} height={180} />
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            </>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
