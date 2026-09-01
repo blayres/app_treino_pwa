@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles } from './HomeScreen.styles';
 import { useAppStore } from '../store/useAppStore';
+import { colors } from '../theme';
 import { SectionCard } from '../components/SectionCard';
 import { CalendarFrequency } from '../components/CalendarFrequency';
 import { DayWorkouts } from '../components/DayWorkouts';
@@ -10,6 +11,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useI18n } from '../i18n';
+import { PencilIcon } from '../components/PencilIcon';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -106,7 +108,20 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <SectionCard title={t.workoutsThisWeek}>
+          <SectionCard
+            title={t.workoutsThisWeek}
+            rightElement={
+              <Pressable
+                onPress={() => navigation.navigate('MyWorkout')}
+                hitSlop={10}
+                style={({ pressed }) => [homeStyles.pencilButton, pressed && homeStyles.pencilButtonPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={t.customizeMyWorkout}
+              >
+                <PencilIcon size={15} color={colors.olive} opacity={0.65} />
+              </Pressable>
+            }
+          >
             <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} />
           </SectionCard>
 
@@ -143,3 +158,16 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
+
+const homeStyles = StyleSheet.create({
+  pencilButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pencilButtonPressed: {
+    opacity: 0.4,
+  },
+});
