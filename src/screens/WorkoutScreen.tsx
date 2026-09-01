@@ -70,6 +70,7 @@ export default function WorkoutScreen() {
   const [isCancelAction, setIsCancelAction] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+  const loadInputRefs = useRef<Record<string, TextInput | null>>({});
 
   // Keep durable storage in sync whenever completedIds changes.
   useEffect(() => {
@@ -317,6 +318,20 @@ export default function WorkoutScreen() {
     }, 100);
   };
 
+  const moveLoadCaretToEnd = (inputKey: string, value: string, index: number) => {
+    setFocusedLoadInput(inputKey);
+    handleInputFocus(index);
+
+    // Safari normally places the caret where the user tapped. For short
+    // numeric values, editing from the end is faster and avoids a manual tap.
+    requestAnimationFrame(() => {
+      const position = value.length;
+      loadInputRefs.current[inputKey]?.setNativeProps({
+        selection: { start: position, end: position },
+      });
+    });
+  };
+
   const toggleCompleted = (exerciseId: number) => {
     setCompletedIds(prev => {
       const next = new Set(prev);
@@ -518,16 +533,25 @@ export default function WorkoutScreen() {
                     <View style={styles.loadColumn}>
                       <Text style={styles.loadLabel}>{t.loadKg}</Text>
                       <TextInput
+                        ref={(input) => {
+                          loadInputRefs.current[`${item.exercise.id}-normal`] = input;
+                        }}
                         style={styles.loadInput}
                         keyboardType="decimal-pad"
                         value={currentLoads.normal}
                         onChangeText={text =>
                           handleChangeLoad(item.exercise.id, text, 'normal')
                         }
-                        onFocus={() => {
-                          setFocusedLoadInput(`${item.exercise.id}-normal`);
-                          handleInputFocus(index);
-                        }}
+                        onFocus={() => moveLoadCaretToEnd(
+                          `${item.exercise.id}-normal`,
+                          currentLoads.normal,
+                          index,
+                        )}
+                        onPressIn={() => moveLoadCaretToEnd(
+                          `${item.exercise.id}-normal`,
+                          currentLoads.normal,
+                          index,
+                        )}
                         onBlur={() => setFocusedLoadInput(null)}
                         placeholder={
                           focusedLoadInput === `${item.exercise.id}-normal` ? '' : t.loadPlaceholder
@@ -537,16 +561,25 @@ export default function WorkoutScreen() {
                       <Text style={styles.loadLabelProgression}>{t.progression}</Text>
 
                       <TextInput
+                        ref={(input) => {
+                          loadInputRefs.current[`${item.exercise.id}-progression`] = input;
+                        }}
                         style={styles.loadInput}
                         keyboardType="decimal-pad"
                         value={currentLoads.progression}
                         onChangeText={text =>
                           handleChangeLoad(item.exercise.id, text, 'progression')
                         }
-                        onFocus={() => {
-                          setFocusedLoadInput(`${item.exercise.id}-progression`);
-                          handleInputFocus(index);
-                        }}
+                        onFocus={() => moveLoadCaretToEnd(
+                          `${item.exercise.id}-progression`,
+                          currentLoads.progression,
+                          index,
+                        )}
+                        onPressIn={() => moveLoadCaretToEnd(
+                          `${item.exercise.id}-progression`,
+                          currentLoads.progression,
+                          index,
+                        )}
                         onBlur={() => setFocusedLoadInput(null)}
                         placeholder={
                           focusedLoadInput === `${item.exercise.id}-progression` ? '' : t.loadPlaceholder
