@@ -25,6 +25,8 @@ export const styles = StyleSheet.create({
   usernameRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   input: {
     ...typography.body,
+    // iOS Safari zooms when focusing inputs smaller than 16px.
+    fontSize: 16,
     flex: 1,
     minWidth: 0,
     borderWidth: 1,

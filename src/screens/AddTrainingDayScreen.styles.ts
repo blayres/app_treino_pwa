@@ -69,7 +69,8 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMutedLight,
     borderWidth: 1,
     borderColor: colors.borderSoftLight,
-    fontSize: 15,
+    // iOS Safari zooms when focusing inputs smaller than 16px.
+    fontSize: 16,
     color: colors.textPrimary,
   },
   emptyText: {
