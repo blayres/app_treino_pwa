@@ -54,7 +54,9 @@ export const ExerciseRow = memo(function ExerciseRow({
       ]}
     >
       {isSessionActive ? (
-        <CircularCheckbox checked={isCompleted} onToggle={onToggle} />
+        <View style={{ marginTop: 2 }}>
+          <CircularCheckbox checked={isCompleted} onToggle={onToggle} />
+        </View>
       ) : (
         <View style={styles.checkboxPlaceholder} />
       )}

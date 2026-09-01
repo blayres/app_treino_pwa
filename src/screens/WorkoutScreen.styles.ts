@@ -68,7 +68,7 @@ export const styles = StyleSheet.create({
   },
   exerciseRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderSoftLight,
@@ -76,6 +76,7 @@ export const styles = StyleSheet.create({
   checkboxPlaceholder: {
     width: 22,
     height: 22,
+    marginTop: 2,
   },
   exerciseInfo: {
     flex: 1,
