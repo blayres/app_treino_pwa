@@ -27,13 +27,27 @@ beforeEach(() => {
 });
 
 describe('getWorkoutsByUser', () => {
-  it('lists active days with the date each was last completed', async () => {
+  it('lists active days with "last done" from the workout_last_done view (one row per workout)', async () => {
     supabaseMock.queue('workouts.select', {
       data: [
         { id: 1, user_id: 5, day_of_week: 1, title: 'A', archived_at: null },
         { id: 2, user_id: 5, day_of_week: 3, title: 'B', archived_at: null },
       ],
     });
+    supabaseMock.queue('workout_last_done.select', { data: [{ workout_id: 1, last_done: '2026-10-20T10:00:00Z' }] });
+
+    const days = await getWorkoutsByUser(5);
+
+    expect(days.map((d) => [d.id, d.last_done])).toEqual([[1, '2026-10-20T10:00:00Z'], [2, null]]);
+    expect(filter(supabaseMock.calls('workouts', 'select')[0], 'is', 'archived_at')).toEqual(['is', 'archived_at', null]);
+    expect(filter(supabaseMock.calls('workout_last_done', 'select')[0], 'eq', 'user_id')).toEqual(['eq', 'user_id', 5]);
+    // The full session history is no longer downloaded.
+    expect(supabaseMock.calls('workout_sessions')).toHaveLength(0);
+  });
+
+  it('before the view exists, falls back to the completed sessions (latest per workout)', async () => {
+    supabaseMock.queue('workouts.select', { data: [{ id: 1, user_id: 5, day_of_week: 1, title: 'A', archived_at: null }] });
+    supabaseMock.queue('workout_last_done.select', { error: { code: 'PGRST205', message: 'Could not find the table' } });
     supabaseMock.queue('workout_sessions.select', {
       data: [
         { workout_id: 1, ended_at: '2026-10-01T10:00:00Z' },
@@ -41,13 +55,10 @@ describe('getWorkoutsByUser', () => {
       ],
     });
 
-    const days = await getWorkoutsByUser(5);
+    const [day] = await getWorkoutsByUser(5);
 
-    expect(days.map((d) => [d.id, d.last_done])).toEqual([[1, '2026-10-20T10:00:00Z'], [2, null]]);
-    const [workoutsQuery] = supabaseMock.calls('workouts', 'select');
-    expect(filter(workoutsQuery, 'is', 'archived_at')).toEqual(['is', 'archived_at', null]);
-    const [sessionsQuery] = supabaseMock.calls('workout_sessions', 'select');
-    expect(filter(sessionsQuery, 'eq', 'completed')).toEqual(['eq', 'completed', 1]); // discarded sessions don't count
+    expect(day.last_done).toBe('2026-10-20T10:00:00Z');
+    expect(filter(supabaseMock.calls('workout_sessions', 'select')[0], 'eq', 'completed')).toEqual(['eq', 'completed', 1]); // discarded sessions don't count
   });
 
   it('caches per user until invalidated after a write', async () => {

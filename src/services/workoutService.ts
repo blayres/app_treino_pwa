@@ -61,23 +61,37 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
 
-    // Workouts and "last done" don't depend on each other: fetch in parallel
-    // (one round-trip less when opening Home).
     const fetchWorkouts = (withArchiveFilter: boolean) => {
       let query = supabase.from('workouts').select('*').eq('user_id', userId);
       // archived_at exists after migration_workout_customization.sql.
       if (withArchiveFilter) query = query.is('archived_at', null);
       return query.order('day_of_week', { ascending: true });
     };
-    const [firstWorkoutsResult, sessionsResult] = await Promise.all([
-      fetchWorkouts(true),
-      supabase
-        .from('workout_sessions')
-        .select('workout_id, ended_at')
-        .eq('user_id', userId)
-        .eq('completed', 1)
-        .not('ended_at', 'is', null),
-    ]);
+    // "Last done" per workout comes from the workout_last_done view (one row per
+    // workout, migration_workout_last_done.sql). Before that migration, fall
+    // back to reading the completed sessions and taking the latest here.
+    const fetchLastDone = async (): Promise<Record<number, string>> => {
+      const view = await supabase.from('workout_last_done').select('workout_id, last_done').eq('user_id', userId);
+      const rows = view.error
+        ? await supabase
+            .from('workout_sessions')
+            .select('workout_id, ended_at')
+            .eq('user_id', userId)
+            .eq('completed', 1)
+            .not('ended_at', 'is', null)
+        : view;
+      if (rows.error) throw rows.error;
+      const latest: Record<number, string> = {};
+      (rows.data ?? []).forEach((row: any) => {
+        const workoutId = Number(row.workout_id);
+        const date = String(row.last_done ?? row.ended_at);
+        if (!latest[workoutId] || date > latest[workoutId]) latest[workoutId] = date;
+      });
+      return latest;
+    };
+
+    // Workouts and "last done" don't depend on each other: fetch in parallel.
+    const [firstWorkoutsResult, lastDoneMap] = await Promise.all([fetchWorkouts(true), fetchLastDone()]);
 
     let workoutsResult = firstWorkoutsResult;
     if (workoutsResult.error?.code === '42703') {
@@ -85,18 +99,6 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
       workoutsResult = await fetchWorkouts(false);
     }
     if (workoutsResult.error) throw workoutsResult.error;
-
-    const { data: sessions, error: sessionsError } = sessionsResult;
-    if (sessionsError) throw sessionsError;
-
-    const lastDoneMap: Record<number, string> = {};
-    (sessions ?? []).forEach((session) => {
-      const workoutId = Number(session.workout_id);
-      const endedAt = String(session.ended_at);
-      if (!lastDoneMap[workoutId] || endedAt > lastDoneMap[workoutId]) {
-        lastDoneMap[workoutId] = endedAt;
-      }
-    });
 
     // Client-side filter: hide anything that was archived (post-migration rows
     // that have archived_at set will be excluded here even if the server-side
