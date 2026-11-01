@@ -61,35 +61,32 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
 
-    // Try with archived_at filter (post-migration). If the column doesn't
-    // exist yet (pre-migration, error code 42703), fall back to fetching all
-    // rows and filtering client-side on the returned field.
-    let workoutsResult = await supabase
-      .from('workouts')
-      .select('*')
-      .eq('user_id', userId)
-      .is('archived_at', null)
-      .order('day_of_week', { ascending: true });
-
-    if (workoutsResult.error?.code === '42703') {
-      // Column does not exist yet — migration hasn't been run.
-      // Fall back to fetching without the filter; no rows will be archived.
-      workoutsResult = await supabase
-        .from('workouts')
-        .select('*')
+    // Workouts and "last done" don't depend on each other: fetch in parallel
+    // (one round-trip less when opening Home).
+    const fetchWorkouts = (withArchiveFilter: boolean) => {
+      let query = supabase.from('workouts').select('*').eq('user_id', userId);
+      // archived_at exists after migration_workout_customization.sql.
+      if (withArchiveFilter) query = query.is('archived_at', null);
+      return query.order('day_of_week', { ascending: true });
+    };
+    const [firstWorkoutsResult, sessionsResult] = await Promise.all([
+      fetchWorkouts(true),
+      supabase
+        .from('workout_sessions')
+        .select('workout_id, ended_at')
         .eq('user_id', userId)
-        .order('day_of_week', { ascending: true });
-    }
+        .eq('completed', 1)
+        .not('ended_at', 'is', null),
+    ]);
 
+    let workoutsResult = firstWorkoutsResult;
+    if (workoutsResult.error?.code === '42703') {
+      // Pre-migration: no archived_at column yet, nothing can be archived.
+      workoutsResult = await fetchWorkouts(false);
+    }
     if (workoutsResult.error) throw workoutsResult.error;
 
-    const { data: sessions, error: sessionsError } = await supabase
-      .from('workout_sessions')
-      .select('workout_id, ended_at')
-      .eq('user_id', userId)
-      .eq('completed', 1)
-      .not('ended_at', 'is', null);
-
+    const { data: sessions, error: sessionsError } = sessionsResult;
     if (sessionsError) throw sessionsError;
 
     const lastDoneMap: Record<number, string> = {};

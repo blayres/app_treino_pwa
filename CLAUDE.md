@@ -102,7 +102,12 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Evitar N+1: buscar em lote / com join do PostgREST. Evitar refetch em cada foco quando o cache basta.
 - Escritas por digitação com **debounce** (ex.: cargas: 700 ms; histórico só no blur).
 - `useMemo`/`useCallback` em cálculos derivados pesados e listas; `FlatList` para listas longas.
-- Sem bibliotecas pesadas para coisas simples (gráficos e ícones são SVG inline). Checar tamanho do bundle no `build:web`.
+- Sem bibliotecas pesadas para coisas simples (gráficos e ícones são SVG inline). **Nunca** `import 'lib'` só por efeito colateral sem necessidade (ex.: `react-native-gesture-handler` puxava ~1 MB com reanimated).
+- Código só do modo local (sql.js / `src/db`) é carregado com `await import('../db')`, nunca import estático — fica fora do bundle principal.
+- Buscas independentes em paralelo (`Promise.all`), nunca em sequência.
+- Imagens no tamanho em que aparecem (×2 para retina). Ícones web em `assets/icons/` (192/180/512); o `favicon.png` grande fica só para ícone nativo.
+- Cache: arquivos com hash no nome (`/_expo/static`, `/assets`) imutáveis; arquivos sem hash (`favicon.png`, `manifest.json`) com cache curto.
+- Medir antes/depois: `npx expo export --platform web --source-maps` + somar `sourcesContent` por pacote no `.map` do `index-*.js`. Referência atual: bundle principal ~1,09 MB (~290 KB gzip).
 
 ## Testes
 - Toda lógica nova em função pura com teste em `__tests__/` (padrão: `progressUtils`, `workoutTextParser`, `programService`, `decimal`).

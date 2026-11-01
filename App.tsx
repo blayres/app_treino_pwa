@@ -1,4 +1,3 @@
-import 'react-native-gesture-handler';
 import React, { useEffect, useState, Suspense } from 'react';
 import {
   NavigationContainer,
@@ -223,7 +222,7 @@ export default function App() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F8F2' }}>
         <Image
-          source={require('./assets/favicon.png')}
+          source={require('./assets/icons/icon-192.png')}
           style={{ width: 96, height: 96 }}
           resizeMode="contain"
         />

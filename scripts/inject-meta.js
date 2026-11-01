@@ -17,10 +17,17 @@ fs.readdirSync(publicDir).forEach(file => {
   console.log(`📦 ${file}`);
 });
 
-// Favicon e splash usam a mesma imagem — fonte única em assets/
-const faviconSrc = path.join(assetsDir, 'favicon.png');
-fs.copyFileSync(faviconSrc, path.join(distDir, 'favicon.png'));
-console.log('📦 favicon.png (de assets/)');
+// Web icons are small, pre-sized copies of assets/favicon.png (the 1.8k px
+// original stays for native app icons): favicon/splash 192, iOS 180, PWA 512.
+const iconsDir = path.join(assetsDir, 'icons');
+for (const [source, target] of [
+  ['icon-192.png', 'favicon.png'],
+  ['icon-180.png', 'apple-touch-icon.png'],
+  ['icon-512.png', 'icon-512.png'],
+]) {
+  fs.copyFileSync(path.join(iconsDir, source), path.join(distDir, target));
+  console.log(`📦 ${target} (de assets/icons/${source})`);
+}
 
 // Injeta meta tags no index.html
 const distHtml = path.join(distDir, 'index.html');
@@ -44,7 +51,7 @@ const metaTags = `
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="${appShortName}">
     <link rel="icon" type="image/png" href="${appIcon}">
-    <link rel="apple-touch-icon" href="${appIcon}">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="preload" as="image" href="${appIcon}" fetchpriority="high">${logoPreloadTag}
     <link rel="manifest" href="/manifest.json">`;
 

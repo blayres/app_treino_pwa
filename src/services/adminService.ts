@@ -1,7 +1,13 @@
-import { getDb } from '../db';
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import type { Exercise, User, Workout } from './types';
+
+// Local SQLite (sql.js) is only for local mode: load it on demand so it stays
+// out of the main bundle in production.
+async function getDb() {
+  const { getDb: open } = await import('../db');
+  return open();
+}
 
 export async function listUsers(): Promise<User[]> {
   if (backendMode === 'supabase') {
