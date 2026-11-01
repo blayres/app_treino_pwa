@@ -175,9 +175,13 @@ export default function App() {
 
     // iOS launches the installed PWA at /home. Linking can therefore override
     // the default stack route; reset the route once after recovery.
+    // Keep Home underneath so "Voltar" works from the restored workout.
     navigationRef.resetRoot({
-      index: 0,
-      routes: [{ name: 'Workout', params: { workoutId: restoredWorkoutId } }],
+      index: 1,
+      routes: [
+        { name: 'Home' },
+        { name: 'Workout', params: { workoutId: restoredWorkoutId } },
+      ],
     });
     didRestoreWorkoutRouteRef.current = true;
   }, [authStatus, navigationReady, restoredWorkoutId, navigationRef]);

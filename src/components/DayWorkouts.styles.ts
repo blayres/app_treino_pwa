@@ -8,9 +8,35 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     backgroundColor: colors.surfaceMutedLight,
     marginBottom: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   itemPressed: {
     opacity: 0.8,
+  },
+  itemInProgress: {
+    borderColor: colors.success,
+  },
+  dayLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  inProgressBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  inProgressDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.success,
+  },
+  inProgressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.olive,
   },
   dayLabel: {
     fontSize: 12,
@@ -35,6 +61,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     backgroundColor: colors.surfaceMutedLight,
     marginBottom: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
     opacity: 0.45,
   },
   titleRest: {

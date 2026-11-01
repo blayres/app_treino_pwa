@@ -125,6 +125,7 @@ export const pt = {
   dayLabels: { 1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado', 7: 'Domingo' } as Record<number, string>,
   // DayWorkouts — relative dates
   doneToday: 'feito hoje',
+  workoutInProgress: 'Em andamento',
   done1Day: 'feito há 1 dia',
   doneDays: (n: number) => `feito há ${n} dias`,
   done1Week: 'feito há 1 semana',
@@ -350,6 +351,7 @@ export const en: Translations = {
   dayLabels: { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' },
 
   doneToday: 'done today',
+  workoutInProgress: 'In progress',
   done1Day: 'done 1 day ago',
   doneDays: (n) => `done ${n} days ago`,
   done1Week: 'done 1 week ago',
@@ -574,6 +576,7 @@ export const es: Translations = {
   dayLabels: { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' },
 
   doneToday: 'hecho hoy',
+  workoutInProgress: 'En curso',
   done1Day: 'hace 1 día',
   doneDays: (n) => `hace ${n} días`,
   done1Week: 'hace 1 semana',
@@ -798,6 +801,7 @@ export const fr: Translations = {
   dayLabels: { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche' },
 
   doneToday: 'fait aujourd\'hui',
+  workoutInProgress: 'En cours',
   done1Day: 'il y a 1 jour',
   doneDays: (n) => `il y a ${n} jours`,
   done1Week: 'il y a 1 semaine',

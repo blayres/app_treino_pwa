@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, Animated, Easing } from 'react-native';
 import { styles } from './DayWorkouts.styles';
+import { useAppStore } from '../store/useAppStore';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
@@ -44,9 +45,33 @@ function diffCalendarDaysInParis(from: Date, to: Date): number {
   return Math.floor((toUtc.getTime() - fromUtc.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+function InProgressBadge({ label }: { label: string }) {
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.35, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <View style={styles.inProgressBadge}>
+      <Animated.View style={[styles.inProgressDot, { opacity: pulse }]} />
+      <Text style={styles.inProgressText}>{label}</Text>
+    </View>
+  );
+}
+
 export function DayWorkouts({ userId, refreshKey }: Props) {
   const navigation = useNavigation<Navigation>();
   const { t } = useI18n();
+  const activeSession = useAppStore(state => state.activeSession);
+  const runningWorkoutId = activeSession?.isRunning ? activeSession.workoutId : null;
   const [workouts, setWorkouts] = useState<WorkoutWithLastDone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -124,14 +149,22 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
     <View>
       {workouts.map(item => {
         const isRest = item.title.toLowerCase().includes('repouso');
+        const isInProgress = !isRest && item.id === runningWorkoutId;
 
         return (
           <Pressable
             key={item.id}
             style={({ pressed }) => [
               styles.item,
+              isInProgress && styles.itemInProgress,
               isRest ? styles.itemRest : (pressed && styles.itemPressed),
             ]}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isInProgress
+                ? `${t.dayLabels[item.day_of_week]}, ${item.title}, ${t.workoutInProgress}`
+                : undefined
+            }
             onPress={() =>
               !isRest &&
               handleOpenWorkout(
@@ -142,7 +175,10 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
             disabled={isRest}
           >
             <View>
-              <Text style={styles.dayLabel}>{t.dayLabels[item.day_of_week]}</Text>
+              <View style={styles.dayLabelRow}>
+                <Text style={styles.dayLabel}>{t.dayLabels[item.day_of_week]}</Text>
+                {isInProgress && <InProgressBadge label={t.workoutInProgress} />}
+              </View>
               <Text style={[styles.title, isRest && styles.titleRest]}>{item.title}</Text>
             </View>
             <Text style={styles.lastDone}>
