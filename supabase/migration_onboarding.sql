@@ -68,8 +68,9 @@ alter table public.exercises
 -- names that differ only by case (e.g. "Cadeira Extensora" / "Cadeira extensora").
 -- Private exercises are new, so they get the stricter case-insensitive rule.
 alter table public.exercises drop constraint if exists exercises_name_key;
-drop index if exists public.exercises_global_name_unique;
-create unique index exercises_global_name_unique
+-- (migration_merge_duplicate_exercises.sql later replaces this with a
+-- case-insensitive index; `if not exists` keeps a re-run from reverting it.)
+create unique index if not exists exercises_global_name_unique
   on public.exercises (name) where owner_id is null;
 create unique index if not exists exercises_owner_name_unique
   on public.exercises (owner_id, lower(name)) where owner_id is not null;

@@ -271,9 +271,8 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
   }
   if (!userData.user) return false;
 
-  const role = userData.user.user_metadata?.role;
-  if (role === 'admin') return true;
-
+  // Only profiles.role decides (users can't change it — see migration_security.sql).
+  // Never trust user_metadata: any user can edit their own metadata.
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role')
