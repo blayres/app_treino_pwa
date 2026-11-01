@@ -22,6 +22,7 @@ O pre-commit (Husky) roda `lint`, `typecheck`, `npm test` e `build:web`.
 - Trabalhar na `develop`. `main` = produção (deploy automático na Vercel a cada push).
 - Commit, merge e push **só quando a usuária pedir**. Commits no estilo `feat:/fix:/security:/chore:` em inglês.
 - Mudança de banco **antes** do deploy do código que depende dela (ver "Banco").
+- `.env` não é versionado (valores na Vercel). Trocar de branch/merge pode apagá-lo da pasta: conferir `ls .env` depois de mexer na `main`; se sumir, recriar a partir de `.env.example` (URL e anon key, públicas) ou do histórico do git.
 
 ## Arquitetura
 ```
