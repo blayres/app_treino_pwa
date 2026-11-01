@@ -41,6 +41,7 @@ const item = (id: number, scheme = '4x10') => ({
   scheme,
   restSeconds: null,
   wrote: null,
+  notes: null,
 });
 
 const day = (workoutId: number | undefined, dayOfWeek: number, title: string, items: any[]): DraftDay => ({
@@ -84,7 +85,7 @@ describe('saveProgram', () => {
   });
 
   it('replaceAll archives everything and creates new exercises once', async () => {
-    const newItem = { key: 'n', exercise: null, name: 'Remada cavalinho', scheme: '3x12', restSeconds: null, wrote: null };
+    const newItem = { key: 'n', exercise: null, name: 'Remada cavalinho', scheme: '3x12', restSeconds: null, wrote: null, notes: 'Cadência 2010' };
     const draft = [day(undefined, 2, 'X', [newItem]), day(undefined, 4, 'Y', [{ ...newItem, key: 'n2' }])];
     await saveProgram({ userId: 1, draft, original, replaceAll: true, defaultTitle });
     expect(calls).toEqual([
@@ -100,6 +101,14 @@ describe('saveProgram', () => {
     const draft = [day(undefined, 2, 'X', [item(10)]), day(undefined, 4, 'Y', [item(11)])];
     await saveProgram({ userId: 1, draft, original: [], defaultTitle, createdDays: new Set([2]) });
     expect(calls).toEqual(['create:4:Y:11/-']);
+  });
+
+  it('passes coach notes through and treats a notes edit as a change', async () => {
+    const withNotes = [day(1, 1, 'A', [item(10), { ...item(11), notes: 'Drop-set na última' }]), original[1]];
+    await saveProgram({ userId: 1, draft: withNotes, original, defaultTitle });
+    expect(calls).toEqual(['items:1:10/-,11/-']);
+    const { replaceWorkoutItems } = jest.requireMock('../src/services/workoutService') as any;
+    expect(replaceWorkoutItems.mock.calls.at(-1)[1][1]).toMatchObject({ exerciseId: 11, notes: 'Drop-set na última' });
   });
 });
 

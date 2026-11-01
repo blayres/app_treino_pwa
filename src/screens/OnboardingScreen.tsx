@@ -10,7 +10,7 @@ import { useI18n } from '../i18n';
 import { colors } from '../theme';
 import { LogoBar } from '../components/LogoBar';
 import { invalidateExerciseCatalogue, loadExerciseCatalogue } from '../components/ExercisePickerSheet';
-import { PasteWorkoutInput, ProgramEditor } from '../components/ProgramEditor';
+import { AddAnotherSheetButton, PasteWorkoutInput, ProgramEditor } from '../components/ProgramEditor';
 import { applyDefaultProgram, DEFAULT_PROGRAM } from '../services/defaultWorkoutService';
 import { invalidateWorkoutsByUserCache } from '../services/workoutService';
 import { draftFromText, saveProgram, visibleDays, type DraftDay } from '../services/programService';
@@ -46,6 +46,8 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState<Step>('choose');
   const [mode, setMode] = useState<EditorMode>('manual');
   const [pasted, setPasted] = useState('');
+  // Pasting a second sheet: append its days instead of replacing the draft.
+  const [appending, setAppending] = useState(false);
   const [days, setDays] = useState<DraftDay[]>([]);
   const [isBusy, setIsBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -97,12 +99,15 @@ export default function OnboardingScreen() {
     if (isBusy) return;
     setIsBusy(true);
     try {
-      const draft = draftFromText(pasted, await loadExerciseCatalogue(userId));
+      const used = appending ? visibleDays(days).map((d) => d.dayOfWeek) : [];
+      const draft = draftFromText(pasted, await loadExerciseCatalogue(userId), used);
       if (draft.length === 0) {
         showAlert('', t.onboardingImportNothingFound);
         return;
       }
-      setDays(draft);
+      setDays(appending ? [...days.filter((d) => !d.hidden), ...draft].sort((a, b) => a.dayOfWeek - b.dayOfWeek) : draft);
+      if (appending) setPasted('');
+      setAppending(false);
       setMode('import');
       setStep('editor');
     } catch (err: any) {
@@ -219,7 +224,7 @@ export default function OnboardingScreen() {
 
   const renderImport = () => (
     <>
-      {goBackButton('choose')}
+      {goBackButton(appending ? 'editor' : 'choose')}
       <Text style={styles.title}>{t.onboardingImportPasteTitle}</Text>
       <Text style={styles.subtitle}>{t.onboardingImportPasteSubtitle}</Text>
       <PasteWorkoutInput value={pasted} onChangeText={setPasted} />
@@ -234,6 +239,15 @@ export default function OnboardingScreen() {
         {mode === 'import' ? t.onboardingReviewSubtitle : t.onboardingManualEditorSubtitle}
       </Text>
       <ProgramEditor userId={userId} days={days} onChange={setDays} />
+      {mode === 'import' && (
+        <AddAnotherSheetButton
+          onPress={() => {
+            setAppending(true);
+            setPasted('');
+            setStep('import');
+          }}
+        />
+      )}
     </>
   );
 

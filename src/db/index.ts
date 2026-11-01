@@ -273,6 +273,7 @@ export async function initDatabase() {
     `ALTER TABLE exercises ADD COLUMN owner_id INTEGER DEFAULT NULL;`,
     `ALTER TABLE workout_exercises ADD COLUMN scheme TEXT DEFAULT NULL;`,
     `ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER DEFAULT NULL;`,
+    `ALTER TABLE workout_exercises ADD COLUMN notes TEXT DEFAULT NULL;`,
   ]) {
     try {
       await db.execAsync(statement);

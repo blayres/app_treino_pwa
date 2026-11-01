@@ -45,6 +45,8 @@ export type WorkoutExercise = {
   base_rest_seconds?: number;
   scheme_override?: string | null;
   rest_seconds_override?: number | null;
+  /** Coach instructions for this exercise in this workout. */
+  notes?: string | null;
   exercise: Exercise;
 };
 

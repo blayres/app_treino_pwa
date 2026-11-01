@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useI18n } from '../i18n';
 import { colors } from '../theme';
 import type { Exercise } from '../services/types';
 import { DEFAULT_CUSTOM_SCHEME } from '../services/workoutService';
 import {
+  copyDayTo,
   newDraftItem,
   nextDraftKey,
   visibleDays,
@@ -32,7 +33,16 @@ const byWeekday = (a: DraftDay, b: DraftDay) => a.dayOfWeek - b.dayOfWeek;
 export function ProgramEditor({ userId, days, onChange }: Props) {
   const { t } = useI18n();
   const [pickerDayKey, setPickerDayKey] = useState<string | null>(null);
-  const [changeDayKey, setChangeDayKey] = useState<string | null>(null);
+  // Weekday sheet: move this card ("Trocar dia") or copy it ("Repetir em outro dia").
+  const [daySheet, setDaySheet] = useState<{ key: string; mode: 'move' | 'copy' } | null>(null);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  // Long-scheme layout is decided once per item, so the field never jumps
+  // (and loses focus) while the user is typing.
+  const longLayout = useRef(new Map<string, boolean>());
+  const isLong = (item: DraftItem) => {
+    if (!longLayout.current.has(item.key)) longLayout.current.set(item.key, item.scheme.length > 9);
+    return longLayout.current.get(item.key)!;
+  };
 
   const shown = visibleDays(days);
   const dayName = (day: number) => t.dayLabels[day];
@@ -83,8 +93,31 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
     onChange(days.map((d) => (d.key === dayKey ? { ...d, items: [...d.items, newDraftItem(exercise)] } : d)));
   };
 
+  // Coach sheets produce long schemes ("4x14-16/10-12/10-12/6-8"): those go on
+  // their own line under the name so the name isn't squeezed on phones.
+  const renderScheme = (dayKey: string, item: DraftItem, long = false) => (
+    <TextInput
+      style={[styles.schemeInput, long && styles.schemeInputLong]}
+                value={item.scheme}
+                onChangeText={(scheme) => updateItem(dayKey, item.key, { scheme })}
+                placeholder={DEFAULT_CUSTOM_SCHEME}
+                placeholderTextColor={colors.textSecondary + '99'}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={60}
+                accessibilityLabel={`${item.name} ${item.scheme}`}
+              />
+  );
+
   const pickerDay = shown.find((d) => d.key === pickerDayKey) ?? null;
-  const changeDay = shown.find((d) => d.key === changeDayKey) ?? null;
+  const sheetDay = daySheet ? shown.find((d) => d.key === daySheet.key) ?? null : null;
+  const toggleNotes = (itemKey: string) =>
+    setExpandedNotes((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemKey)) next.delete(itemKey);
+      else next.add(itemKey);
+      return next;
+    });
 
   return (
     <>
@@ -111,9 +144,16 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
         <View key={day.key} style={styles.card}>
           <View style={styles.dayCardHeader}>
             <Text style={styles.dayLabel}>{dayName(day.dayOfWeek)}</Text>
-            <Pressable onPress={() => setChangeDayKey(day.key)} hitSlop={10} accessibilityRole="button">
-              <Text style={styles.changeDay}>{t.onboardingChangeDay}</Text>
-            </Pressable>
+            <View style={styles.dayActions}>
+              {shown.length < 7 && (
+                <Pressable onPress={() => setDaySheet({ key: day.key, mode: 'copy' })} hitSlop={10} accessibilityRole="button">
+                  <Text style={styles.changeDay}>{t.repeatOnDay}</Text>
+                </Pressable>
+              )}
+              <Pressable onPress={() => setDaySheet({ key: day.key, mode: 'move' })} hitSlop={10} accessibilityRole="button">
+                <Text style={styles.changeDay}>{t.onboardingChangeDay}</Text>
+              </Pressable>
+            </View>
           </View>
           <TextInput
             style={styles.dayTitleInput}
@@ -131,6 +171,19 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
                   <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
                   {!item.exercise && <Text style={styles.newTag}>{t.onboardingNewTag}</Text>}
                 </View>
+                {isLong(item) && renderScheme(day.key, item, true)}
+                {item.notes ? (
+                  <Pressable onPress={() => toggleNotes(item.key)} accessibilityRole="button">
+                    <Text style={styles.itemNotes} numberOfLines={expandedNotes.has(item.key) ? undefined : 2}>
+                      {item.notes}
+                    </Text>
+                    {item.notes.length > 80 || item.notes.includes('\n') ? (
+                      <Text style={styles.notesToggle}>
+                        {expandedNotes.has(item.key) ? t.hideInstructions : t.showInstructions}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                ) : null}
                 {item.wrote && (
                   <Pressable
                     onPress={() => updateItem(day.key, item.key, { exercise: null, name: item.wrote!, wrote: null })}
@@ -140,17 +193,7 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
                   </Pressable>
                 )}
               </View>
-              <TextInput
-                style={styles.schemeInput}
-                value={item.scheme}
-                onChangeText={(scheme) => updateItem(day.key, item.key, { scheme })}
-                placeholder={DEFAULT_CUSTOM_SCHEME}
-                placeholderTextColor={colors.textSecondary + '99'}
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={20}
-                accessibilityLabel={`${item.name} ${item.scheme}`}
-              />
+              {!isLong(item) && renderScheme(day.key, item)}
               <Pressable
                 onPress={() => removeItem(day.key, item.key)}
                 accessibilityRole="button"
@@ -180,20 +223,23 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
         onClose={() => setPickerDayKey(null)}
       />
 
-      <Modal visible={changeDay !== null} transparent animationType="fade" onRequestClose={() => setChangeDayKey(null)}>
-        <Pressable style={styles.sheetOverlay} onPress={() => setChangeDayKey(null)}>
+      <Modal visible={sheetDay !== null} transparent animationType="fade" onRequestClose={() => setDaySheet(null)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setDaySheet(null)}>
           <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>{t.onboardingChangeDay}</Text>
+            <Text style={styles.sheetTitle}>
+              {daySheet?.mode === 'copy' ? t.repeatOnDayTitle : t.onboardingChangeDay}
+            </Text>
             {ALL_DAYS.map((day) => {
-              const isCurrent = changeDay?.dayOfWeek === day;
-              const taken = !isCurrent && selectedDays.has(day);
+              const isCurrent = sheetDay?.dayOfWeek === day;
+              const taken = daySheet?.mode === 'copy' ? selectedDays.has(day) : !isCurrent && selectedDays.has(day);
               return (
                 <Pressable
                   key={day}
                   disabled={taken}
                   onPress={() => {
-                    if (changeDay && !isCurrent) moveDay(changeDay.key, day);
-                    setChangeDayKey(null);
+                    if (sheetDay && daySheet?.mode === 'copy') onChange(copyDayTo(days, sheetDay.key, day));
+                    else if (sheetDay && !isCurrent) moveDay(sheetDay.key, day);
+                    setDaySheet(null);
                   }}
                   style={({ pressed }) => [
                     styles.sheetOption,
@@ -231,5 +277,20 @@ export function PasteWorkoutInput({ value, onChangeText }: { value: string; onCh
       autoCapitalize="sentences"
       accessibilityLabel={t.onboardingImportPasteTitle}
     />
+  );
+}
+
+/** "+ Adicionar outra ficha" shown under an imported program in review. */
+export function AddAnotherSheetButton({ onPress }: { onPress: () => void }) {
+  const { t } = useI18n();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.anotherSheet, pressed && styles.anotherSheetPressed]}
+    >
+      <Text style={styles.anotherSheetLabel}>{t.addAnotherSheet}</Text>
+      <Text style={styles.anotherSheetHint}>{t.addAnotherSheetHint}</Text>
+    </Pressable>
   );
 }

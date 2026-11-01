@@ -191,6 +191,8 @@ export type WorkoutItemInput = {
   /** Per-workout override; null/undefined keeps the exercise's own value. */
   scheme?: string | null;
   restSeconds?: number | null;
+  /** Coach instructions for this exercise in this workout. */
+  notes?: string | null;
 };
 
 export async function createWorkoutForUser(params: {
@@ -223,6 +225,7 @@ export async function createWorkoutForUser(params: {
         // migration_onboarding.sql is applied.
         ...(item.scheme != null ? { scheme: item.scheme } : {}),
         ...(item.restSeconds != null ? { rest_seconds: item.restSeconds } : {}),
+        ...(item.notes ? { notes: item.notes } : {}),
       }));
       const { error: exError } = await supabase.from('workout_exercises').insert(rows);
       if (exError) {
@@ -248,13 +251,14 @@ export async function createWorkoutForUser(params: {
   for (let index = 0; index < items.length; index++) {
     const item = items[index];
     await db.runAsync(
-      `INSERT INTO workout_exercises (workout_id, exercise_id, order_index, scheme, rest_seconds)
-       VALUES (?, ?, ?, ?, ?);`,
+      `INSERT INTO workout_exercises (workout_id, exercise_id, order_index, scheme, rest_seconds, notes)
+       VALUES (?, ?, ?, ?, ?, ?);`,
       workoutId,
       item.exerciseId,
       index,
       item.scheme ?? null,
       item.restSeconds ?? null,
+      item.notes ?? null,
     );
   }
 
@@ -283,6 +287,7 @@ export async function replaceWorkoutItems(workoutId: number, items: WorkoutItemI
           order_index: index,
           scheme: item.scheme ?? null,
           rest_seconds: item.restSeconds ?? null,
+          ...(item.notes ? { notes: item.notes } : {}),
         })),
       );
       if (insertError) throw insertError;
@@ -302,13 +307,14 @@ export async function replaceWorkoutItems(workoutId: number, items: WorkoutItemI
     for (let index = 0; index < items.length; index++) {
       const item = items[index];
       await db.runAsync(
-        `INSERT INTO workout_exercises (workout_id, exercise_id, order_index, scheme, rest_seconds)
-         VALUES (?, ?, ?, ?, ?);`,
+        `INSERT INTO workout_exercises (workout_id, exercise_id, order_index, scheme, rest_seconds, notes)
+         VALUES (?, ?, ?, ?, ?, ?);`,
         workoutId,
         item.exerciseId,
         index,
         item.scheme ?? null,
         item.restSeconds ?? null,
+        item.notes ?? null,
       );
     }
     for (const row of oldRows) {
@@ -457,11 +463,12 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
 
     // workout_exercises.scheme/rest_seconds are per-workout overrides added by
     // migration_onboarding.sql; retry without them if the migration isn't applied.
-    const fullSelect = (withOverrides: boolean) => `
+    // level 2: overrides + notes, 1: overrides only, 0: neither.
+    const fullSelect = (level: number) => `
         id,
         workout_id,
         exercise_id,
-        order_index,${withOverrides ? '\n        scheme,\n        rest_seconds,' : ''}
+        order_index,${level >= 1 ? '\n        scheme,\n        rest_seconds,' : ''}${level >= 2 ? '\n        notes,' : ''}
         exercises (
           id,
           name,
@@ -477,17 +484,16 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
           )
         )
       `;
-    const runFull = (withOverrides: boolean) =>
+    const runFull = (level: number) =>
       supabase
         .from('workout_exercises')
-        .select(fullSelect(withOverrides))
+        .select(fullSelect(level))
         .eq('workout_id', workoutId)
         .order('order_index', { ascending: true });
 
-    let { data, error } = await runFull(true);
-    if (error) {
-      ({ data, error } = await runFull(false));
-    }
+    let { data, error } = await runFull(2);
+    if (error) ({ data, error } = await runFull(1));
+    if (error) ({ data, error } = await runFull(0));
 
     if (error) {
       console.warn('[getWorkoutExercises] full query failed, using base fallback:', error.message);
@@ -557,6 +563,7 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
         base_rest_seconds: Number(ex.rest_seconds),
         scheme_override: row.scheme ?? null,
         rest_seconds_override: row.rest_seconds ?? null,
+        notes: row.notes ?? null,
         exercise: {
           id: Number(ex.id),
           name: String(ex.name),
@@ -564,7 +571,8 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
           secondary_muscle: ex.secondary_muscle ?? null,
           rest_seconds: Number(row.rest_seconds ?? ex.rest_seconds),
           scheme: String(row.scheme ?? ex.scheme),
-          tip: ex.tip ?? null,
+          // Per-workout coach notes replace the generic catalogue tip.
+          tip: row.notes ?? ex.tip ?? null,
           exercise_library_id: ex.exercise_library_id ?? null,
           library: ex.exercise_library ?? null,
         },
@@ -583,7 +591,7 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
 
   const rows = await db.getAllAsync<any>(
     `SELECT we.id as we_id, we.workout_id, we.exercise_id, we.order_index,
-            we.scheme as we_scheme, we.rest_seconds as we_rest_seconds, e.*
+            we.scheme as we_scheme, we.rest_seconds as we_rest_seconds, we.notes as we_notes, e.*
      FROM workout_exercises we
      JOIN exercises e ON e.id = we.exercise_id
      WHERE we.workout_id = ?
@@ -600,6 +608,7 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
     base_rest_seconds: row.rest_seconds,
     scheme_override: row.we_scheme ?? null,
     rest_seconds_override: row.we_rest_seconds ?? null,
+    notes: row.we_notes ?? null,
     exercise: {
       id: row.id,
       name: row.name,
@@ -607,7 +616,7 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
       secondary_muscle: row.secondary_muscle,
       rest_seconds: row.we_rest_seconds ?? row.rest_seconds,
       scheme: row.we_scheme ?? row.scheme,
-      tip: row.tip ?? null,
+      tip: row.we_notes ?? row.tip ?? null,
       exercise_library_id: null,
       library: null,
     },

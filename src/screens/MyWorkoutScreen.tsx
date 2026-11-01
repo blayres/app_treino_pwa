@@ -12,7 +12,7 @@ import { LogoBar } from '../components/LogoBar';
 import { Skeleton } from '../components/Skeleton';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { invalidateExerciseCatalogue, loadExerciseCatalogue } from '../components/ExercisePickerSheet';
-import { PasteWorkoutInput, ProgramEditor } from '../components/ProgramEditor';
+import { AddAnotherSheetButton, PasteWorkoutInput, ProgramEditor } from '../components/ProgramEditor';
 import { applyDefaultProgram } from '../services/defaultWorkoutService';
 import { archiveWorkout, invalidateWorkoutsByUserCache } from '../services/workoutService';
 import {
@@ -47,6 +47,7 @@ export default function MyWorkoutScreen() {
   const [days, setDays] = useState<DraftDay[]>([]);
   const [imported, setImported] = useState<DraftDay[]>([]);
   const [pasted, setPasted] = useState('');
+  const [appending, setAppending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
@@ -141,12 +142,19 @@ export default function MyWorkoutScreen() {
     if (isBusy) return;
     setIsBusy(true);
     try {
-      const draft = draftFromText(pasted, await loadExerciseCatalogue(userId));
+      const used = appending ? visibleDays(imported).map((d) => d.dayOfWeek) : [];
+      const draft = draftFromText(pasted, await loadExerciseCatalogue(userId), used);
       if (draft.length === 0) {
         showAlert('', t.onboardingImportNothingFound);
         return;
       }
-      setImported(draft);
+      setImported(
+        appending
+          ? [...imported.filter((d) => !d.hidden), ...draft].sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+          : draft,
+      );
+      if (appending) setPasted('');
+      setAppending(false);
       setStep('review');
     } catch (err: any) {
       showAlert(t.saveError, err?.message ?? t.genericError);
@@ -176,7 +184,7 @@ export default function MyWorkoutScreen() {
     );
 
   const handleBack = () => {
-    if (step === 'import') setStep('edit');
+    if (step === 'import') setStep(appending ? 'review' : 'edit');
     else if (step === 'review') setStep('import');
     else if (dirty) setConfirm('discard');
     else navigation.goBack();
@@ -259,6 +267,13 @@ export default function MyWorkoutScreen() {
       <Text style={styles.title}>{t.replaceReviewTitle}</Text>
       <Text style={styles.subtitle}>{t.replaceReviewSubtitle}</Text>
       <ProgramEditor userId={userId} days={imported} onChange={setImported} />
+      <AddAnotherSheetButton
+        onPress={() => {
+          setAppending(true);
+          setPasted('');
+          setStep('import');
+        }}
+      />
     </>
   );
 

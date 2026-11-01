@@ -21,6 +21,8 @@ export type ParsedExercise = {
   /** Normalised like the catalogue, e.g. "4x10-12". */
   scheme: string | null;
   restSeconds: number | null;
+  /** Coach instructions kept verbatim (cadence, drop-sets, supersets…). */
+  notes?: string;
 };
 
 export type ParsedDay = {
@@ -162,6 +164,11 @@ function parseExercise(line: string): ParsedExercise | null {
 }
 
 export function parseWorkoutText(text: string): ParsedDay[] {
+  if (looksLikeCoachSheet(text)) return parseCoachSheet(text);
+  return parseSimpleList(text);
+}
+
+function parseSimpleList(text: string): ParsedDay[] {
   const days: ParsedDay[] = [];
   let current: ParsedDay | null = null;
 
@@ -189,13 +196,199 @@ export function parseWorkoutText(text: string): ParsedDay[] {
   return days.filter((day) => day.exercises.length > 0);
 }
 
+// ── Coach sheets ────────────────────────────────────────────────────────────
+// Personal-trainer sheets: one workout per text, exercises are the "-" lines,
+// blocks like "PARTE 1: 5 SÉRIES" / "4 Séries" give the sets, the lines below
+// an exercise ("Primeira série: 14 a 16 repetições cadência 1010") give reps
+// and instructions, and "DESCANSO: 40”" gives the rest for the whole block.
+
+const DASH_LINE = /^\s*[-–—•]\s*(?=\S)/;
+const SETS_IN_LINE = /(\d{1,2})\s*s[ée]ries?\b/i;
+const BLOCK_HEADER = /^\s*\**\s*(?:parte\s*\d+|aquecimento|bloco\s*\d+|circuito|warm[\s-]?up|part\s*\d+)\b/i;
+const SETS_ONLY_LINE = /^\s*\**\s*\d{1,2}\s*s[ée]ries?\s*:?\s*$/i;
+const NTH_SERIES_LINE = /^\s*\**\s*(?:primeira|segunda|terceira|quarta|quinta|sexta|s[ée]tima|1[ªa°o]|2[ªa°o]|3[ªa°o]|4[ªa°o]|5[ªa°o]|6[ªa°o])\s*s[ée]rie/i;
+const REP_RANGE = /(\d{1,3})\s*(?:a|-|–|até)\s*(\d{1,3})(?=\s*(?:repeti|reps?\b|$))/i;
+const REST_LABEL = /descanso\s*:/i;
+const WARMUP_NOTE = 'Aquecimento';
+// 1’20”, 1'30", 1’, 40”, 45"
+const TIME_TOKEN = /(\d{1,2})\s*[’'´]\s*(?:(\d{1,2})\s*[”"])?|(\d{1,3})\s*[”"]/;
+
+export function looksLikeCoachSheet(text: string): boolean {
+  const lines = text.split(/\r?\n/);
+  const dashLines = lines.filter((line) => DASH_LINE.test(line)).length;
+  const structure = lines.filter(
+    (line) => !DASH_LINE.test(line) && (SETS_IN_LINE.test(line) || BLOCK_HEADER.test(line) || REST_LABEL.test(line)),
+  ).length;
+  return dashLines >= 2 && structure >= 1;
+}
+
+function parseTime(text: string): number | null {
+  const match = text.match(TIME_TOKEN);
+  if (!match) return null;
+  if (match[3]) return Number(match[3]);
+  return Number(match[1]) * 60 + (match[2] ? Number(match[2]) : 0);
+}
+
+type CoachExercise = ParsedExercise & {
+  /** "3x15" written on the exercise line itself wins over the block's sets. */
+  explicitScheme: string | null;
+  sets: number | null;
+  seriesRanges: string[];
+  baseReps: string | null;
+  noteLines: string[];
+};
+
+function parseCoachExerciseLine(line: string, sets: number | null): CoachExercise {
+  let text = line.replace(DASH_LINE, '');
+  const noteLines: string[] = [];
+  text = text.replace(/\(\s*ver\s+v[íi]deo\s*\)/gi, ' ');
+  // "(se não tiver pode fazer o sentado)" is an instruction, not part of the name.
+  text = text.replace(/\(\s*(se\s+n[ãa]o[^)]*)\)/gi, (_, note) => {
+    noteLines.push(note.trim());
+    return ' ';
+  });
+
+  const explicit = extractScheme(text);
+  const explicitScheme = explicit.scheme;
+  if (explicitScheme) text = explicit.rest;
+
+  let baseReps: string | null = null;
+  // "12x", "6x com cada perna", "22 total", "30”" (time)
+  const repsX = text.match(/(\d{1,3})\s*x\b\s*(.*)$/i);
+  const repsTotal = text.match(/(\d{1,3})\s*(?:no\s+)?total\b\s*(.*)$/i);
+  const time = text.match(/(\d{1,3})\s*[”"]\s*(.*)$/);
+  const inline = explicitScheme ? null : repsX ?? repsTotal;
+  if (explicitScheme) {
+    // nothing else to read from the line
+  } else if (inline) {
+    baseReps = inline[1];
+    if (inline[2].trim()) noteLines.push(inline[2].trim());
+    text = text.slice(0, inline.index);
+  } else if (time && !explicitScheme) {
+    baseReps = `${time[1]}s`;
+    if (time[2].trim()) noteLines.push(time[2].trim());
+    text = text.slice(0, time.index);
+  }
+
+  return {
+    name: cleanName(text),
+    scheme: null,
+    restSeconds: null,
+    explicitScheme,
+    sets,
+    seriesRanges: [],
+    baseReps,
+    noteLines,
+  };
+}
+
+function finishCoachExercise(exercise: CoachExercise): ParsedExercise {
+  const ranges = exercise.seriesRanges;
+  const sets = ranges.length > 0 ? ranges.length : exercise.sets;
+  let reps: string | null = null;
+  if (ranges.length > 0) {
+    reps = ranges.every((range) => range === ranges[0]) ? ranges[0] : ranges.join('/');
+  } else {
+    reps = exercise.baseReps;
+  }
+  const scheme =
+    exercise.explicitScheme ?? (reps ? (sets ? `${sets}x${reps}` : reps) : sets ? `${sets}x` : null);
+  const notes = exercise.noteLines.join('\n').trim();
+  return {
+    name: exercise.name,
+    scheme,
+    restSeconds: exercise.restSeconds,
+    ...(notes ? { notes } : {}),
+  };
+}
+
+function parseCoachSheet(text: string): ParsedDay[] {
+  const exercises: CoachExercise[] = [];
+  let block: CoachExercise[] = [];
+  let sets: number | null = null;
+  let isWarmup = false;
+  let current: CoachExercise | null = null;
+
+  const applyRest = (line: string) => {
+    const afterLabel = line.slice(line.search(REST_LABEL));
+    const seconds = parseTime(afterLabel);
+    if (seconds != null) block.forEach((exercise) => { if (exercise.restSeconds == null) exercise.restSeconds = seconds; });
+    return seconds;
+  };
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (DASH_LINE.test(line)) {
+      current = parseCoachExerciseLine(line, sets);
+      if (!current.name) {
+        current = null;
+        continue;
+      }
+      if (isWarmup) current.noteLines.unshift(WARMUP_NOTE);
+      exercises.push(current);
+      block.push(current);
+      continue;
+    }
+
+    if (BLOCK_HEADER.test(line) && !NTH_SERIES_LINE.test(line)) {
+      const setsMatch = line.match(SETS_IN_LINE);
+      sets = setsMatch ? Number(setsMatch[1]) : null;
+      isWarmup = /aquecimento|warm[\s-]?up/i.test(line);
+      block = [];
+      current = null;
+      continue;
+    }
+
+    if (SETS_ONLY_LINE.test(line)) {
+      sets = Number(line.match(SETS_IN_LINE)![1]);
+      current = null;
+      continue;
+    }
+
+    // A standalone "DESCANSO: …" line closes the block's rest.
+    if (/^\s*\**\s*descanso\s*:/i.test(line)) {
+      applyRest(line);
+      const extra = line
+        .replace(/^\s*\**\s*descanso\s*:\s*/i, '')
+        .replace(/\d{1,3}\s*[’'´”"]\s*(\d{1,2}\s*[”"])?/g, '')
+        .replace(/\ba\b/g, '')
+        .trim();
+      const last = block[block.length - 1];
+      if (last && /[A-Za-zÀ-ÿ]{3,}/.test(extra)) last.noteLines.push(line.replace(/^\s*\**\s*/, ''));
+      continue;
+    }
+
+    if (!current) continue;
+
+    // Detail line of the current exercise.
+    const detail = line.replace(/^\s*\*+\s*/, '');
+    current.noteLines.push(detail);
+    const range = detail.match(REP_RANGE);
+    if (NTH_SERIES_LINE.test(line)) {
+      if (range) current.seriesRanges.push(`${range[1]}-${range[2]}`);
+    } else if (range && current.seriesRanges.length === 0 && !current.baseReps) {
+      current.baseReps = `${range[1]}-${range[2]}`;
+    }
+    if (REST_LABEL.test(detail)) applyRest(detail);
+  }
+
+  const parsed = exercises.map(finishCoachExercise);
+  return parsed.length > 0 ? [{ dayOfWeek: null, title: '', exercises: parsed }] : [];
+}
+
 /**
  * Fills missing weekdays with the next free day (Mon→Sun) and drops duplicate
  * weekdays (only one active workout per weekday is allowed). Also gives
  * untitled days a title. Returns a new array.
  */
-export function assignWeekdays(days: ParsedDay[], untitled: (index: number) => string): ParsedDay[] {
-  const used = new Set<number>();
+export function assignWeekdays(
+  days: ParsedDay[],
+  untitled: (index: number) => string,
+  alreadyUsed: Iterable<number> = [],
+): ParsedDay[] {
+  const used = new Set<number>(alreadyUsed);
   const result = days.map((day) => ({ ...day }));
 
   result.forEach((day) => {

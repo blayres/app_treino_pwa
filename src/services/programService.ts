@@ -31,6 +31,8 @@ export type DraftItem = {
   restSeconds: number | null;
   /** Original imported text when matched to a differently named exercise. */
   wrote: string | null;
+  /** Coach instructions (cadence, drop-sets…) for this exercise in this workout. */
+  notes: string | null;
 };
 
 export type DraftDay = {
@@ -57,6 +59,7 @@ export function newDraftItem(exercise: Exercise): DraftItem {
     scheme: exercise.scheme,
     restSeconds: null,
     wrote: null,
+    notes: null,
   };
 }
 
@@ -92,6 +95,7 @@ export async function loadProgramDraft(userId: number): Promise<DraftDay[]> {
             scheme: row.exercise.scheme,
             restSeconds: row.rest_seconds_override ?? null,
             wrote: null,
+            notes: row.notes ?? null,
           };
         }),
       };
@@ -101,10 +105,10 @@ export async function loadProgramDraft(userId: number): Promise<DraftDay[]> {
 }
 
 /** Pasted text → draft days matched against the catalogue. Empty if nothing found. */
-export function draftFromText(text: string, catalogue: Exercise[]): DraftDay[] {
+export function draftFromText(text: string, catalogue: Exercise[], usedWeekdays: number[] = []): DraftDay[] {
   const parsed = parseWorkoutText(text);
   if (parsed.length === 0) return [];
-  return assignWeekdays(parsed, () => '')
+  return assignWeekdays(parsed, () => '', usedWeekdays)
     .map((day) => ({
       key: nextDraftKey(),
       dayOfWeek: day.dayOfWeek!,
@@ -119,6 +123,7 @@ export function draftFromText(text: string, catalogue: Exercise[]): DraftDay[] {
           scheme: parsedItem.scheme ?? exercise?.scheme ?? DEFAULT_CUSTOM_SCHEME,
           restSeconds: parsedItem.restSeconds,
           wrote: match && !match.exact ? parsedItem.name : null,
+          notes: parsedItem.notes ?? null,
         };
       }),
     }))
@@ -128,7 +133,7 @@ export function draftFromText(text: string, catalogue: Exercise[]): DraftDay[] {
 /** Stable signature of a day's exercises, to detect edits. */
 export function itemsSignature(items: DraftItem[]): string {
   return items
-    .map((item) => `${item.exercise?.id ?? `new:${item.name}`}|${item.scheme.trim()}|${item.restSeconds ?? ''}`)
+    .map((item) => `${item.exercise?.id ?? `new:${item.name}`}|${item.scheme.trim()}|${item.restSeconds ?? ''}|${item.notes ?? ''}`)
     .join(';');
 }
 
@@ -163,6 +168,7 @@ function toWorkoutItems(items: DraftItem[], created: Map<string, Exercise>): Wor
       exerciseId: exercise.id,
       scheme: scheme && scheme !== base.scheme ? scheme : null,
       restSeconds: item.restSeconds != null && item.restSeconds !== base.restSeconds ? item.restSeconds : null,
+      notes: item.notes?.trim() || null,
     };
   });
 }
@@ -239,4 +245,19 @@ export function isProgramDirty(original: DraftDay[], draft: DraftDay[]): boolean
       .sort()
       .join('\n');
   return summarize(original) !== summarize(draft);
+}
+
+/** Copies a day (with its exercises) to another weekday, replacing a hidden card there. */
+export function copyDayTo(days: DraftDay[], dayKey: string, dayOfWeek: number): DraftDay[] {
+  const source = days.find((d) => d.key === dayKey);
+  if (!source) return days;
+  const copy: DraftDay = {
+    key: nextDraftKey(),
+    dayOfWeek,
+    title: source.title,
+    items: source.items.map((item) => ({ ...item, key: nextDraftKey() })),
+  };
+  return [...days.filter((d) => !(d.hidden && d.dayOfWeek === dayOfWeek)), copy].sort(
+    (a, b) => a.dayOfWeek - b.dayOfWeek,
+  );
 }
