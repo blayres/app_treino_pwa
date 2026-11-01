@@ -13,6 +13,7 @@ import { styles } from './SettingsScreen.styles';
 import { showAlert } from '../store/useDialogStore';
 import { LogoBar } from '../components/LogoBar';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { getMyCoach, joinCoach, joinErrorKey } from '../services/coachService';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -121,6 +122,8 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <CoachCard onOpenCoachArea={() => navigation.navigate('Coach')} />
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t.account}</Text>
           <Text style={styles.fieldLabel}>{t.email}</Text>
@@ -197,5 +200,95 @@ export default function SettingsScreen() {
         confirmDanger
       />
     </SafeAreaView>
+  );
+}
+
+/**
+ * "Personal", only for users without a coach: join one by code, or open the
+ * trainer area. Students who already have a coach don't see it (leaving is
+ * agreed with the coach, who removes them).
+ */
+function CoachCard({ onOpenCoachArea }: { onOpenCoachArea: () => void }) {
+  const { t } = useI18n();
+  const [hasCoach, setHasCoach] = useState<boolean | undefined>(undefined);
+  const [code, setCode] = useState('');
+  const [joining, setJoining] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getMyCoach()
+      .then((coach) => setHasCoach(coach !== null))
+      .catch(() => setHasCoach(false));
+  }, []);
+
+  if (hasCoach !== false) return null;
+
+  const handleJoin = async () => {
+    if (!code.trim() || joining) return;
+    setJoining(true);
+    setError('');
+    try {
+      const name = await joinCoach(code);
+      setCode('');
+      setHasCoach(true);
+      showAlert('', t.joinedCoach(name));
+    } catch (err: any) {
+      const key = joinErrorKey(err);
+      setError(key ? t[key] : err?.message ?? t.genericError);
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{t.myCoach}</Text>
+      <Text style={styles.fieldLabel}>{t.haveCoachQuestion}</Text>
+      <View style={styles.usernameRow}>
+        <TextInput
+          value={code}
+          onChangeText={(value) => {
+            setCode(value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase());
+            setError('');
+          }}
+          onSubmitEditing={handleJoin}
+          style={styles.input}
+          placeholder={t.coachCodePlaceholder}
+          accessibilityLabel={t.coachCodePlaceholder}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={12}
+        />
+        <Pressable
+          onPress={handleJoin}
+          disabled={!code.trim() || joining}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.saveButton,
+            !code.trim() && styles.buttonDisabled,
+            joining && styles.saveButtonSaving,
+            pressed && styles.buttonPressed,
+          ]}
+        >
+          <Text style={styles.saveButtonLabel}>{t.joinCoachButton}</Text>
+        </Pressable>
+      </View>
+      {error ? (
+        <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>
+      ) : null}
+
+      <Pressable
+        onPress={onOpenCoachArea}
+        accessibilityRole="button"
+        accessibilityHint={t.openCoachAreaDesc}
+        style={({ pressed }) => [styles.actionRow, pressed && styles.buttonPressed]}
+      >
+        <View style={styles.actionText}>
+          <Text style={styles.actionLabel}>{t.coachArea}</Text>
+          <Text style={styles.actionDesc}>{t.openCoachAreaDesc}</Text>
+        </View>
+        <Text style={styles.chevron}>›</Text>
+      </Pressable>
+    </View>
   );
 }

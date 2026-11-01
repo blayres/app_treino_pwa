@@ -80,20 +80,6 @@ export const styles = StyleSheet.create({
   settingsButtonPressed: {
     backgroundColor: colors.olive + '24',
   },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.olive,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 18,
-    color: colors.textPrimaryDark,
-  },
   toolsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -115,18 +101,5 @@ export const styles = StyleSheet.create({
     ...typography.body,
     marginBottom: spacing.md,
   },
-  customizeButton: {
-    paddingVertical: spacing.sm,
-    borderRadius: 999,
-    backgroundColor: colors.olive,
-    alignItems: 'center',
-  },
-  customizeButtonPressed: {
-    opacity: 0.85,
-  },
-  customizeButtonLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimaryDark,
-  },
+  cardAction: { flexDirection: 'row' },
 });

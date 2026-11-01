@@ -17,14 +17,17 @@ import type { RootStackParamList } from './src/navigation/types';
 import { colors } from './src/theme/colors';
 import { useAppStore } from './src/store/useAppStore';
 import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
-import { getSessionUser, getOrCreateProfile } from './src/services/authService';
+import { getSessionUser, getOrCreateProfile, markOnboarded } from './src/services/authService';
+import { captureInviteFromUrl } from './src/services/coachInvite';
+import { PendingInviteHost } from './src/components/PendingInviteHost';
 import { backendMode } from './src/services/backendMode';
 import { supabase } from './src/services/supabaseClient';
 import { AlertHost } from './src/components/AlertHost';
 
 // Non-critical screens — lazy loaded after first paint
 const WorkoutScreen = lazyScreen(() => import('./src/screens/WorkoutScreen'));
-const AdminScreen = lazyScreen(() => import('./src/screens/AdminScreen'));
+const CoachScreen = lazyScreen(() => import('./src/screens/CoachScreen'));
+const CoachStudentScreen = lazyScreen(() => import('./src/screens/CoachStudentScreen'));
 const SignupScreen = lazyScreen(() => import('./src/screens/SignupScreen'));
 const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'));
 const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen'));
@@ -35,6 +38,9 @@ const OnboardingScreen = lazyScreen(() => import('./src/screens/OnboardingScreen
 export type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Invite link (/convite/CODE): keep the code until the user is signed in.
+captureInviteFromUrl();
 
 export default function App() {
   const scheme = useColorScheme();
@@ -218,6 +224,15 @@ export default function App() {
     didOnboardingRedirectRef.current = true;
   }, [authStatus, navigationReady, needsOnboarding, navigationRef]);
 
+  // A new student who joined a coach skips onboarding: the coach builds the program.
+  const handleJoinedCoach = React.useCallback(() => {
+    const { currentUser, needsOnboarding: onboarding } = useAppStore.getState();
+    if (!onboarding || !currentUser) return;
+    markOnboarded(currentUser.id).catch(() => {});
+    setNeedsOnboarding(false);
+    navigationRef.resetRoot({ index: 0, routes: [{ name: 'Home' }] });
+  }, [navigationRef, setNeedsOnboarding]);
+
   if (authStatus === 'loading') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F8F2' }}>
@@ -245,7 +260,10 @@ export default function App() {
             Home: 'home',
             Settings: 'settings',
             Workout: 'workout/:workoutId',
-            Admin: 'admin',
+            Coach: { path: 'personal', alias: ['admin'] },
+            CoachStudent: 'personal/aluno/:studentId',
+            CoachProgram: 'personal/aluno/:studentId/treino',
+            StudentProgress: 'personal/aluno/:studentId/progresso',
             MyWorkout: 'my-workout',
             Progress: 'progress',
             Onboarding: 'onboarding',
@@ -289,7 +307,10 @@ export default function App() {
                 component={WorkoutScreen}
                 initialParams={activeSession ? { workoutId: activeSession.workoutId } : undefined}
               />
-              <Stack.Screen name="Admin" component={AdminScreen} />
+              <Stack.Screen name="Coach" component={CoachScreen} />
+              <Stack.Screen name="CoachStudent" component={CoachStudentScreen} />
+              <Stack.Screen name="CoachProgram" component={MyWorkoutScreen} />
+              <Stack.Screen name="StudentProgress" component={ProgressScreen} />
               <Stack.Screen name="MyWorkout" component={MyWorkoutScreen} />
               <Stack.Screen name="Progress" component={ProgressScreen} />
               <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ gestureEnabled: false }} />
@@ -303,6 +324,10 @@ export default function App() {
           )}
         </Stack.Navigator>
       </Suspense>
+      <PendingInviteHost
+        enabled={authStatus === 'authenticated' && navigationReady}
+        onJoined={handleJoinedCoach}
+      />
       <AlertHost />
     </NavigationContainer>
   );

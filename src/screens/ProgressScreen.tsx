@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppStore } from '../store/useAppStore';
 import { showAlert } from '../store/useDialogStore';
 import { useI18n } from '../i18n';
@@ -35,11 +35,17 @@ type Entry = ExerciseProgress['entries'][number];
  * 3. One row per exercise (current load, change, sparkline), biggest gain first;
  *    tapping expands its chart, start/current/best/change and the entries
  *    (table view, where a wrongly typed entry can be deleted).
+ *
+ * Also opened by a coach for a student (route StudentProgress): read only.
  */
 export default function ProgressScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const currentUser = useAppStore((state) => state.currentUser);
   const { t, locale } = useI18n();
+  const params = route.params as { studentId?: number | string; studentName?: string } | undefined;
+  const studentId = params?.studentId != null ? Number(params.studentId) : null;
+  const userId = studentId ?? currentUser?.id;
 
   const [loadState, setLoadState] = useState<LoadState>('pending');
   const [history, setHistory] = useState<LoadHistoryRow[]>([]);
@@ -50,11 +56,11 @@ export default function ProgressScreen() {
   const [toDelete, setToDelete] = useState<Entry | null>(null);
 
   const load = useCallback(async () => {
-    if (!currentUser) return;
+    if (!userId) return;
     try {
       const [rows, sessions] = await Promise.all([
-        getLoadHistoryByUser(currentUser.id),
-        getCompletedSessionDates(currentUser.id).catch(() => [] as string[]),
+        getLoadHistoryByUser(userId),
+        getCompletedSessionDates(userId).catch(() => [] as string[]),
       ]);
       setHistory(rows);
       setSessionDates(sessions);
@@ -62,7 +68,7 @@ export default function ProgressScreen() {
     } catch {
       setLoadState('error');
     }
-  }, [currentUser]);
+  }, [userId]);
 
   useEffect(() => {
     void load();
@@ -131,7 +137,7 @@ export default function ProgressScreen() {
         <View key={entry.date} style={styles.entryRow}>
           <Text style={styles.entryDate}>{shortDate(entry.date)}</Text>
           <Text style={styles.entryLoad}>{formatKg(entry.load_kg, locale)}</Text>
-          {entry.ids.length > 0 && (
+          {entry.ids.length > 0 && studentId === null && (
             <Pressable
               onPress={() => setToDelete(entry)}
               hitSlop={8}
@@ -151,7 +157,11 @@ export default function ProgressScreen() {
     <SafeAreaView style={layout.screen} edges={['left', 'right', 'bottom']}>
       <LogoBar />
       <ScrollView contentContainerStyle={[layout.content, styles.wide]} showsVerticalScrollIndicator={false}>
-        <ScreenHeader onBack={() => navigation.goBack()} title={t.progress} subtitle={t.progressHeaderSubtitle} />
+        <ScreenHeader
+          onBack={() => navigation.goBack()}
+          title={studentId !== null ? t.studentProgressTitle(params?.studentName ?? '') : t.progress}
+          subtitle={studentId !== null ? t.studentProgressSubtitle : t.progressHeaderSubtitle}
+        />
 
         <View style={styles.periodRow} accessibilityRole="tablist">
           {PERIODS.map((p) => (

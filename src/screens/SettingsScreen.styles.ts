@@ -35,6 +35,8 @@ export const styles = StyleSheet.create({
     marginTop: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.md,
     backgroundColor: colors.surfaceMutedLight, borderRadius: 12,
   },
+  actionText: { flex: 1, minWidth: 0, marginRight: spacing.sm },
+  actionDesc: { ...typography.caption, marginTop: 2 },
   actionLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '500' },
   chevron: { fontSize: 22, lineHeight: 22, color: colors.textSecondary },
   dangerRow: { borderWidth: 1, borderColor: colors.danger + '55', backgroundColor: colors.danger + '0D' },

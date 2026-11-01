@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useAppStore } from '../store/useAppStore';
@@ -30,6 +30,7 @@ import { FEATURES } from '../config/features';
 import { restartProgramCycle } from '../services/programReminder';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'MyWorkout'>;
+type Route = RouteProp<RootStackParamList, 'MyWorkout' | 'CoachProgram'>;
 /** edit = current program; import/review = replacing it with a pasted one. */
 type Step = 'edit' | 'import' | 'review';
 type Confirm = null | 'removeDays' | 'replaceImport' | 'replaceDefault' | 'discard';
@@ -39,11 +40,17 @@ type Confirm = null | 'removeDays' | 'replaceImport' | 'replaceDefault' | 'disca
  * Edits are applied only on save (removed days are archived, so history is
  * kept). "Trocar meu treino" replaces the program by an imported one or the
  * ready-made one.
+ *
+ * Also opened by a coach for a student (route CoachProgram): same editor on
+ * the student's program (RLS: migration_coach.sql).
  */
 export default function MyWorkoutScreen() {
   const navigation = useNavigation<Navigation>();
+  const route = useRoute<Route>();
   const currentUser = useAppStore((s) => s.currentUser);
   const { t } = useI18n();
+  const params = route.params as { studentId?: number | string; studentName?: string } | undefined;
+  const studentId = params?.studentId != null ? Number(params.studentId) : null;
 
   const [step, setStep] = useState<Step>('edit');
   const [original, setOriginal] = useState<DraftDay[]>([]);
@@ -57,7 +64,7 @@ export default function MyWorkoutScreen() {
   const isSavingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  const userId = currentUser?.id;
+  const userId = studentId ?? currentUser?.id;
   const dayName = (day: number) => t.dayLabels[day];
   const dirty = isProgramDirty(original, days);
 
@@ -107,8 +114,9 @@ export default function MyWorkoutScreen() {
     try {
       await work();
       invalidateWorkoutsByUserCache(userId);
-      // The program was updated: the "time to update" reminder starts over.
-      restartProgramCycle(userId).catch(() => {});
+      // The program was updated: the "time to update" reminder starts over
+      // (own program only — the coach can't write the student's profile).
+      if (studentId === null) restartProgramCycle(userId).catch(() => {});
       after();
     } catch (err: any) {
       showAlert(t.saveError, err?.message ?? t.errorSavingWorkout);
@@ -198,7 +206,11 @@ export default function MyWorkoutScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
   const renderEdit = () => (
     <>
-      <ScreenHeader onBack={handleBack} title={t.myWorkoutOverviewTitle} subtitle={t.myWorkoutSubtitle} />
+      <ScreenHeader
+        onBack={handleBack}
+        title={studentId !== null ? t.studentProgramTitle(params?.studentName ?? '') : t.myWorkoutOverviewTitle}
+        subtitle={studentId !== null ? t.studentProgramSubtitle : t.myWorkoutSubtitle}
+      />
       {isLoading ? (
         [...Array(3)].map((_, i) => (
           <View key={i} style={{ marginBottom: 12 }}>

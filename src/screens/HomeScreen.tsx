@@ -14,6 +14,9 @@ import { useI18n } from '../i18n';
 import { PencilIcon } from '../components/PencilIcon';
 import { LogoBar } from '../components/LogoBar';
 import { ProgramUpdateReminder } from '../components/ProgramUpdateReminder';
+import { ActionButton } from '../components/ActionButton';
+import { InitialAvatar } from '../components/InitialAvatar';
+import { getCoachCode } from '../services/coachService';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -25,6 +28,7 @@ export default function HomeScreen() {
   const [checkInLabel, setCheckInLabel] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [showWorkoutCompleted, setShowWorkoutCompleted] = useState(false);
+  const [isCoach, setIsCoach] = useState(false);
 
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
@@ -33,6 +37,13 @@ export default function HomeScreen() {
     calendarRef.current?.refresh();
     setRefreshKey(k => k + 1);
   }, []);
+
+  // Trainers get a shortcut to their students.
+  const userId = currentUser?.id;
+  useEffect(() => {
+    if (!userId) return;
+    getCoachCode(userId).then((code) => setIsCoach(code !== null)).catch(() => setIsCoach(false));
+  }, [userId]);
 
   useEffect(() => {
     const handleWorkoutSessionUpdated = () => refreshHomeData();
@@ -96,11 +107,7 @@ export default function HomeScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={t.settings}
                   >
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarInitial}>
-                        {(currentUser.name.trim()[0] ?? '?').toUpperCase()}
-                      </Text>
-                    </View>
+                    <InitialAvatar name={currentUser.name} />
                   </Pressable>
                 </View>
               </View>
@@ -141,24 +148,26 @@ export default function HomeScreen() {
 
           <SectionCard title={t.progress}>
             <Text style={styles.sectionDescription}>{t.progressSubtitle}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.customizeButton, pressed && styles.customizeButtonPressed]}
-              onPress={() => navigation.navigate('Progress')}
-              accessibilityRole="button"
-            >
-              <Text style={styles.customizeButtonLabel}>{t.viewMyProgress}</Text>
-            </Pressable>
+            <View style={styles.cardAction}>
+              <ActionButton label={t.viewMyProgress} onPress={() => navigation.navigate('Progress')} />
+            </View>
           </SectionCard>
 
           <SectionCard title={t.myWorkout}>
             <Text style={styles.sectionDescription}>{t.myWorkoutDescription}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.customizeButton, pressed && styles.customizeButtonPressed]}
-              onPress={() => navigation.navigate('MyWorkout')}
-            >
-              <Text style={styles.customizeButtonLabel}>{t.customizeMyWorkout}</Text>
-            </Pressable>
+            <View style={styles.cardAction}>
+              <ActionButton label={t.customizeMyWorkout} onPress={() => navigation.navigate('MyWorkout')} />
+            </View>
           </SectionCard>
+
+          {isCoach && (
+            <SectionCard title={t.myStudents}>
+              <Text style={styles.sectionDescription}>{t.homeCoachDesc}</Text>
+              <View style={styles.cardAction}>
+                <ActionButton label={t.viewStudents} onPress={() => navigation.navigate('Coach')} />
+              </View>
+            </SectionCard>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
