@@ -26,6 +26,7 @@ const SettingsScreen = lazyScreen(() => import('./src/screens/SettingsScreen'));
 const EditWorkoutScreen = lazyScreen(() => import('./src/screens/EditWorkoutScreen'));
 const AddTrainingDayScreen = lazyScreen(() => import('./src/screens/AddTrainingDayScreen'));
 const ProgressScreen = lazyScreen(() => import('./src/screens/ProgressScreen'));
+const OnboardingScreen = lazyScreen(() => import('./src/screens/OnboardingScreen'));
 
 import { colors } from './src/theme/colors';
 import { useAppStore } from './src/store/useAppStore';
@@ -44,6 +45,8 @@ export default function App() {
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
   const setActiveSession = useAppStore((s) => s.setActiveSession);
   const activeSession = useAppStore((s) => s.activeSession);
+  const needsOnboarding = useAppStore((s) => s.needsOnboarding);
+  const setNeedsOnboarding = useAppStore((s) => s.setNeedsOnboarding);
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
   // 'loading'         — waiting for the first auth event, show spinner
   // 'authenticated'   — session confirmed, show Home stack
@@ -53,6 +56,7 @@ export default function App() {
   const [navigationReady, setNavigationReady] = useState(false);
   const lastAuthUserIdRef = React.useRef<string | null>(null);
   const didRestoreWorkoutRouteRef = React.useRef(false);
+  const didOnboardingRedirectRef = React.useRef(false);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -111,7 +115,8 @@ export default function App() {
             session.user.user_metadata ?? {},
           );
           if (user) {
-            setCurrentUser(user);
+            setCurrentUser({ id: user.id, name: user.name });
+            setNeedsOnboarding(user.needsOnboarding);
             // Restore an in-progress workout before mounting the authenticated
             // navigator, so a PWA restart returns the user to that workout.
             const activeSession = await restoreActiveSessionByUser(user.id);
@@ -133,6 +138,8 @@ export default function App() {
         if (event === 'SIGNED_OUT') {
           lastAuthUserIdRef.current = null;
           setCurrentUser(null);
+          setNeedsOnboarding(false);
+          didOnboardingRedirectRef.current = false;
           setActiveSession(null);
           setRestoredWorkoutId(null);
           didRestoreWorkoutRouteRef.current = false;
@@ -162,7 +169,7 @@ export default function App() {
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
-  }, [setCurrentUser, setActiveSession]);
+  }, [setCurrentUser, setActiveSession, setNeedsOnboarding]);
 
   useEffect(() => {
     if (
@@ -187,6 +194,34 @@ export default function App() {
     didRestoreWorkoutRouteRef.current = true;
   }, [authStatus, navigationReady, restoredWorkoutId, navigationRef]);
 
+  // Onboarding is only for new accounts: if an onboarded user lands on it
+  // (e.g. typing /onboarding), send them Home. Checked on every navigation.
+  const redirectIfOnboardingNotNeeded = React.useCallback(() => {
+    if (useAppStore.getState().needsOnboarding) return;
+    if (navigationRef.getCurrentRoute()?.name === 'Onboarding') {
+      navigationRef.resetRoot({ index: 0, routes: [{ name: 'Home' }] });
+    }
+  }, [navigationRef]);
+
+  useEffect(() => {
+    if (authStatus === 'authenticated' && navigationReady) redirectIfOnboardingNotNeeded();
+  }, [authStatus, navigationReady, needsOnboarding, redirectIfOnboardingNotNeeded]);
+
+  // New accounts start at /onboarding. Like the workout restore above, reset the
+  // root once navigation is ready so the iOS PWA /home launch can't skip it.
+  useEffect(() => {
+    if (
+      authStatus !== 'authenticated'
+      || !navigationReady
+      || !needsOnboarding
+      || didOnboardingRedirectRef.current
+    ) {
+      return;
+    }
+    navigationRef.resetRoot({ index: 0, routes: [{ name: 'Onboarding' }] });
+    didOnboardingRedirectRef.current = true;
+  }, [authStatus, navigationReady, needsOnboarding, navigationRef]);
+
   if (authStatus === 'loading') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F8F2' }}>
@@ -203,6 +238,7 @@ export default function App() {
     <NavigationContainer
       ref={navigationRef}
       onReady={() => setNavigationReady(true)}
+      onStateChange={redirectIfOnboardingNotNeeded}
       linking={{
         prefixes: [],
         config: {
@@ -218,6 +254,7 @@ export default function App() {
             EditWorkout: 'my-workout/edit/:workoutId',
             AddTrainingDay: 'my-workout/add',
             Progress: 'progress',
+            Onboarding: 'onboarding',
           },
         },
       }}
@@ -263,6 +300,7 @@ export default function App() {
               <Stack.Screen name="EditWorkout" component={EditWorkoutScreen} />
               <Stack.Screen name="AddTrainingDay" component={AddTrainingDayScreen} />
               <Stack.Screen name="Progress" component={ProgressScreen} />
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ gestureEnabled: false }} />
             </>
           ) : (
             <>

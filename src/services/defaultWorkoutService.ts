@@ -1,7 +1,14 @@
-import { ensureSupabaseEnabled, supabase } from './supabaseClient';
+import type { Exercise } from './types';
+import {
+  createCustomExercise,
+  createWorkoutForUser,
+  getWorkoutsByUser,
+  invalidateWorkoutsByUserCache,
+  listExercises,
+} from './workoutService';
 
 /**
- * Default full-body program seeded for every new user.
+ * Default full-body program offered in onboarding ("Usar treino pronto").
  *
  * Day 1 (Monday)   – Treino A: Costas, Bíceps e Pernas
  * Day 2 (Tuesday)  – Treino B: Peito, Tríceps, Ombro e Pernas
@@ -39,7 +46,7 @@ const DEFAULT_EXERCISES: ExerciseSeed[] = [
   { name: 'Tríceps na Polia',         primary_muscle: 'triceps',         secondary_muscle: null,         rest_seconds: 60,  scheme: '3x12-15' },
 ];
 
-const DEFAULT_PROGRAM: WorkoutSeed[] = [
+export const DEFAULT_PROGRAM: WorkoutSeed[] = [
   { day_of_week: 1, title: 'Treino A – Costas, Bíceps e Pernas',       exercises: ['Cadeira Extensora', 'Leg Press 45°', 'Puxada Alta na Máquina', 'Remada na Máquina', 'Rosca Bíceps na Polia'] },
   { day_of_week: 2, title: 'Treino B – Peito, Tríceps, Ombro e Pernas', exercises: ['Agachamento na Máquina', 'Cadeira Flexora', 'Supino na Máquina', 'Desenvolvimento na Máquina', 'Tríceps na Polia'] },
   { day_of_week: 3, title: 'Treino A – Costas, Bíceps e Pernas',       exercises: ['Cadeira Extensora', 'Leg Press 45°', 'Puxada Alta na Máquina', 'Remada na Máquina', 'Rosca Bíceps na Polia'] },
@@ -47,68 +54,79 @@ const DEFAULT_PROGRAM: WorkoutSeed[] = [
   { day_of_week: 5, title: 'Treino A – Costas, Bíceps e Pernas',       exercises: ['Cadeira Extensora', 'Leg Press 45°', 'Puxada Alta na Máquina', 'Remada na Máquina', 'Rosca Bíceps na Polia'] },
 ];
 
-/**
- * Ensures all default exercises exist in the exercises table and returns
- * a map of name → id.
- */
-async function upsertDefaultExercises(): Promise<Record<string, number>> {
-  ensureSupabaseEnabled();
-
-  const { data, error } = await supabase
-    .from('exercises')
-    .upsert(DEFAULT_EXERCISES, { onConflict: 'name', ignoreDuplicates: false })
-    .select('id, name');
-
-  if (error) throw error;
-
-  const map: Record<string, number> = {};
-  (data ?? []).forEach((row: any) => {
-    map[String(row.name)] = Number(row.id);
-  });
-  return map;
+export function normalizeExerciseName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9°]+/g, ' ')
+    .trim();
 }
 
 /**
- * Seeds the default A/B full-body program for a newly created profile.
- * Safe to call multiple times — skips if workouts already exist for the user.
+ * Resolves each default exercise to an existing catalogue row (by name).
+ * Exercises missing from the catalogue are created as the user's private
+ * exercises — regular users can't write to the global catalogue (RLS).
  */
-export async function seedDefaultWorkoutsForUser(profileId: number): Promise<void> {
-  ensureSupabaseEnabled();
+async function resolveDefaultExercises(userId: number): Promise<Record<string, Exercise>> {
+  const catalogue = await listExercises(userId);
+  const byName = new Map<string, Exercise>();
+  // Prefer global rows over private ones with the same name.
+  [...catalogue]
+    .sort((a, b) => Number(a.owner_id != null) - Number(b.owner_id != null))
+    .forEach((exercise) => {
+      const key = normalizeExerciseName(exercise.name);
+      if (!byName.has(key)) byName.set(key, exercise);
+    });
 
-  // Skip if user already has active workouts
-  const { count } = await supabase
-    .from('workouts')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', profileId)
-    .is('archived_at', null);
+  const resolved: Record<string, Exercise> = {};
+  for (const seed of DEFAULT_EXERCISES) {
+    const found = byName.get(normalizeExerciseName(seed.name));
+    resolved[seed.name] =
+      found ??
+      (await createCustomExercise({
+        userId,
+        name: seed.name,
+        scheme: seed.scheme,
+        restSeconds: seed.rest_seconds,
+      }));
+  }
+  return resolved;
+}
 
-  if ((count ?? 0) > 0) return;
+/**
+ * Creates the default A/B program for the user. Skips if the user already has
+ * active workouts, so it is safe to call more than once.
+ */
+export async function applyDefaultProgram(userId: number): Promise<void> {
+  const existing = await getWorkoutsByUser(userId);
+  if (existing.length > 0) return;
 
-  const exerciseIdByName = await upsertDefaultExercises();
+  const exercises = await resolveDefaultExercises(userId);
+  const seedByName = new Map(DEFAULT_EXERCISES.map((seed) => [seed.name, seed]));
 
   for (const workout of DEFAULT_PROGRAM) {
-    const { data: workoutRow, error: workoutError } = await supabase
-      .from('workouts')
-      .insert({ user_id: profileId, day_of_week: workout.day_of_week, title: workout.title })
-      .select('id')
-      .single();
-
-    if (workoutError) throw workoutError;
-
-    const workoutId = Number(workoutRow.id);
-    const exerciseRows = workout.exercises
-      .map((name, index) => ({
-        workout_id: workoutId,
-        exercise_id: exerciseIdByName[name],
-        order_index: index,
-      }))
-      .filter((row) => row.exercise_id != null);
-
-    if (exerciseRows.length > 0) {
-      const { error: exError } = await supabase
-        .from('workout_exercises')
-        .insert(exerciseRows);
-      if (exError) throw exError;
-    }
+    await createWorkoutForUser({
+      userId,
+      dayOfWeek: workout.day_of_week,
+      title: workout.title,
+      items: workout.exercises
+        .filter((name) => exercises[name])
+        .map((name) => {
+          const seed = seedByName.get(name)!;
+          const exercise = exercises[name];
+          // Keep the program's own scheme/rest even if the catalogue row differs.
+          return {
+            exerciseId: exercise.id,
+            scheme: exercise.scheme !== seed.scheme ? seed.scheme : null,
+            restSeconds: exercise.rest_seconds !== seed.rest_seconds ? seed.rest_seconds : null,
+          };
+        }),
+    });
   }
+
+  invalidateWorkoutsByUserCache(userId);
 }
+
+/** @deprecated kept for older callers — use applyDefaultProgram. */
+export const seedDefaultWorkoutsForUser = applyDefaultProgram;

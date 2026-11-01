@@ -7,6 +7,10 @@ type AppState = {
 
   activeSession: ActiveSession | null;
   setActiveSession: (session: ActiveSession | null) => void;
+
+  /** New account that still has to pick how to start (see OnboardingScreen). */
+  needsOnboarding: boolean;
+  setNeedsOnboarding: (value: boolean) => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -15,4 +19,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   activeSession: null,
   setActiveSession: (session) => set({ activeSession: session }),
+
+  needsOnboarding: false,
+  setNeedsOnboarding: (value) => set({ needsOnboarding: value }),
 }));

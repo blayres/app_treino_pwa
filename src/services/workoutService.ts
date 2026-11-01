@@ -186,13 +186,23 @@ export async function updateWorkoutTitle(workoutId: number, title: string): Prom
   );
 }
 
+export type WorkoutItemInput = {
+  exerciseId: number;
+  /** Per-workout override; null/undefined keeps the exercise's own value. */
+  scheme?: string | null;
+  restSeconds?: number | null;
+};
+
 export async function createWorkoutForUser(params: {
   userId: number;
   dayOfWeek: number;
   title: string;
-  exerciseIds: number[];
+  exerciseIds?: number[];
+  items?: WorkoutItemInput[];
 }): Promise<number> {
-  const { userId, dayOfWeek, title, exerciseIds } = params;
+  const { userId, dayOfWeek, title } = params;
+  const items: WorkoutItemInput[] =
+    params.items ?? (params.exerciseIds ?? []).map((exerciseId) => ({ exerciseId }));
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
@@ -204,14 +214,23 @@ export async function createWorkoutForUser(params: {
     if (workoutError) throw workoutError;
     const workoutId = Number(workoutRow.id);
 
-    if (exerciseIds.length > 0) {
-      const rows = exerciseIds.map((exerciseId, index) => ({
+    if (items.length > 0) {
+      const rows = items.map((item, index) => ({
         workout_id: workoutId,
-        exercise_id: exerciseId,
+        exercise_id: item.exerciseId,
         order_index: index,
+        // Only send override columns when used, so this keeps working before
+        // migration_onboarding.sql is applied.
+        ...(item.scheme != null ? { scheme: item.scheme } : {}),
+        ...(item.restSeconds != null ? { rest_seconds: item.restSeconds } : {}),
       }));
       const { error: exError } = await supabase.from('workout_exercises').insert(rows);
-      if (exError) throw exError;
+      if (exError) {
+        // No transactions over PostgREST: undo the empty workout so the weekday
+        // isn't left occupied (a retry would hit the one-workout-per-day index).
+        await supabase.from('workouts').delete().eq('id', workoutId);
+        throw exError;
+      }
     }
 
     return workoutId;
@@ -226,12 +245,16 @@ export async function createWorkoutForUser(params: {
   );
   const workoutId = result.lastInsertRowId!;
 
-  for (let index = 0; index < exerciseIds.length; index++) {
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index];
     await db.runAsync(
-      `INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (?, ?, ?);`,
+      `INSERT INTO workout_exercises (workout_id, exercise_id, order_index, scheme, rest_seconds)
+       VALUES (?, ?, ?, ?, ?);`,
       workoutId,
-      exerciseIds[index],
+      item.exerciseId,
       index,
+      item.scheme ?? null,
+      item.restSeconds ?? null,
     );
   }
 
@@ -375,14 +398,13 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
 
-    const { data, error } = await supabase
-      .from('workout_exercises')
-      .select(
-        `
+    // workout_exercises.scheme/rest_seconds are per-workout overrides added by
+    // migration_onboarding.sql; retry without them if the migration isn't applied.
+    const fullSelect = (withOverrides: boolean) => `
         id,
         workout_id,
         exercise_id,
-        order_index,
+        order_index,${withOverrides ? '\n        scheme,\n        rest_seconds,' : ''}
         exercises (
           id,
           name,
@@ -397,10 +419,18 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
             gif_url
           )
         )
-      `,
-      )
-      .eq('workout_id', workoutId)
-      .order('order_index', { ascending: true });
+      `;
+    const runFull = (withOverrides: boolean) =>
+      supabase
+        .from('workout_exercises')
+        .select(fullSelect(withOverrides))
+        .eq('workout_id', workoutId)
+        .order('order_index', { ascending: true });
+
+    let { data, error } = await runFull(true);
+    if (error) {
+      ({ data, error } = await runFull(false));
+    }
 
     if (error) {
       console.warn('[getWorkoutExercises] full query failed, using base fallback:', error.message);
@@ -458,7 +488,7 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
       return response;
     }
 
-    const response = (data ?? []).map((row: any) => {
+    const response = ((data ?? []) as any[]).map((row: any) => {
       const ex = row.exercises;
 
       return {
@@ -471,8 +501,8 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
           name: String(ex.name),
           primary_muscle: ex.primary_muscle ?? null,
           secondary_muscle: ex.secondary_muscle ?? null,
-          rest_seconds: Number(ex.rest_seconds),
-          scheme: String(ex.scheme),
+          rest_seconds: Number(row.rest_seconds ?? ex.rest_seconds),
+          scheme: String(row.scheme ?? ex.scheme),
           tip: ex.tip ?? null,
           exercise_library_id: ex.exercise_library_id ?? null,
           library: ex.exercise_library ?? null,
@@ -491,7 +521,8 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
   const db = await getLocalDb();
 
   const rows = await db.getAllAsync<any>(
-    `SELECT we.id as we_id, we.workout_id, we.exercise_id, we.order_index, e.*
+    `SELECT we.id as we_id, we.workout_id, we.exercise_id, we.order_index,
+            we.scheme as we_scheme, we.rest_seconds as we_rest_seconds, e.*
      FROM workout_exercises we
      JOIN exercises e ON e.id = we.exercise_id
      WHERE we.workout_id = ?
@@ -509,8 +540,8 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
       name: row.name,
       primary_muscle: row.primary_muscle,
       secondary_muscle: row.secondary_muscle,
-      rest_seconds: row.rest_seconds,
-      scheme: row.scheme,
+      rest_seconds: row.we_rest_seconds ?? row.rest_seconds,
+      scheme: row.we_scheme ?? row.scheme,
       tip: row.tip ?? null,
       exercise_library_id: null,
       library: null,
@@ -620,7 +651,11 @@ export async function upsertExerciseLoad(params: {
   }
 }
 
-export async function listExercises(): Promise<Exercise[]> {
+/**
+ * Global catalogue + the current user's private exercises. In supabase mode RLS
+ * does the filtering; in local mode `userId` filters private exercises.
+ */
+export async function listExercises(userId?: number): Promise<Exercise[]> {
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
 
@@ -633,5 +668,86 @@ export async function listExercises(): Promise<Exercise[]> {
 
   const db = await getLocalDb();
 
-  return db.getAllAsync<Exercise>(`SELECT * FROM exercises ORDER BY name ASC;`);
+  if (userId != null) {
+    return db.getAllAsync<Exercise>(
+      `SELECT * FROM exercises WHERE owner_id IS NULL OR owner_id = ? ORDER BY name ASC;`,
+      userId,
+    );
+  }
+  return db.getAllAsync<Exercise>(`SELECT * FROM exercises WHERE owner_id IS NULL ORDER BY name ASC;`);
+}
+
+export const DEFAULT_CUSTOM_SCHEME = '3x10-12';
+export const DEFAULT_CUSTOM_REST_SECONDS = 60;
+
+/**
+ * Creates a private exercise owned by `userId` (visible only to them via RLS).
+ * If the user already has a private exercise with the same name, returns it.
+ */
+export async function createCustomExercise(params: {
+  userId: number;
+  name: string;
+  scheme?: string;
+  restSeconds?: number;
+}): Promise<Exercise> {
+  const name = params.name.trim().replace(/\s+/g, ' ');
+  if (!name) throw new Error('Exercise name is required');
+  const scheme = params.scheme?.trim() || DEFAULT_CUSTOM_SCHEME;
+  const restSeconds = params.restSeconds ?? DEFAULT_CUSTOM_REST_SECONDS;
+
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { data, error } = await supabase
+      .from('exercises')
+      .insert({
+        name,
+        scheme,
+        rest_seconds: restSeconds,
+        owner_id: params.userId,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      // Unique violation → the user already created it; reuse the existing row.
+      if (error.code === '23505') {
+        const { data: existing, error: findError } = await supabase
+          .from('exercises')
+          .select('*')
+          .eq('owner_id', params.userId)
+          .ilike('name', name)
+          .maybeSingle();
+        if (findError) throw findError;
+        if (existing) return existing as Exercise;
+      }
+      throw error;
+    }
+    return data as Exercise;
+  }
+
+  const db = await getLocalDb();
+  const existing = await db.getFirstAsync<Exercise>(
+    `SELECT * FROM exercises WHERE lower(name) = lower(?) AND (owner_id IS NULL OR owner_id = ?);`,
+    name,
+    params.userId,
+  );
+  if (existing) return existing;
+  const result = await db.runAsync(
+    `INSERT INTO exercises (name, rest_seconds, scheme, owner_id) VALUES (?, ?, ?, ?);`,
+    name,
+    restSeconds,
+    scheme,
+    params.userId,
+  );
+  return {
+    id: Number(result.lastInsertRowId),
+    name,
+    primary_muscle: null,
+    secondary_muscle: null,
+    rest_seconds: restSeconds,
+    scheme,
+    tip: null,
+    exercise_library_id: null,
+    owner_id: params.userId,
+  };
 }

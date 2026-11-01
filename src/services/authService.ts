@@ -1,7 +1,8 @@
 import { getDb } from '../db';
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
-import { seedDefaultWorkoutsForUser } from './defaultWorkoutService';
+import { applyDefaultProgram } from './defaultWorkoutService';
+import { getWorkoutsByUser } from './workoutService';
 import type { User } from './types';
 
 const LAST_USER_KEY = 'lastUserId';
@@ -159,9 +160,13 @@ export async function getSessionUser(): Promise<User | null> {
   return user ?? null;
 }
 
+// Postgres "undefined_column": migration_onboarding.sql not applied yet.
+const UNDEFINED_COLUMN = '42703';
+
 /**
- * Looks up the profile row for a given Supabase auth user.
- * Creates it (and seeds default workouts) if it doesn't exist yet.
+ * Looks up the profile row for a given Supabase auth user, creating it if it
+ * doesn't exist yet. `needsOnboarding` is true for accounts that haven't chosen
+ * how to start (default program / import / manual) — see OnboardingScreen.
  * Accepts the auth user data directly so callers don't need to call
  * supabase.auth.getUser() again — avoiding lock contention.
  */
@@ -169,20 +174,39 @@ export async function getOrCreateProfile(
   authId: string,
   email: string | undefined,
   userMetadata: Record<string, any>,
-): Promise<User | null> {
+): Promise<(User & { needsOnboarding: boolean }) | null> {
   ensureSupabaseEnabled();
 
-  const profile = await supabase
+  let hasOnboardingColumn = true;
+  let profile = await supabase
     .from('profiles')
-    .select('id, name')
+    .select('id, name, onboarded_at')
     .eq('auth_id', authId)
     .maybeSingle();
 
+  if (profile.error?.code === UNDEFINED_COLUMN) {
+    hasOnboardingColumn = false;
+    profile = await supabase.from('profiles').select('id, name').eq('auth_id', authId).maybeSingle() as typeof profile;
+  }
+
   if (!profile.error && profile.data) {
-    return {
-      id: Number(profile.data.id),
-      name: String(profile.data.name),
-    };
+    const user = { id: Number(profile.data.id), name: String(profile.data.name) };
+    let needsOnboarding = hasOnboardingColumn && profile.data.onboarded_at == null;
+
+    // Accounts created before onboarding existed already have a program.
+    if (needsOnboarding) {
+      try {
+        const workouts = await getWorkoutsByUser(user.id);
+        if (workouts.length > 0) {
+          needsOnboarding = false;
+          void markOnboarded(user.id).catch(() => {});
+        }
+      } catch {
+        // Keep needsOnboarding = true; the onboarding screen handles errors.
+      }
+    }
+
+    return { ...user, needsOnboarding };
   }
 
   // Profile doesn't exist yet — create it automatically
@@ -194,19 +218,34 @@ export async function getOrCreateProfile(
     .single();
 
   if (!insertError && newProfile) {
-    try {
-      await seedDefaultWorkoutsForUser(Number(newProfile.id));
-    } catch (seedErr) {
-      console.warn('Falha ao criar treino padrão:', seedErr);
+    const user = { id: Number(newProfile.id), name: String(newProfile.name) };
+
+    if (!hasOnboardingColumn) {
+      // Legacy behaviour until the migration is applied: seed the default program.
+      try {
+        await applyDefaultProgram(user.id);
+      } catch (seedErr) {
+        console.warn('Falha ao criar treino padrão:', seedErr);
+      }
+      return { ...user, needsOnboarding: false };
     }
-    return {
-      id: Number(newProfile.id),
-      name: String(newProfile.name),
-    };
+
+    return { ...user, needsOnboarding: true };
   }
 
   console.warn('Não foi possível criar perfil:', insertError?.message);
   return null;
+}
+
+/** Marks the profile as onboarded so /onboarding is not shown again. */
+export async function markOnboarded(profileId: number): Promise<void> {
+  if (backendMode !== 'supabase') return;
+  ensureSupabaseEnabled();
+  const { error } = await supabase
+    .from('profiles')
+    .update({ onboarded_at: new Date().toISOString() })
+    .eq('id', profileId);
+  if (error && error.code !== UNDEFINED_COLUMN) throw error;
 }
 
 export async function setLocalCurrentUser(userId: number): Promise<User | null> {

@@ -6,9 +6,6 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Dimensions,
-  Modal,
-  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -19,13 +16,13 @@ import { useI18n } from '../i18n';
 import {
   getWorkoutsByUser,
   createWorkoutForUser,
-  listExercises,
   invalidateWorkoutsByUserCache,
 } from '../services/workoutService';
 import type { Exercise } from '../services/types';
-import { styles, pickerStyles } from './AddTrainingDayScreen.styles';
+import { styles } from './AddTrainingDayScreen.styles';
 import { showAlert } from '../store/useDialogStore';
 import { LogoBar } from '../components/LogoBar';
+import { ExercisePickerSheet } from '../components/ExercisePickerSheet';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'AddTrainingDay'>;
 
@@ -44,13 +41,6 @@ export default function AddTrainingDayScreen() {
 
   // Exercise picker
   const [showPicker, setShowPicker] = useState(false);
-  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  const [search, setSearch] = useState('');
-  const [isLoadingPicker, setIsLoadingPicker] = useState(false);
-  const [pickerLayout, setPickerLayout] = useState(() => ({
-    bottom: 0,
-    height: Dimensions.get('window').height * 0.8,
-  }));
 
   // Load already-used days so we can disable them
   useEffect(() => {
@@ -65,48 +55,8 @@ export default function AddTrainingDayScreen() {
     })();
   }, [currentUser]);
 
-  // Mobile Safari keeps the layout viewport at full height when its keyboard
-  // opens. Use the visual viewport so the bottom sheet stays above it.
-  useEffect(() => {
-    if (!showPicker || typeof window === 'undefined' || !window.visualViewport) {
-      return;
-    }
-
-    const viewport = window.visualViewport;
-    const updatePickerLayout = () => {
-      const keyboardHeight = Math.max(
-        0,
-        window.innerHeight - viewport.height - viewport.offsetTop,
-      );
-      setPickerLayout({
-        bottom: keyboardHeight,
-        height: Math.max(220, viewport.height * 0.8),
-      });
-    };
-
-    updatePickerLayout();
-    viewport.addEventListener('resize', updatePickerLayout);
-    viewport.addEventListener('scroll', updatePickerLayout);
-    return () => {
-      viewport.removeEventListener('resize', updatePickerLayout);
-      viewport.removeEventListener('scroll', updatePickerLayout);
-    };
-  }, [showPicker]);
-
-  const handleOpenPicker = async () => {
+  const handleOpenPicker = () => {
     setShowPicker(true);
-    setSearch('');
-    if (allExercises.length === 0) {
-      setIsLoadingPicker(true);
-      try {
-        const data = await listExercises();
-        setAllExercises(data);
-      } catch (err: any) {
-        showAlert(t.saveError, err?.message ?? t.genericError);
-      } finally {
-        setIsLoadingPicker(false);
-      }
-    }
   };
 
   const handlePickExercise = (exercise: Exercise) => {
@@ -164,12 +114,6 @@ export default function AddTrainingDayScreen() {
       setIsSaving(false);
     }
   };
-
-  const filteredExercises = search.trim()
-    ? allExercises.filter((e) =>
-        e.name.toLowerCase().includes(search.trim().toLowerCase()),
-      )
-    : allExercises;
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
@@ -277,90 +221,15 @@ export default function AddTrainingDayScreen() {
         </Pressable>
       </ScrollView>
 
-      {/* ── Exercise picker modal ── */}
-      <Modal
-        visible={showPicker}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowPicker(false)}
-      >
-        <View style={pickerStyles.overlay}>
-          <Pressable
-            style={pickerStyles.backdrop}
-            onPress={() => setShowPicker(false)}
-            accessibilityLabel={t.cancel}
-          />
-          <View
-            style={[
-              pickerStyles.sheet,
-              { marginBottom: pickerLayout.bottom, height: pickerLayout.height },
-            ]}
-          >
-            <View style={pickerStyles.header}>
-              <Text style={pickerStyles.title}>{t.pickExerciseTitle}</Text>
-              <Pressable hitSlop={12} onPress={() => setShowPicker(false)}>
-                <Text style={pickerStyles.close}>✕</Text>
-              </Pressable>
-            </View>
-
-            <TextInput
-              style={pickerStyles.searchInput}
-              value={search}
-              onChangeText={setSearch}
-              placeholder={t.searchExercises}
-              clearButtonMode="while-editing"
-            />
-
-            {isLoadingPicker ? (
-              <View style={pickerStyles.loadingWrap}>
-                <ActivityIndicator color={styles.spinner.color} />
-              </View>
-            ) : filteredExercises.length === 0 ? (
-              <Text style={pickerStyles.emptyText}>{t.noExercisesFound}</Text>
-            ) : (
-              <FlatList
-                style={pickerStyles.exerciseList}
-                data={filteredExercises}
-                keyExtractor={(item) => String(item.id)}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item }) => {
-                  const alreadyAdded = selectedExercises.some((e) => e.id === item.id);
-                  return (
-                    <Pressable
-                      style={({ pressed }) => [
-                        pickerStyles.exerciseItem,
-                        alreadyAdded && pickerStyles.exerciseItemDisabled,
-                        pressed && !alreadyAdded && pickerStyles.exerciseItemPressed,
-                      ]}
-                      onPress={() => handlePickExercise(item)}
-                      disabled={alreadyAdded}
-                    >
-                      <View style={pickerStyles.exerciseItemInfo}>
-                        <Text
-                          style={[
-                            pickerStyles.exerciseItemName,
-                            alreadyAdded && pickerStyles.exerciseItemNameDisabled,
-                          ]}
-                        >
-                          {item.name}
-                        </Text>
-                        {item.primary_muscle ? (
-                          <Text style={pickerStyles.exerciseItemMuscle}>
-                            {item.primary_muscle}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {alreadyAdded && (
-                        <Text style={pickerStyles.addedTag}>✓</Text>
-                      )}
-                    </Pressable>
-                  );
-                }}
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
+      {currentUser && (
+        <ExercisePickerSheet
+          visible={showPicker}
+          userId={currentUser.id}
+          selectedIds={selectedExercises.map((e) => e.id)}
+          onPick={handlePickExercise}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }

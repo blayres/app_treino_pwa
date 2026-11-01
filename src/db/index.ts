@@ -268,6 +268,19 @@ export async function initDatabase() {
     // Index already exists — ignore
   }
 
+  // Onboarding: private exercises + per-workout scheme/rest overrides
+  for (const statement of [
+    `ALTER TABLE exercises ADD COLUMN owner_id INTEGER DEFAULT NULL;`,
+    `ALTER TABLE workout_exercises ADD COLUMN scheme TEXT DEFAULT NULL;`,
+    `ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER DEFAULT NULL;`,
+  ]) {
+    try {
+      await db.execAsync(statement);
+    } catch {
+      // Column already exists — ignore
+    }
+  }
+
   // exercise_load_history — added for progress tracking
   try {
     await db.execAsync(`

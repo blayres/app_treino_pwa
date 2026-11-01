@@ -18,6 +18,8 @@ export type Exercise = {
   tip: string | null;
   exercise_library_id: string | null;
   library?: ExerciseLibrary | null;
+  /** null/undefined = global catalogue; otherwise private to that profile. */
+  owner_id?: number | null;
 };
 
 export type Workout = {

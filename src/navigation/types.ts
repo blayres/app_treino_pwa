@@ -10,4 +10,5 @@ export type RootStackParamList = {
   EditWorkout: { workoutId: number };
   AddTrainingDay: undefined;
   Progress: undefined;
+  Onboarding: undefined;
 };
