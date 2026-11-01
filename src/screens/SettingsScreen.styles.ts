@@ -1,23 +1,11 @@
 import { StyleSheet } from 'react-native';
-import { colors, spacing, typography } from '../theme';
+import { colors, spacing, typography, cardSurface } from '../theme';
 
 export const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.backgroundLight },
   header: { paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.md },
-  backLabel: { ...typography.caption, color: colors.olive },
-  screenTitle: { ...typography.h2, marginTop: spacing.sm },
   scrollContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl },
-  card: {
-    borderRadius: 16,
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceLight,
-    shadowColor: colors.shadowSoft,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
-    marginBottom: spacing.lg,
-  },
+  card: { ...cardSurface, marginBottom: spacing.lg },
   cardTitle: { ...typography.h3 },
   languageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   fieldLabel: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.xs },

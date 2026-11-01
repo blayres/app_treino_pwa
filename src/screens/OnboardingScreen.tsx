@@ -1,14 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useAppStore } from '../store/useAppStore';
 import { showAlert } from '../store/useDialogStore';
 import { useI18n } from '../i18n';
-import { colors } from '../theme';
+import { colors, layout } from '../theme';
 import { LogoBar } from '../components/LogoBar';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { FooterButton } from '../components/FooterButton';
+import { OptionCard } from '../components/OptionCard';
 import { invalidateExerciseCatalogue, loadExerciseCatalogue } from '../components/ExercisePickerSheet';
 import { AddAnotherSheetButton, PasteWorkoutInput, ProgramEditor } from '../components/ProgramEditor';
 import { applyDefaultProgram, DEFAULT_PROGRAM } from '../services/defaultWorkoutService';
@@ -42,7 +45,6 @@ export default function OnboardingScreen() {
   const needsOnboarding = useAppStore((s) => s.needsOnboarding);
   const setNeedsOnboarding = useAppStore((s) => s.setNeedsOnboarding);
   const { t } = useI18n();
-  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<Step>('choose');
   const [mode, setMode] = useState<EditorMode>('manual');
@@ -147,107 +149,64 @@ export default function OnboardingScreen() {
   };
 
   // ── Render helpers ───────────────────────────────────────────────────────
-  const goBackButton = (to: Step) => (
-    <Pressable onPress={() => setStep(to)} hitSlop={16} accessibilityRole="button">
-      <Text style={styles.backLabel}>{t.back}</Text>
-    </Pressable>
-  );
-
-  const footerButton = (label: string, onPress: () => void, disabled = false) => (
-    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-      <Pressable
-        onPress={onPress}
-        disabled={disabled || isBusy}
-        accessibilityRole="button"
-        style={({ pressed }) => [
-          styles.primaryButton,
-          pressed && styles.primaryButtonPressed,
-          (disabled || isBusy) && styles.primaryButtonDisabled,
-        ]}
-      >
-        {isBusy ? (
-          <ActivityIndicator color={colors.textPrimaryDark} />
-        ) : (
-          <Text style={styles.primaryButtonLabel}>{label}</Text>
-        )}
-      </Pressable>
-    </View>
-  );
-
   const renderChoose = () => (
     <>
-      <Text style={styles.title}>{t.onboardingTitle(currentUser.name)}</Text>
-      <Text style={styles.subtitle}>{t.onboardingSubtitle}</Text>
-      {[
-        { icon: ICON_ZAP, title: t.onboardingDefaultTitle, desc: t.onboardingDefaultDesc, onPress: () => setStep('default'), highlight: true, disabled: false },
-        { icon: ICON_PENCIL, title: t.onboardingManualTitle, desc: t.onboardingManualDesc, onPress: startManual, highlight: false, disabled: false },
-        // Import stays visible as "Em breve" until it is backed by AI.
-        { icon: ICON_PASTE, title: t.onboardingImportTitle, desc: t.onboardingImportDesc, onPress: () => setStep('import'), highlight: false, disabled: !FEATURES.importWorkout },
-      ].map((option) => (
-        <Pressable
-          key={option.title}
-          onPress={option.onPress}
-          disabled={option.disabled}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: option.disabled }}
-          style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-            styles.option,
-            option.highlight && styles.optionHighlighted,
-            hovered && !option.highlight && !option.disabled && styles.optionHovered,
-            pressed && styles.optionPressed,
-            option.disabled && styles.optionDisabled,
-          ]}
-        >
-          <View style={[styles.optionIcon, option.highlight && styles.optionIconHighlighted]}>
-            <Icon path={option.icon} color={option.highlight ? colors.textPrimaryDark : colors.olive} />
-          </View>
-          <View style={styles.optionBody}>
-            <View style={styles.optionTitleRow}>
-              <Text style={styles.optionTitle}>{option.title}</Text>
-              {option.highlight && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{t.onboardingFastest}</Text>
-                </View>
-              )}
-              {option.disabled && (
-                <View style={[styles.badge, styles.badgeMuted]}>
-                  <Text style={[styles.badgeText, styles.badgeTextMuted]}>{t.comingSoon}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.optionDesc}>{option.desc}</Text>
-          </View>
-          {!option.disabled && <Text style={styles.chevron}>›</Text>}
-        </Pressable>
-      ))}
+      <ScreenHeader title={t.onboardingTitle(currentUser.name)} subtitle={t.onboardingSubtitle} />
+      <OptionCard
+        title={t.onboardingDefaultTitle}
+        description={t.onboardingDefaultDesc}
+        onPress={() => setStep('default')}
+        icon={<Icon path={ICON_ZAP} color={colors.textPrimaryDark} />}
+        badge={t.onboardingFastest}
+        highlight
+      />
+      <OptionCard
+        title={t.onboardingManualTitle}
+        description={t.onboardingManualDesc}
+        onPress={startManual}
+        icon={<Icon path={ICON_PENCIL} color={colors.olive} />}
+      />
+      {/* Import stays visible as "Em breve" until it is backed by AI. */}
+      <OptionCard
+        title={t.onboardingImportTitle}
+        description={t.onboardingImportDesc}
+        onPress={() => setStep('import')}
+        icon={<Icon path={ICON_PASTE} color={colors.olive} />}
+        badge={FEATURES.importWorkout ? undefined : t.comingSoon}
+        disabled={!FEATURES.importWorkout}
+      />
     </>
   );
 
   const renderDefault = () => (
     <>
-      {goBackButton('choose')}
-      <Text style={styles.title}>{t.onboardingDefaultPreviewTitle}</Text>
-      <Text style={styles.subtitle}>{t.onboardingDefaultPreviewSubtitle}</Text>
+      <ScreenHeader
+        onBack={() => setStep('choose')}
+        title={t.onboardingDefaultPreviewTitle}
+        subtitle={t.onboardingDefaultPreviewSubtitle}
+      />
       <DefaultProgramPreview />
     </>
   );
 
   const renderImport = () => (
     <>
-      {goBackButton(appending ? 'editor' : 'choose')}
-      <Text style={styles.title}>{t.onboardingImportPasteTitle}</Text>
-      <Text style={styles.subtitle}>{t.onboardingImportPasteSubtitle}</Text>
+      <ScreenHeader
+        onBack={() => setStep(appending ? 'editor' : 'choose')}
+        title={t.onboardingImportPasteTitle}
+        subtitle={t.onboardingImportPasteSubtitle}
+      />
       <PasteWorkoutInput value={pasted} onChangeText={setPasted} />
     </>
   );
 
   const renderEditor = () => (
     <>
-      {goBackButton(mode === 'import' ? 'import' : 'choose')}
-      <Text style={styles.title}>{mode === 'import' ? t.onboardingReviewTitle : t.onboardingManualEditorTitle}</Text>
-      <Text style={styles.subtitle}>
-        {mode === 'import' ? t.onboardingReviewSubtitle : t.onboardingManualEditorSubtitle}
-      </Text>
+      <ScreenHeader
+        onBack={() => setStep(mode === 'import' ? 'import' : 'choose')}
+        title={mode === 'import' ? t.onboardingReviewTitle : t.onboardingManualEditorTitle}
+        subtitle={mode === 'import' ? t.onboardingReviewSubtitle : t.onboardingManualEditorSubtitle}
+      />
       <ProgramEditor userId={userId} days={days} onChange={setDays} />
       {mode === 'import' && (
         <AddAnotherSheetButton
@@ -262,19 +221,30 @@ export default function OnboardingScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <SafeAreaView style={layout.screen} edges={['left', 'right']}>
       <LogoBar />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} contentContainerStyle={[layout.content, layout.contentWithFooter]} keyboardShouldPersistTaps="handled">
           {step === 'choose' && renderChoose()}
           {step === 'default' && renderDefault()}
           {step === 'import' && renderImport()}
           {step === 'editor' && renderEditor()}
         </ScrollView>
 
-        {step === 'default' && footerButton(t.onboardingStartWithThis, handleUseDefault)}
-        {step === 'import' && footerButton(t.onboardingImportButton, handleOrganise, !pasted.trim())}
-        {step === 'editor' && footerButton(t.onboardingSave(shownDays.length), handleSave, shownDays.length === 0)}
+        {step === 'default' && (
+          <FooterButton label={t.onboardingStartWithThis} onPress={handleUseDefault} loading={isBusy} />
+        )}
+        {step === 'import' && (
+          <FooterButton label={t.onboardingImportButton} onPress={handleOrganise} disabled={!pasted.trim()} loading={isBusy} />
+        )}
+        {step === 'editor' && (
+          <FooterButton
+            label={t.onboardingSave(shownDays.length)}
+            onPress={handleSave}
+            disabled={shownDays.length === 0}
+            loading={isBusy}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -284,7 +254,7 @@ export default function OnboardingScreen() {
 export function DefaultProgramPreview() {
   const { t } = useI18n();
   return (
-    <View style={styles.card}>
+    <View style={layout.card}>
       {DEFAULT_PROGRAM.map((day, index) => (
         <View
           key={day.day_of_week}

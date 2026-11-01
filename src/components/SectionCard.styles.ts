@@ -1,18 +1,8 @@
 import { StyleSheet } from 'react-native';
-import { colors, spacing } from '../theme';
+import { colors, spacing, cardSurface } from '../theme';
 
 export const styles = StyleSheet.create({
-  container: {
-    borderRadius: 16,
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceLight,
-    shadowColor: colors.shadowSoft,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
-    marginBottom: spacing.lg,
-  },
+  container: { ...cardSurface, marginBottom: spacing.lg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

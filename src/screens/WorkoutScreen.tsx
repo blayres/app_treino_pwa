@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   FlatList,
-  TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
@@ -14,7 +13,6 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
 import { useAppStore } from '../store/useAppStore';
 import { LiveTimer } from '../components/LiveTimer';
-import { CircularCheckbox } from '../components/CircularCheckbox';
 import { ConfirmModal } from '../components/ConfirmModal';
 import {
   invalidateWorkoutsByUserCache,
@@ -29,7 +27,7 @@ import { markAttendance, invalidateAttendanceCache } from '../services/attendanc
 import { startWorkoutSession, stopWorkoutSession } from '../services/sessionService';
 import type { Exercise } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
-import { ExerciseLibraryCard } from '../components/ExerciseLibraryCard';
+import { ExerciseRow, type LoadField } from '../components/ExerciseRow';
 import { useI18n } from '../i18n';
 import { LogoBar } from '../components/LogoBar';
 import { formatDecimal, parseDecimal, sanitizeDecimalInput } from '../utils/decimal';
@@ -52,7 +50,6 @@ export default function WorkoutScreen() {
   const setActiveSession = useAppStore(state => state.setActiveSession);
   const { t, locale } = useI18n();
 
-  const [focusedLoadInput, setFocusedLoadInput] = useState<string | null>(null);
   const routeTitle = route.params?.workoutTitle;
   const [workoutTitle, setWorkoutTitle] = useState(routeTitle ?? '');
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
@@ -72,7 +69,6 @@ export default function WorkoutScreen() {
   const [isCancelAction, setIsCancelAction] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
-  const loadInputRefs = useRef<Record<string, TextInput | null>>({});
 
   // Keep durable storage in sync whenever completedIds changes.
   useEffect(() => {
@@ -280,26 +276,34 @@ export default function WorkoutScreen() {
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const pendingHistoryRef = useRef<Set<number>>(new Set());
 
-  const saveLoads = (exerciseId: number, recordHistory: boolean) => {
-    if (!currentUser) return;
+  // Handlers passed to the memoised ExerciseRow must be stable (useCallback +
+  // refs), otherwise every keystroke would re-render every row.
+  const userIdRef = useRef(currentUser?.id);
+  userIdRef.current = currentUser?.id;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
+
+  const saveLoads = useCallback((exerciseId: number, recordHistory: boolean) => {
+    const userId = userIdRef.current;
+    if (!userId) return;
     clearTimeout(saveTimersRef.current[exerciseId]);
     delete saveTimersRef.current[exerciseId];
     const current = loadsRef.current[exerciseId] || { normal: '', progression: '' };
     void upsertExerciseLoad({
-      userId: currentUser.id,
+      userId,
       exerciseId,
       loadKg: parseDecimal(current.normal) || null,
       progressionKg: parseDecimal(current.progression) || null,
       recordHistory,
     }).catch(err => console.warn('Falha ao salvar carga:', err));
-  };
+  }, []);
 
-  const flushLoad = (exerciseId: number) => {
+  const flushLoad = useCallback((exerciseId: number) => {
     const recordHistory = pendingHistoryRef.current.has(exerciseId);
     if (!recordHistory && !saveTimersRef.current[exerciseId]) return;
     pendingHistoryRef.current.delete(exerciseId);
     saveLoads(exerciseId, recordHistory);
-  };
+  }, [saveLoads]);
 
   // Leaving the screen saves anything still pending.
   useEffect(() => () => {
@@ -308,61 +312,38 @@ export default function WorkoutScreen() {
       ...pendingHistoryRef.current,
     ]);
     ids.forEach(id => flushLoad(id));
-  }, []);
+  }, [flushLoad]);
 
-  const handleChangeLoad = (
-    exerciseId: number,
-    text: string,
-    type: 'normal' | 'progression',
-  ) => {
-    if (!currentUser) return;
-    const value = sanitizeDecimalInput(text, locale);
+  const handleChangeLoad = useCallback((exerciseId: number, text: string, field: LoadField) => {
+    if (!userIdRef.current) return;
+    const value = sanitizeDecimalInput(text, localeRef.current);
 
     setLoads(prev => {
       const current = prev[exerciseId] || { normal: '', progression: '' };
-      const next = { ...prev, [exerciseId]: { ...current, [type]: value } };
+      const next = { ...prev, [exerciseId]: { ...current, [field]: value } };
       loadsRef.current = next;
       return next;
     });
 
-    if (type === 'normal') pendingHistoryRef.current.add(exerciseId);
+    if (field === 'normal') pendingHistoryRef.current.add(exerciseId);
     clearTimeout(saveTimersRef.current[exerciseId]);
     saveTimersRef.current[exerciseId] = setTimeout(() => saveLoads(exerciseId, false), 700);
-  };
+  }, [saveLoads]);
 
-  const handleInputFocus = (index: number) => {
+  const scrollToRow = useCallback((index: number) => {
     setTimeout(() => {
       flatListRef.current?.scrollToIndex({ index, animated: true });
     }, 100);
-  };
+  }, []);
 
-  const moveLoadCaretToEnd = (inputKey: string, index: number) => {
-    setFocusedLoadInput(inputKey);
-    handleInputFocus(index);
-
-    // Safari places the caret where the user tapped; editing short numbers from
-    // the end is faster. Read the value at that moment (never a captured one)
-    // and only on focus, so the caret is never moved while the user types.
-    requestAnimationFrame(() => {
-      const [exerciseId, type] = inputKey.split('-') as [string, 'normal' | 'progression'];
-      const position = (loadsRef.current[Number(exerciseId)]?.[type] ?? '').length;
-      loadInputRefs.current[inputKey]?.setNativeProps({
-        selection: { start: position, end: position },
-      });
-    });
-  };
-
-  const toggleCompleted = (exerciseId: number) => {
+  const toggleCompleted = useCallback((exerciseId: number) => {
     setCompletedIds(prev => {
       const next = new Set(prev);
-      if (next.has(exerciseId)) {
-        next.delete(exerciseId);
-      } else {
-        next.add(exerciseId);
-      }
+      if (next.has(exerciseId)) next.delete(exerciseId);
+      else next.add(exerciseId);
       return next;
     });
-  };
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
@@ -485,118 +466,20 @@ export default function WorkoutScreen() {
               }, 500);
             }}
             renderItem={({ item, index }) => {
-              const scheme = item.exercise.scheme;
-              const [mainScheme, progression] = scheme.split(' e ');
-              const currentLoads =
-                loads[item.exercise.id] || { normal: '', progression: '' };
-              const isCompleted = completedIds.has(item.exercise.id);
-
-              const restSecs = item.exercise.rest_seconds;
-              const restMin = Math.floor(restSecs / 60);
-              const restRemSec = restSecs % 60;
-              const restLabel = restMin > 0 && restRemSec > 0
-                ? `${restMin}${t.minuteShort} ${restRemSec}${t.secondShort}`
-                : restMin > 0
-                  ? `${restMin}${t.minuteShort}`
-                  : `${restRemSec}${t.secondShort}`;
-
+              const currentLoads = loads[item.exercise.id] || { normal: '', progression: '' };
               return (
-                <Pressable
-                  style={[
-                    styles.exerciseRow,
-                    isCompleted && styles.exerciseRowActive,
-                  ]}
-                >
-                  {isSessionForThisWorkout ? (
-                    <CircularCheckbox
-                      checked={isCompleted}
-                      onToggle={() => toggleCompleted(item.exercise.id)}
-                    />
-                  ) : (
-                    <View style={styles.checkboxPlaceholder} />
-                  )}
-
-                  <Pressable
-                    style={styles.exerciseInfo}
-                    onPress={() =>
-                      isSessionForThisWorkout
-                        ? toggleCompleted(item.exercise.id)
-                        : null
-                    }
-                  >
-                    <Text style={styles.exerciseName}>
-                      {item.exercise.name}
-                    </Text>
-
-                    {!isCompleted ? (
-                      <>
-                        <Text style={styles.scheme}>
-                          {mainScheme}
-                          {progression ? ` · ${progression}` : ''}
-                        </Text>
-
-                        <Text style={styles.rest}>
-                          {t.restInterval(restLabel)}
-                        </Text>
-
-                        {item.exercise.tip ? (
-                          <Text style={styles.tip}>{item.exercise.tip}</Text>
-                        ) : null}
-
-                        {item.exercise.library ? (
-                          <ExerciseLibraryCard library={item.exercise.library} />
-                        ) : null}
-                      </>
-                    ) : null}
-                  </Pressable>
-
-                  {!isCompleted ? (
-                    <View style={styles.loadColumn}>
-                      <Text style={styles.loadLabel}>{t.loadKg}</Text>
-                      <TextInput
-                        ref={(input) => {
-                          loadInputRefs.current[`${item.exercise.id}-normal`] = input;
-                        }}
-                        style={styles.loadInput}
-                        keyboardType="decimal-pad"
-                        value={currentLoads.normal}
-                        onChangeText={text =>
-                          handleChangeLoad(item.exercise.id, text, 'normal')
-                        }
-                        onFocus={() => moveLoadCaretToEnd(`${item.exercise.id}-normal`, index)}
-                        onBlur={() => {
-                          setFocusedLoadInput(null);
-                          flushLoad(item.exercise.id);
-                        }}
-                        placeholder={
-                          focusedLoadInput === `${item.exercise.id}-normal` ? '' : t.loadPlaceholder
-                        }
-                      />
-
-                      <Text style={styles.loadLabelProgression}>{t.progression}</Text>
-
-                      <TextInput
-                        ref={(input) => {
-                          loadInputRefs.current[`${item.exercise.id}-progression`] = input;
-                        }}
-                        style={styles.loadInput}
-                        keyboardType="decimal-pad"
-                        value={currentLoads.progression}
-                        onChangeText={text =>
-                          handleChangeLoad(item.exercise.id, text, 'progression')
-                        }
-                        onFocus={() => moveLoadCaretToEnd(`${item.exercise.id}-progression`, index)}
-                        onBlur={() => {
-                          setFocusedLoadInput(null);
-                          flushLoad(item.exercise.id);
-                        }}
-                        placeholder={
-                          focusedLoadInput === `${item.exercise.id}-progression` ? '' : t.loadPlaceholder
-                        }
-                      />
-                    </View>
-                  ) : null}
-                </Pressable>
+                <ExerciseRow
+                  exercise={item.exercise}
+                  index={index}
+                  isSessionActive={Boolean(isSessionForThisWorkout)}
+                  isCompleted={completedIds.has(item.exercise.id)}
+                  loadNormal={currentLoads.normal}
+                  loadProgression={currentLoads.progression}
+                  onToggle={toggleCompleted}
+                  onChangeLoad={handleChangeLoad}
+                  onLoadFocus={scrollToRow}
+                  onLoadBlur={flushLoad}
+                />
               );
             }}
           />

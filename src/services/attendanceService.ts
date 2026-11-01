@@ -1,5 +1,6 @@
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
+import { localDateKey } from '../utils/date';
 
 async function getLocalDb() {
   const { getDb } = await import('../db');
@@ -8,13 +9,6 @@ async function getLocalDb() {
 
 const ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — attendance changes at most once per workout
 const attendanceCache = new Map<string, { expiresAt: number; data: { dates: Set<string>; totalDays: number } }>();
-
-function formatLocalDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 export async function getAttendanceDatesByMonth(params: {
   userId: number;
@@ -29,8 +23,8 @@ export async function getAttendanceDatesByMonth(params: {
 
   const firstDay = new Date(params.year, params.month, 1);
   const lastDay = new Date(params.year, params.month + 1, 0);
-  const from = formatLocalDate(firstDay);
-  const to = formatLocalDate(lastDay);
+  const from = localDateKey(firstDay);
+  const to = localDateKey(lastDay);
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
@@ -46,7 +40,7 @@ export async function getAttendanceDatesByMonth(params: {
         // Supabase may return full ISO timestamps — normalize to local YYYY-MM-DD
         const raw = String(row.date);
         if (raw.length > 10) {
-          return formatLocalDate(new Date(raw));
+          return localDateKey(new Date(raw));
         }
         return raw;
       })),
@@ -86,7 +80,7 @@ export function invalidateAttendanceCache(userId: number) {
 }
 
 export async function markAttendance(userId: number, date: Date) {
-  const dateStr = formatLocalDate(date);
+  const dateStr = localDateKey(date);
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();

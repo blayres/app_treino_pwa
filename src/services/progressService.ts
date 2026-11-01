@@ -137,47 +137,6 @@ export async function getLoadHistoryByUser(userId: number): Promise<
   return rows;
 }
 
-/**
- * Returns all exercises the user has recorded at least one load for.
- * Used to populate the exercise selector on the Progress screen.
- */
-export async function getTrackedExercises(userId: number): Promise<
-  { exercise_id: number; exercise_name: string }[]
-> {
-  if (backendMode === 'supabase') {
-    ensureSupabaseEnabled();
-    const { data, error } = await supabase
-      .from('exercise_load_history')
-      .select('exercise_id, exercises(name)')
-      .eq('user_id', userId);
-
-    if (error) throw error;
-
-    const seen = new Map<number, string>();
-    for (const row of data ?? []) {
-      const id = Number((row as any).exercise_id);
-      if (!seen.has(id)) {
-        seen.set(id, String((row as any).exercises?.name ?? '—'));
-      }
-    }
-
-    return Array.from(seen.entries())
-      .map(([exercise_id, exercise_name]) => ({ exercise_id, exercise_name }))
-      .sort((a, b) => a.exercise_name.localeCompare(b.exercise_name));
-  }
-
-  const db = await getLocalDb();
-  const rows = await db.getAllAsync<{ exercise_id: number; exercise_name: string }>(
-    `SELECT DISTINCT h.exercise_id, e.name AS exercise_name
-     FROM exercise_load_history h
-     JOIN exercises e ON e.id = h.exercise_id
-     WHERE h.user_id = ?
-     ORDER BY e.name ASC;`,
-    userId,
-  );
-  return rows;
-}
-
 /** Deletes history entries (e.g. a typo like 435 kg instead of 43,5). */
 export async function deleteLoadHistoryEntries(ids: number[]): Promise<void> {
   if (ids.length === 0) return;

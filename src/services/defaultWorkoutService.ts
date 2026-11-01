@@ -128,5 +128,3 @@ export async function applyDefaultProgram(userId: number): Promise<void> {
   invalidateWorkoutsByUserCache(userId);
 }
 
-/** @deprecated kept for older callers — use applyDefaultProgram. */
-export const seedDefaultWorkoutsForUser = applyDefaultProgram;

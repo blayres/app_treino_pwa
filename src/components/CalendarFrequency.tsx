@@ -11,6 +11,7 @@ import { typography } from '../theme';
 import { getAttendanceDatesByMonth } from '../services/attendanceService';
 import { Skeleton } from './Skeleton';
 import { useI18n } from '../i18n';
+import { localDateKey } from '../utils/date';
 
 type Props = {
   userId: number;
@@ -74,17 +75,10 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
           });
         }
 
-        const formatLocalDate = (date: Date): string => {
-          const y = date.getFullYear();
-          const m = String(date.getMonth() + 1).padStart(2, '0');
-          const d = String(date.getDate()).padStart(2, '0');
-          return `${y}-${m}-${d}`;
-        };
-
         for (let i = 1; i <= lastDay.getDate(); i++) {
           const d = new Date(year, month, i);
           tempDays.push({
-            date: formatLocalDate(d),
+            date: localDateKey(d),
             label: i.toString(),
             dayOfWeek: d.getDay(),
             hasCheckIn: false,

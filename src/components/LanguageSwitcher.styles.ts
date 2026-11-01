@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors, spacing } from '../theme';
+import { colors, spacing, shadows } from '../theme';
 
 export const MENU_WIDTH = 168;
 
@@ -42,11 +42,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSoftLight,
     backgroundColor: colors.surfaceLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
+    ...shadows.popover,
   },
   option: {
     flexDirection: 'row',

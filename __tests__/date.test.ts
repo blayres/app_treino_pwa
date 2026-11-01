@@ -1,0 +1,52 @@
+import { describe, expect, it } from '@jest/globals';
+import { calendarDaysBetween, localDateKey, relativeDay } from '../src/utils/date';
+
+// Dates are built in the machine's local time zone, like the app does on the phone.
+const at = (y: number, m: number, d: number, h = 12, min = 0) => new Date(y, m - 1, d, h, min);
+
+describe('localDateKey', () => {
+  it('uses the local calendar day (late evening is still the same day)', () => {
+    expect(localDateKey(at(2026, 11, 1, 23, 50))).toBe('2026-11-01');
+    expect(localDateKey(at(2026, 2, 3, 0, 5))).toBe('2026-02-03');
+  });
+});
+
+describe('calendarDaysBetween', () => {
+  it('counts calendar days, not 24h blocks', () => {
+    expect(calendarDaysBetween(at(2026, 11, 1, 23, 50), at(2026, 11, 2, 0, 10))).toBe(1);
+    expect(calendarDaysBetween(at(2026, 11, 2, 0, 10), at(2026, 11, 2, 23, 50))).toBe(0);
+    expect(calendarDaysBetween(at(2026, 3, 28), at(2026, 3, 30))).toBe(2); // across a DST change in Europe
+  });
+});
+
+describe('relativeDay', () => {
+  const now = at(2026, 11, 20);
+  it.each([
+    [at(2026, 11, 20, 6), { unit: 'today' }],
+    [at(2026, 11, 19, 23, 59), { unit: 'days', value: 1 }],
+    [at(2026, 11, 14), { unit: 'days', value: 6 }],
+    [at(2026, 11, 13), { unit: 'weeks', value: 1 }],
+    [at(2026, 11, 2), { unit: 'weeks', value: 2 }],
+    [at(2026, 10, 20), { unit: 'months', value: 1 }],
+    [at(2026, 5, 1), { unit: 'months', value: 6 }],
+  ])('%s → %o', (done, expected) => {
+    expect(relativeDay(done as Date, now)).toEqual(expected);
+  });
+
+  it('a workout done "in the future" (clock skew) counts as today', () => {
+    expect(relativeDay(at(2026, 11, 21), now)).toEqual({ unit: 'today' });
+  });
+});
+
+import { formatRest } from '../src/utils/date';
+
+describe('formatRest', () => {
+  it.each([
+    [90, '1min 30s'],
+    [60, '1min'],
+    [45, '45s'],
+    [0, '0s'],
+  ])('%s s → %s', (seconds, label) => {
+    expect(formatRest(seconds as number, 'min', 's')).toBe(label);
+  });
+});

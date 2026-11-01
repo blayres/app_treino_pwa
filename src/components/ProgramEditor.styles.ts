@@ -1,18 +1,8 @@
 import { StyleSheet } from 'react-native';
-import { colors, spacing, typography } from '../theme';
+import { colors, spacing, typography, cardSurface } from '../theme';
 
 export const styles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceLight,
-    marginBottom: spacing.md,
-    shadowColor: colors.shadowSoft,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
-  },
+  card: { ...cardSurface, marginBottom: spacing.md },
   dayLabel: {
     fontSize: 12,
     textTransform: 'uppercase',

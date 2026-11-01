@@ -12,6 +12,7 @@ import { useAppStore } from '../store/useAppStore';
 import { styles } from './SettingsScreen.styles';
 import { showAlert } from '../store/useDialogStore';
 import { LogoBar } from '../components/LogoBar';
+import { ScreenHeader } from '../components/ScreenHeader';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -89,10 +90,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <LogoBar />
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={16} accessibilityRole="button">
-          <Text style={styles.backLabel}>{t.back}</Text>
-        </Pressable>
-        <Text style={styles.screenTitle}>{t.settings}</Text>
+        <ScreenHeader onBack={() => navigation.goBack()} title={t.settings} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
