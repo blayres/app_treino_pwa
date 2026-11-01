@@ -28,6 +28,7 @@ import {
   type ProgressDataPoint,
 } from '../services/progressUtils';
 import { StyleSheet } from 'react-native';
+import { LogoBar } from '../components/LogoBar';
 
 const PERIODS: PeriodKey[] = ['1m', '3m', '6m', 'all'];
 
@@ -91,7 +92,8 @@ export default function ProgressScreen() {
   const chartWidth = screenWidth - spacing.md * 2 - 2;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       {/* Header — always visible immediately, no waiting */}
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={16}>

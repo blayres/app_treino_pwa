@@ -35,11 +35,14 @@ export const styles = StyleSheet.create({
   buttonCancel: {
     flex: 1,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
     borderRadius: 8,
     backgroundColor: colors.surfaceMutedLight,
     alignItems: 'center',
   },
   buttonCancelLabel: {
+    textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
@@ -47,6 +50,8 @@ export const styles = StyleSheet.create({
   buttonConfirm: {
     flex: 1,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
     borderRadius: 8,
     backgroundColor: colors.olive,
     alignItems: 'center',
@@ -54,11 +59,14 @@ export const styles = StyleSheet.create({
   buttonConfirmDanger: {
     flex: 1,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
     borderRadius: 8,
     backgroundColor: colors.danger,
     alignItems: 'center',
   },
   buttonConfirmLabel: {
+    textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
     color: colors.textPrimaryDark,

@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { useI18n } from '../i18n';
 import { deleteCurrentAccount, getCurrentUserEmail, logout, updateCurrentUserName } from '../services/authService';
 import { useAppStore } from '../store/useAppStore';
 import { styles } from './SettingsScreen.styles';
+import { showAlert } from '../store/useDialogStore';
+import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -22,6 +25,9 @@ export default function SettingsScreen() {
   const [email, setEmail] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     getCurrentUserEmail().then(setEmail).catch(() => setEmail(''));
@@ -36,11 +42,12 @@ export default function SettingsScreen() {
   };
 
   const handleLogout = async () => {
+    setShowLogoutConfirm(false);
     try {
       await logout();
       returnToLogin();
     } catch (error: any) {
-      Alert.alert(t.errorLogout, error?.message ?? t.errorLogoutMsg);
+      showAlert(t.errorLogout, error?.message ?? t.errorLogoutMsg);
     }
   };
 
@@ -51,38 +58,36 @@ export default function SettingsScreen() {
       const user = await updateCurrentUserName(currentUser.id, name);
       setCurrentUser(user);
       setName(user.name);
-      Alert.alert(t.savedSuccess, t.usernameUpdated);
+      showAlert(t.savedSuccess, t.usernameUpdated);
     } catch (error: any) {
-      Alert.alert(t.saveError, error?.message ?? t.usernameUpdateError);
+      showAlert(t.saveError, error?.message ?? t.usernameUpdateError);
     } finally {
       setSavingName(false);
     }
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(t.deleteAccountTitle, t.deleteAccountMsg, [
-      { text: t.cancel, style: 'cancel' },
-      {
-        text: t.deleteAccountConfirm,
-        style: 'destructive',
-        onPress: async () => {
-          if (deleting) return;
-          setDeleting(true);
-          try {
-            await deleteCurrentAccount();
-            returnToLogin();
-          } catch (error: any) {
-            Alert.alert(t.saveError, error?.message ?? t.deleteAccountError);
-          } finally {
-            setDeleting(false);
-          }
-        },
-      },
-    ]);
+    if (deleting) return;
+    setDeleteError('');
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    setShowDeleteConfirm(false);
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await deleteCurrentAccount();
+      returnToLogin();
+    } catch (error: any) {
+      setDeleteError(error?.message ?? t.deleteAccountError);
+      setDeleting(false);
+    }
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={16} accessibilityRole="button">
           <Text style={styles.backLabel}>{t.back}</Text>
@@ -92,10 +97,29 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.language}</Text>
           <View style={styles.languageRow}>
-            <Text style={styles.rowDescription}>{t.language}</Text>
+            <Text style={styles.cardTitle}>{t.language}</Text>
             <LanguageSwitcher />
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.planHeading}>
+            <Text style={styles.cardTitle}>{t.plan}</Text>
+            <Text style={styles.comingSoon}>{t.comingSoon}</Text>
+          </View>
+          <View style={styles.planOptions}>
+            <View style={[styles.planOption, styles.planOptionSelected]}>
+              <Text style={styles.planName}>{t.freePlan}</Text>
+            </View>
+            <Pressable
+              disabled
+              accessibilityRole="button"
+              accessibilityState={{ disabled: true }}
+              style={[styles.planOption, styles.planOptionDisabled]}
+            >
+              <Text style={styles.planName}>{t.premiumPlan}</Text>
+            </Pressable>
           </View>
         </View>
 
@@ -135,7 +159,7 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
 
-          <Pressable onPress={handleLogout} style={({ pressed }) => [styles.actionRow, pressed && styles.buttonPressed]}>
+          <Pressable onPress={() => setShowLogoutConfirm(true)} style={({ pressed }) => [styles.actionRow, pressed && styles.buttonPressed]}>
             <Text style={styles.actionLabel}>{t.logout}</Text>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -145,31 +169,35 @@ export default function SettingsScreen() {
             disabled={deleting}
             style={({ pressed }) => [styles.actionRow, styles.dangerRow, deleting && styles.buttonDisabled, pressed && styles.buttonPressed]}
           >
-            <Text style={styles.dangerLabel}>{deleting ? t.saving : t.deleteAccount}</Text>
+            <Text style={styles.dangerLabel}>{t.deleteAccount}</Text>
             <Text style={styles.dangerChevron}>›</Text>
           </Pressable>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.planHeading}>
-            <Text style={styles.cardTitle}>{t.plan}</Text>
-            <Text style={styles.comingSoon}>{t.comingSoon}</Text>
-          </View>
-          <View style={styles.planOptions}>
-            <View style={[styles.planOption, styles.planOptionSelected]}>
-              <Text style={styles.planName}>{t.freePlan}</Text>
-            </View>
-            <Pressable
-              disabled
-              accessibilityRole="button"
-              accessibilityState={{ disabled: true }}
-              style={[styles.planOption, styles.planOptionDisabled]}
-            >
-              <Text style={styles.planName}>{t.premiumPlan}</Text>
-            </Pressable>
-          </View>
+          {deleteError ? (
+            <Text style={styles.errorText} accessibilityRole="alert">{deleteError}</Text>
+          ) : null}
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={showLogoutConfirm}
+        title={t.logoutConfirmTitle}
+        message={t.logoutConfirmMsg}
+        confirmLabel={t.logout}
+        cancelLabel={t.cancel}
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
+
+      <ConfirmModal
+        visible={showDeleteConfirm}
+        title={t.deleteAccountTitle}
+        message={t.deleteAccountMsg}
+        confirmLabel={t.deleteAccountConfirm}
+        cancelLabel={t.cancel}
+        onConfirm={confirmDeleteAccount}
+        onCancel={() => setShowDeleteConfirm(false)}
+        confirmDanger
+      />
     </SafeAreaView>
   );
 }

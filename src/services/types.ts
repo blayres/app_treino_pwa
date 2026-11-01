@@ -18,6 +18,8 @@ export type Exercise = {
   tip: string | null;
   exercise_library_id: string | null;
   library?: ExerciseLibrary | null;
+  /** null/undefined = global catalogue; otherwise private to that profile. */
+  owner_id?: number | null;
 };
 
 export type Workout = {
@@ -37,6 +39,14 @@ export type WorkoutExercise = {
   workout_id: number;
   exercise_id: number;
   order_index: number;
+  /** `exercise.scheme`/`rest_seconds` are the effective values (per-workout
+   * override if set); these are the catalogue defaults underneath. */
+  base_scheme?: string;
+  base_rest_seconds?: number;
+  scheme_override?: string | null;
+  rest_seconds_override?: number | null;
+  /** Coach instructions for this exercise in this workout. */
+  notes?: string | null;
   exercise: Exercise;
 };
 
