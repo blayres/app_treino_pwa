@@ -1,15 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,48 +9,17 @@ import { showAlert } from '../store/useDialogStore';
 import { useI18n } from '../i18n';
 import { colors } from '../theme';
 import { LogoBar } from '../components/LogoBar';
-import {
-  ExercisePickerSheet,
-  invalidateExerciseCatalogue,
-  loadExerciseCatalogue,
-} from '../components/ExercisePickerSheet';
-import type { Exercise } from '../services/types';
+import { invalidateExerciseCatalogue, loadExerciseCatalogue } from '../components/ExercisePickerSheet';
+import { PasteWorkoutInput, ProgramEditor } from '../components/ProgramEditor';
 import { applyDefaultProgram, DEFAULT_PROGRAM } from '../services/defaultWorkoutService';
-import {
-  createCustomExercise,
-  createWorkoutForUser,
-  DEFAULT_CUSTOM_SCHEME,
-  invalidateWorkoutsByUserCache,
-} from '../services/workoutService';
-import { assignWeekdays, matchExercise, parseWorkoutText } from '../services/workoutTextParser';
+import { invalidateWorkoutsByUserCache } from '../services/workoutService';
+import { draftFromText, saveProgram, visibleDays, type DraftDay } from '../services/programService';
 import { markOnboarded } from '../services/authService';
 import { styles } from './OnboardingScreen.styles';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 type Step = 'choose' | 'default' | 'import' | 'editor';
 type EditorMode = 'import' | 'manual';
-
-type DraftItem = {
-  key: string;
-  /** Catalogue exercise; null = will be created as a private exercise on save. */
-  exercise: Exercise | null;
-  name: string;
-  scheme: string;
-  restSeconds: number | null;
-  /** Original imported text when it was matched to a differently named exercise. */
-  wrote: string | null;
-};
-
-type DraftDay = {
-  key: string;
-  dayOfWeek: number;
-  title: string;
-  items: DraftItem[];
-};
-
-const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
-let keySeq = 0;
-const nextKey = () => `k${++keySeq}`;
 
 // ── Small inline icons (same stroke style as the app's other SVG icons) ──────
 function Icon({ path, color }: { path: string; color: string }) {
@@ -89,15 +48,12 @@ export default function OnboardingScreen() {
   const [pasted, setPasted] = useState('');
   const [days, setDays] = useState<DraftDay[]>([]);
   const [isBusy, setIsBusy] = useState(false);
-  const [pickerDayKey, setPickerDayKey] = useState<string | null>(null);
-  const [changeDayKey, setChangeDayKey] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-  // Days already saved, so a retry after a partial failure doesn't duplicate them.
-  const savedDaysRef = useRef<Set<number>>(new Set());
-
   // Already-onboarded users are redirected Home by App.tsx; never let them
   // create a second program from here (it would clash with existing days).
   const isSavingRef = useRef(false);
+  // Weekdays saved by an earlier failed attempt, so a retry doesn't duplicate them.
+  const createdDaysRef = useRef<Set<number>>(new Set());
 
   // Warm the exercise catalogue so "Importar" and the picker feel instant.
   useEffect(() => {
@@ -106,14 +62,12 @@ export default function OnboardingScreen() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo?.({ y: 0, animated: false });
-    setPickerDayKey(null);
-    setChangeDayKey(null);
   }, [step]);
 
   if (!currentUser || !needsOnboarding) return null;
   const userId = currentUser.id;
   const dayName = (day: number) => t.dayLabels[day];
-  const shortDay = (day: number) => t.dayLabels[day].slice(0, 3);
+  const shownDays = visibleDays(days);
 
   const finish = async () => {
     await markOnboarded(userId);
@@ -122,13 +76,12 @@ export default function OnboardingScreen() {
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   };
 
-  // ── Actions ──────────────────────────────────────────────────────────────
-  const handleUseDefault = async () => {
+  const runSaving = async (work: () => Promise<void>) => {
     if (isSavingRef.current) return;
     isSavingRef.current = true;
     setIsBusy(true);
     try {
-      await applyDefaultProgram(userId);
+      await work();
       await finish();
     } catch (err: any) {
       showAlert(t.saveError, err?.message ?? t.onboardingError);
@@ -138,38 +91,18 @@ export default function OnboardingScreen() {
     }
   };
 
+  const handleUseDefault = () => runSaving(() => applyDefaultProgram(userId));
+
   const handleOrganise = async () => {
     if (isBusy) return;
-    const parsed = parseWorkoutText(pasted);
-    if (parsed.length === 0) {
-      showAlert('', t.onboardingImportNothingFound);
-      return;
-    }
     setIsBusy(true);
     try {
-      const catalogue = await loadExerciseCatalogue(userId);
-      const assigned = assignWeekdays(parsed, () => '');
-      setDays(
-        assigned
-          .map((day) => ({
-            key: nextKey(),
-            dayOfWeek: day.dayOfWeek!,
-            title: day.title,
-            items: day.exercises.map((parsedItem) => {
-              const match = matchExercise(parsedItem.name, catalogue);
-              const exercise = match?.item ?? null;
-              return {
-                key: nextKey(),
-                exercise,
-                name: exercise?.name ?? parsedItem.name,
-                scheme: parsedItem.scheme ?? exercise?.scheme ?? DEFAULT_CUSTOM_SCHEME,
-                restSeconds: parsedItem.restSeconds,
-                wrote: match && !match.exact ? parsedItem.name : null,
-              };
-            }),
-          }))
-          .sort((a, b) => a.dayOfWeek - b.dayOfWeek),
-      );
+      const draft = draftFromText(pasted, await loadExerciseCatalogue(userId));
+      if (draft.length === 0) {
+        showAlert('', t.onboardingImportNothingFound);
+        return;
+      }
+      setDays(draft);
       setMode('import');
       setStep('editor');
     } catch (err: any) {
@@ -185,123 +118,26 @@ export default function OnboardingScreen() {
     setStep('editor');
   };
 
-  const toggleDay = (day: number) => {
-    setDays((prev) => {
-      if (prev.some((d) => d.dayOfWeek === day)) return prev.filter((d) => d.dayOfWeek !== day);
-      return [...prev, { key: nextKey(), dayOfWeek: day, title: '', items: [] }].sort(
-        (a, b) => a.dayOfWeek - b.dayOfWeek,
-      );
-    });
-  };
-
-  const updateDay = (key: string, patch: Partial<DraftDay>) =>
-    setDays((prev) =>
-      prev.map((d) => (d.key === key ? { ...d, ...patch } : d)).sort((a, b) => a.dayOfWeek - b.dayOfWeek),
-    );
-
-  const updateItem = (dayKey: string, itemKey: string, patch: Partial<DraftItem>) =>
-    setDays((prev) =>
-      prev.map((d) =>
-        d.key === dayKey
-          ? { ...d, items: d.items.map((i) => (i.key === itemKey ? { ...i, ...patch } : i)) }
-          : d,
-      ),
-    );
-
-  const removeItem = (dayKey: string, itemKey: string) =>
-    setDays((prev) =>
-      prev.map((d) => (d.key === dayKey ? { ...d, items: d.items.filter((i) => i.key !== itemKey) } : d)),
-    );
-
-  const handlePick = (exercise: Exercise) => {
-    if (!pickerDayKey) return;
-    const dayKey = pickerDayKey;
-    setPickerDayKey(null);
-    setDays((prev) =>
-      prev.map((d) =>
-        d.key === dayKey
-          ? {
-              ...d,
-              items: [
-                ...d.items,
-                {
-                  key: nextKey(),
-                  exercise,
-                  name: exercise.name,
-                  scheme: exercise.scheme,
-                  restSeconds: null,
-                  wrote: null,
-                },
-              ],
-            }
-          : d,
-      ),
-    );
-  };
-
-  const handleSave = async () => {
-    if (isSavingRef.current) return;
-    if (days.length === 0) {
+  const handleSave = () => {
+    if (shownDays.length === 0) {
       showAlert('', t.onboardingNeedOneDay);
       return;
     }
-    const emptyDay = days.find((d) => d.items.length === 0);
+    const emptyDay = shownDays.find((d) => d.items.length === 0);
     if (emptyDay) {
       showAlert('', t.onboardingEmptyDay(dayName(emptyDay.dayOfWeek)));
       return;
     }
-
-    isSavingRef.current = true;
-    setIsBusy(true);
-    try {
-      // Create each new (unmatched) exercise once, even if used on several days.
-      const createdByName = new Map<string, Exercise>();
-      for (const day of days) {
-        for (const item of day.items) {
-          if (item.exercise) continue;
-          const key = item.name.trim().toLowerCase();
-          if (!createdByName.has(key)) {
-            createdByName.set(
-              key,
-              await createCustomExercise({
-                userId,
-                name: item.name,
-                scheme: item.scheme,
-                restSeconds: item.restSeconds ?? undefined,
-              }),
-            );
-          }
-        }
-      }
-      if (createdByName.size > 0) invalidateExerciseCatalogue();
-
-      for (const day of days) {
-        if (savedDaysRef.current.has(day.dayOfWeek)) continue;
-        await createWorkoutForUser({
-          userId,
-          dayOfWeek: day.dayOfWeek,
-          title: day.title.trim() || t.onboardingDefaultDayTitle(dayName(day.dayOfWeek)),
-          items: day.items.map((item) => {
-            const exercise = item.exercise ?? createdByName.get(item.name.trim().toLowerCase())!;
-            const scheme = item.scheme.trim();
-            return {
-              exerciseId: exercise.id,
-              scheme: scheme && scheme !== exercise.scheme ? scheme : null,
-              restSeconds:
-                item.restSeconds != null && item.restSeconds !== exercise.rest_seconds ? item.restSeconds : null,
-            };
-          }),
-        });
-        savedDaysRef.current.add(day.dayOfWeek);
-      }
-
-      await finish();
-    } catch (err: any) {
-      showAlert(t.saveError, err?.message ?? t.onboardingError);
-      setIsBusy(false);
-    } finally {
-      isSavingRef.current = false;
-    }
+    runSaving(async () => {
+      await saveProgram({
+        userId,
+        draft: days,
+        original: [],
+        defaultTitle: (day) => t.onboardingDefaultDayTitle(dayName(day)),
+        createdDays: createdDaysRef.current,
+      });
+      invalidateExerciseCatalogue();
+    });
   };
 
   // ── Render helpers ───────────────────────────────────────────────────────
@@ -377,18 +213,7 @@ export default function OnboardingScreen() {
       {goBackButton('choose')}
       <Text style={styles.title}>{t.onboardingDefaultPreviewTitle}</Text>
       <Text style={styles.subtitle}>{t.onboardingDefaultPreviewSubtitle}</Text>
-      <View style={styles.card}>
-        {DEFAULT_PROGRAM.map((day, index) => (
-          <View
-            key={day.day_of_week}
-            style={[styles.previewDay, index === DEFAULT_PROGRAM.length - 1 && styles.previewDayLast]}
-          >
-            <Text style={styles.dayLabel}>{dayName(day.day_of_week)}</Text>
-            <Text style={styles.previewTitle}>{day.title}</Text>
-            <Text style={styles.previewExercises}>{day.exercises.join(' · ')}</Text>
-          </View>
-        ))}
-      </View>
+      <DefaultProgramPreview />
     </>
   );
 
@@ -397,136 +222,26 @@ export default function OnboardingScreen() {
       {goBackButton('choose')}
       <Text style={styles.title}>{t.onboardingImportPasteTitle}</Text>
       <Text style={styles.subtitle}>{t.onboardingImportPasteSubtitle}</Text>
-      <TextInput
-        style={styles.pasteInput}
-        value={pasted}
-        onChangeText={setPasted}
-        placeholder={t.onboardingImportPlaceholder}
-        placeholderTextColor={colors.textSecondary + '99'}
-        multiline
-        autoFocus
-        autoCorrect={false}
-        autoCapitalize="sentences"
-        accessibilityLabel={t.onboardingImportPasteTitle}
-      />
+      <PasteWorkoutInput value={pasted} onChangeText={setPasted} />
     </>
   );
 
-  const renderEditor = () => {
-    const usedDays = new Set(days.map((d) => d.dayOfWeek));
-    return (
-      <>
-        {goBackButton(mode === 'import' ? 'import' : 'choose')}
-        <Text style={styles.title}>
-          {mode === 'import' ? t.onboardingReviewTitle : t.onboardingManualEditorTitle}
-        </Text>
-        <Text style={styles.subtitle}>
-          {mode === 'import' ? t.onboardingReviewSubtitle : t.onboardingManualEditorSubtitle}
-        </Text>
-
-        <Text style={styles.sectionLabel}>{t.onboardingTrainingDays}</Text>
-        <View style={styles.dayChips}>
-          {ALL_DAYS.map((day) => {
-            const selected = usedDays.has(day);
-            return (
-              <Pressable
-                key={day}
-                onPress={() => toggleDay(day)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: selected }}
-                accessibilityLabel={dayName(day)}
-                style={[styles.dayChip, selected && styles.dayChipSelected]}
-              >
-                <Text style={[styles.dayChipLabel, selected && styles.dayChipLabelSelected]}>
-                  {shortDay(day)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {days.map((day) => (
-          <View key={day.key} style={styles.card}>
-            <View style={styles.dayCardHeader}>
-              <Text style={styles.dayLabel}>{dayName(day.dayOfWeek)}</Text>
-              <Pressable onPress={() => setChangeDayKey(day.key)} hitSlop={10} accessibilityRole="button">
-                <Text style={styles.changeDay}>{t.onboardingChangeDay}</Text>
-              </Pressable>
-            </View>
-            <TextInput
-              style={styles.dayTitleInput}
-              value={day.title}
-              onChangeText={(title) => updateDay(day.key, { title })}
-              placeholder={t.onboardingDayTitlePlaceholder}
-              placeholderTextColor={colors.textSecondary + '99'}
-              maxLength={80}
-            />
-
-            {day.items.map((item) => (
-              <View key={item.key} style={styles.itemRow}>
-                <View style={styles.itemBody}>
-                  <View style={styles.itemNameRow}>
-                    <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
-                    {!item.exercise && <Text style={styles.newTag}>{t.onboardingNewTag}</Text>}
-                  </View>
-                  {item.wrote && (
-                    <Pressable
-                      onPress={() =>
-                        updateItem(day.key, item.key, { exercise: null, name: item.wrote!, wrote: null })
-                      }
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.youWrote}>{t.onboardingYouWrote(item.wrote)}</Text>
-                    </Pressable>
-                  )}
-                </View>
-                <TextInput
-                  style={styles.schemeInput}
-                  value={item.scheme}
-                  onChangeText={(scheme) => updateItem(day.key, item.key, { scheme })}
-                  placeholder={DEFAULT_CUSTOM_SCHEME}
-                  placeholderTextColor={colors.textSecondary + '99'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  maxLength={20}
-                  accessibilityLabel={`${item.name} ${item.scheme}`}
-                />
-                <Pressable
-                  onPress={() => removeItem(day.key, item.key)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t.removeExercise} ${item.name}`}
-                  style={({ pressed }) => [styles.removeItem, pressed && styles.removeItemPressed]}
-                >
-                  <Text style={styles.removeItemLabel}>✕</Text>
-                </Pressable>
-              </View>
-            ))}
-
-            <Pressable
-              onPress={() => setPickerDayKey(day.key)}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.addItem, pressed && styles.addItemPressed]}
-            >
-              <Text style={styles.addItemLabel}>{t.addExercise}</Text>
-            </Pressable>
-          </View>
-        ))}
-      </>
-    );
-  };
-
-  const changeDay = days.find((d) => d.key === changeDayKey) ?? null;
-  const pickerDay = days.find((d) => d.key === pickerDayKey) ?? null;
+  const renderEditor = () => (
+    <>
+      {goBackButton(mode === 'import' ? 'import' : 'choose')}
+      <Text style={styles.title}>{mode === 'import' ? t.onboardingReviewTitle : t.onboardingManualEditorTitle}</Text>
+      <Text style={styles.subtitle}>
+        {mode === 'import' ? t.onboardingReviewSubtitle : t.onboardingManualEditorSubtitle}
+      </Text>
+      <ProgramEditor userId={userId} days={days} onChange={setDays} />
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <LogoBar />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {step === 'choose' && renderChoose()}
           {step === 'default' && renderDefault()}
           {step === 'import' && renderImport()}
@@ -535,49 +250,27 @@ export default function OnboardingScreen() {
 
         {step === 'default' && footerButton(t.onboardingStartWithThis, handleUseDefault)}
         {step === 'import' && footerButton(t.onboardingImportButton, handleOrganise, !pasted.trim())}
-        {step === 'editor' &&
-          footerButton(t.onboardingSave(days.length), handleSave, days.length === 0)}
+        {step === 'editor' && footerButton(t.onboardingSave(shownDays.length), handleSave, shownDays.length === 0)}
       </KeyboardAvoidingView>
-
-      <ExercisePickerSheet
-        visible={pickerDay !== null}
-        userId={userId}
-        selectedIds={pickerDay?.items.flatMap((i) => (i.exercise ? [i.exercise.id] : [])) ?? []}
-        onPick={handlePick}
-        onClose={() => setPickerDayKey(null)}
-      />
-
-      <Modal visible={changeDay !== null} transparent animationType="fade" onRequestClose={() => setChangeDayKey(null)}>
-        <Pressable style={styles.sheetOverlay} onPress={() => setChangeDayKey(null)}>
-          <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>{t.onboardingChangeDay}</Text>
-            {ALL_DAYS.map((day) => {
-              const isCurrent = changeDay?.dayOfWeek === day;
-              const taken = !isCurrent && days.some((d) => d.dayOfWeek === day);
-              return (
-                <Pressable
-                  key={day}
-                  disabled={taken}
-                  onPress={() => {
-                    if (changeDay) updateDay(changeDay.key, { dayOfWeek: day });
-                    setChangeDayKey(null);
-                  }}
-                  style={({ pressed }) => [
-                    styles.sheetOption,
-                    isCurrent && styles.sheetOptionActive,
-                    pressed && styles.sheetOptionPressed,
-                    taken && styles.sheetOptionDisabled,
-                  ]}
-                >
-                  <Text style={[styles.sheetOptionLabel, isCurrent && styles.sheetOptionLabelActive]}>
-                    {dayName(day)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
+  );
+}
+
+/** Read-only preview of the ready-made program (also used by "Meu treino"). */
+export function DefaultProgramPreview() {
+  const { t } = useI18n();
+  return (
+    <View style={styles.card}>
+      {DEFAULT_PROGRAM.map((day, index) => (
+        <View
+          key={day.day_of_week}
+          style={[styles.previewDay, index === DEFAULT_PROGRAM.length - 1 && styles.previewDayLast]}
+        >
+          <Text style={styles.dayLabel}>{t.dayLabels[day.day_of_week]}</Text>
+          <Text style={styles.previewTitle}>{day.title}</Text>
+          <Text style={styles.previewExercises}>{day.exercises.join(' · ')}</Text>
+        </View>
+      ))}
+    </View>
   );
 }

@@ -23,8 +23,6 @@ const SignupScreen = lazyScreen(() => import('./src/screens/SignupScreen'));
 const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'));
 const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen'));
 const SettingsScreen = lazyScreen(() => import('./src/screens/SettingsScreen'));
-const EditWorkoutScreen = lazyScreen(() => import('./src/screens/EditWorkoutScreen'));
-const AddTrainingDayScreen = lazyScreen(() => import('./src/screens/AddTrainingDayScreen'));
 const ProgressScreen = lazyScreen(() => import('./src/screens/ProgressScreen'));
 const OnboardingScreen = lazyScreen(() => import('./src/screens/OnboardingScreen'));
 
@@ -251,8 +249,6 @@ export default function App() {
             Workout: 'workout/:workoutId',
             Admin: 'admin',
             MyWorkout: 'my-workout',
-            EditWorkout: 'my-workout/edit/:workoutId',
-            AddTrainingDay: 'my-workout/add',
             Progress: 'progress',
             Onboarding: 'onboarding',
           },
@@ -297,8 +293,6 @@ export default function App() {
               />
               <Stack.Screen name="Admin" component={AdminScreen} />
               <Stack.Screen name="MyWorkout" component={MyWorkoutScreen} />
-              <Stack.Screen name="EditWorkout" component={EditWorkoutScreen} />
-              <Stack.Screen name="AddTrainingDay" component={AddTrainingDayScreen} />
               <Stack.Screen name="Progress" component={ProgressScreen} />
               <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ gestureEnabled: false }} />
             </>

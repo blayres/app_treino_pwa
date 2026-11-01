@@ -1,151 +1,345 @@
-import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useAppStore } from '../store/useAppStore';
-import { useI18n } from '../i18n';
-import {
-  getWorkoutsByUser,
-  getWorkoutExercises,
-  getCachedWorkoutsByUser,
-  getCachedWorkoutExercises,
-} from '../services/workoutService';
-import type { WorkoutWithLastDone } from '../services/types';
-import { Skeleton } from '../components/Skeleton';
-import { styles } from './MyWorkoutScreen.styles';
 import { showAlert } from '../store/useDialogStore';
+import { useI18n } from '../i18n';
+import { colors } from '../theme';
 import { LogoBar } from '../components/LogoBar';
+import { Skeleton } from '../components/Skeleton';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { invalidateExerciseCatalogue, loadExerciseCatalogue } from '../components/ExercisePickerSheet';
+import { PasteWorkoutInput, ProgramEditor } from '../components/ProgramEditor';
+import { applyDefaultProgram } from '../services/defaultWorkoutService';
+import { archiveWorkout, invalidateWorkoutsByUserCache } from '../services/workoutService';
+import {
+  draftFromText,
+  isProgramDirty,
+  loadProgramDraft,
+  saveProgram,
+  visibleDays,
+  type DraftDay,
+} from '../services/programService';
+import { styles } from './OnboardingScreen.styles';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'MyWorkout'>;
+/** edit = current program; import/review = replacing it with a pasted one. */
+type Step = 'edit' | 'import' | 'review';
+type Confirm = null | 'removeDays' | 'replaceImport' | 'replaceDefault' | 'discard';
 
+/**
+ * "Meu treino": the whole weekly program in the same editor as onboarding.
+ * Edits are applied only on save (removed days are archived, so history is
+ * kept). "Trocar meu treino" replaces the program by an imported one or the
+ * ready-made one.
+ */
 export default function MyWorkoutScreen() {
   const navigation = useNavigation<Navigation>();
   const currentUser = useAppStore((s) => s.currentUser);
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
 
-  const [workouts, setWorkouts] = useState<WorkoutWithLastDone[]>(() => {
-    // Seed from cache so the screen is never blank on mount
-    if (currentUser) {
-      return getCachedWorkoutsByUser(currentUser.id) ?? [];
-    }
-    return [];
-  });
-  const [exerciseCounts, setExerciseCounts] = useState<Record<number, number>>(() => {
-    // Seed exercise counts from cache too
-    if (currentUser) {
-      const cached = getCachedWorkoutsByUser(currentUser.id) ?? [];
-      const counts: Record<number, number> = {};
-      cached.forEach((w) => {
-        const exs = getCachedWorkoutExercises(w.id);
-        if (exs !== null) counts[w.id] = exs.length;
-      });
-      return counts;
-    }
-    return {};
-  });
-  // Only show the skeleton on the very first load — when we have no data at all
-  const [isFirstLoad, setIsFirstLoad] = useState(workouts.length === 0);
+  const [step, setStep] = useState<Step>('edit');
+  const [original, setOriginal] = useState<DraftDay[]>([]);
+  const [days, setDays] = useState<DraftDay[]>([]);
+  const [imported, setImported] = useState<DraftDay[]>([]);
+  const [pasted, setPasted] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBusy, setIsBusy] = useState(false);
+  const [confirm, setConfirm] = useState<Confirm>(null);
+  const isSavingRef = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const loadData = useCallback(async () => {
-    if (!currentUser) return;
+  const userId = currentUser?.id;
+  const dayName = (day: number) => t.dayLabels[day];
+  const dirty = isProgramDirty(original, days);
+
+  const load = useCallback(async () => {
+    if (!userId) return;
+    setIsLoading(true);
     try {
-      const data = await getWorkoutsByUser(currentUser.id);
-      setWorkouts(data);
-
-      const counts: Record<number, number> = {};
-      await Promise.all(
-        data.map(async (w) => {
-          try {
-            const exs = await getWorkoutExercises(w.id);
-            counts[w.id] = exs.length;
-          } catch {
-            counts[w.id] = 0;
-          }
-        }),
-      );
-      setExerciseCounts(counts);
+      const draft = await loadProgramDraft(userId);
+      setOriginal(draft);
+      setDays(draft);
     } catch (err: any) {
       showAlert(t.saveError, err?.message ?? t.genericError);
     } finally {
-      setIsFirstLoad(false);
+      setIsLoading(false);
     }
-  }, [currentUser, t]);
+  }, [userId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      // Stale-while-revalidate: show cached data immediately, refresh in background.
-      // EditWorkout / AddTrainingDay already invalidate the cache on save.
-      loadData();
-    }, [loadData]),
+  useEffect(() => {
+    load();
+    if (userId) loadExerciseCatalogue(userId).catch(() => {});
+  }, [load]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo?.({ y: 0, animated: false });
+  }, [step]);
+
+  if (!currentUser || !userId) return null;
+
+  // ── Validation shared by edit and replace ────────────────────────────────
+  const validate = (draft: DraftDay[]): boolean => {
+    const emptyDay = visibleDays(draft).find((d) => d.items.length === 0);
+    if (emptyDay) {
+      showAlert('', t.onboardingEmptyDay(dayName(emptyDay.dayOfWeek)));
+      return false;
+    }
+    if (visibleDays(draft).length === 0) {
+      showAlert('', t.onboardingNeedOneDay);
+      return false;
+    }
+    return true;
+  };
+
+  const run = async (work: () => Promise<void>, after: () => void) => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setIsBusy(true);
+    try {
+      await work();
+      invalidateWorkoutsByUserCache(userId);
+      after();
+    } catch (err: any) {
+      showAlert(t.saveError, err?.message ?? t.errorSavingWorkout);
+    } finally {
+      isSavingRef.current = false;
+      setIsBusy(false);
+    }
+  };
+
+  const defaultTitle = (day: number) => t.onboardingDefaultDayTitle(dayName(day));
+
+  // ── Edit current program ─────────────────────────────────────────────────
+  const removedDayNames = () => {
+    const keptIds = new Set(visibleDays(days).map((d) => d.workoutId).filter(Boolean));
+    return original.filter((d) => !keptIds.has(d.workoutId)).map((d) => dayName(d.dayOfWeek));
+  };
+
+  const handleSaveEdits = () => {
+    if (!validate(days)) return;
+    if (removedDayNames().length > 0) setConfirm('removeDays');
+    else saveEdits();
+  };
+
+  const saveEdits = () =>
+    run(
+      () => saveProgram({ userId, draft: days, original, defaultTitle }),
+      async () => {
+        invalidateExerciseCatalogue();
+        await load();
+        showAlert(t.savedSuccess, t.programSaved);
+      },
+    );
+
+  // ── Replace: import ──────────────────────────────────────────────────────
+  const handleOrganise = async () => {
+    if (isBusy) return;
+    setIsBusy(true);
+    try {
+      const draft = draftFromText(pasted, await loadExerciseCatalogue(userId));
+      if (draft.length === 0) {
+        showAlert('', t.onboardingImportNothingFound);
+        return;
+      }
+      setImported(draft);
+      setStep('review');
+    } catch (err: any) {
+      showAlert(t.saveError, err?.message ?? t.genericError);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const replaceWithImport = () =>
+    run(
+      () => saveProgram({ userId, draft: imported, original, replaceAll: true, defaultTitle }),
+      () => {
+        invalidateExerciseCatalogue();
+        navigation.goBack();
+      },
+    );
+
+  // ── Replace: ready-made program ──────────────────────────────────────────
+  const replaceWithDefault = () =>
+    run(
+      async () => {
+        for (const day of original) if (day.workoutId) await archiveWorkout(day.workoutId);
+        invalidateWorkoutsByUserCache(userId);
+        await applyDefaultProgram(userId);
+      },
+      () => navigation.goBack(),
+    );
+
+  const handleBack = () => {
+    if (step === 'import') setStep('edit');
+    else if (step === 'review') setStep('import');
+    else if (dirty) setConfirm('discard');
+    else navigation.goBack();
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  const footerButton = (label: string, onPress: () => void, disabled = false) => (
+    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled || isBusy}
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.primaryButton,
+          pressed && styles.primaryButtonPressed,
+          (disabled || isBusy) && styles.primaryButtonDisabled,
+        ]}
+      >
+        {isBusy ? (
+          <ActivityIndicator color={colors.textPrimaryDark} />
+        ) : (
+          <Text style={styles.primaryButtonLabel}>{label}</Text>
+        )}
+      </Pressable>
+    </View>
   );
 
-  const isLoading = isFirstLoad;
+  const replaceOption = (title: string, desc: string, onPress: () => void) => (
+    <Pressable
+      key={title}
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+        styles.option,
+        hovered && styles.optionHovered,
+        pressed && styles.optionPressed,
+      ]}
+    >
+      <View style={styles.optionBody}>
+        <Text style={styles.optionTitle}>{title}</Text>
+        <Text style={styles.optionDesc}>{desc}</Text>
+      </View>
+      <Text style={styles.chevron}>›</Text>
+    </Pressable>
+  );
+
+  const renderEdit = () => (
+    <>
+      <Text style={styles.title}>{t.myWorkoutOverviewTitle}</Text>
+      <Text style={styles.subtitle}>{t.myWorkoutSubtitle}</Text>
+      {isLoading ? (
+        [...Array(3)].map((_, i) => (
+          <View key={i} style={{ marginBottom: 12 }}>
+            <Skeleton width="100%" height={120} />
+          </View>
+        ))
+      ) : (
+        <>
+          <ProgramEditor userId={userId} days={days} onChange={setDays} />
+          <Text style={[styles.title, { fontSize: 18, marginTop: 24, marginBottom: 12 }]}>
+            {t.replaceSectionTitle}
+          </Text>
+          {replaceOption(t.replaceImportTitle, t.replaceImportDesc, () => setStep('import'))}
+          {replaceOption(t.replaceDefaultTitle, t.replaceDefaultDesc, () => setConfirm('replaceDefault'))}
+        </>
+      )}
+    </>
+  );
+
+  const renderImport = () => (
+    <>
+      <Text style={styles.title}>{t.replaceImportPasteTitle}</Text>
+      <Text style={styles.subtitle}>{t.onboardingImportPasteSubtitle}</Text>
+      <PasteWorkoutInput value={pasted} onChangeText={setPasted} />
+    </>
+  );
+
+  const renderReview = () => (
+    <>
+      <Text style={styles.title}>{t.replaceReviewTitle}</Text>
+      <Text style={styles.subtitle}>{t.replaceReviewSubtitle}</Text>
+      <ProgramEditor userId={userId} days={imported} onChange={setImported} />
+    </>
+  );
+
+  const importedCount = visibleDays(imported).length;
+  const confirmProps = {
+    removeDays: {
+      title: t.removeDaysConfirmTitle,
+      message: t.removeDaysConfirmMsg(removedDayNames().join(', ')),
+      confirmLabel: t.saveChanges,
+      onConfirm: () => {
+        setConfirm(null);
+        saveEdits();
+      },
+      danger: false,
+    },
+    replaceImport: {
+      title: t.replaceConfirmTitle,
+      message: t.replaceConfirmMsg,
+      confirmLabel: t.replaceConfirm,
+      onConfirm: () => {
+        setConfirm(null);
+        replaceWithImport();
+      },
+      danger: true,
+    },
+    replaceDefault: {
+      title: t.replaceConfirmTitle,
+      message: t.replaceConfirmMsg,
+      confirmLabel: t.replaceConfirm,
+      onConfirm: () => {
+        setConfirm(null);
+        replaceWithDefault();
+      },
+      danger: true,
+    },
+    discard: {
+      title: t.discardChangesTitle,
+      message: t.discardChangesMsg,
+      confirmLabel: t.discardChanges,
+      onConfirm: () => {
+        setConfirm(null);
+        navigation.goBack();
+      },
+      danger: true,
+    },
+  } as const;
+  const activeConfirm = confirm ? confirmProps[confirm] : null;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <LogoBar />
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
-          <Text style={styles.backLabel}>{t.back}</Text>
-        </Pressable>
-        <Text style={styles.screenTitle}>{t.myWorkoutOverviewTitle}</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ── Card ── */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.workoutsThisWeek}</Text>
-
-          <View style={styles.cardContent}>
-            {isLoading ? (
-              [...Array(5)].map((_, i) => (
-                <View key={i} style={styles.skeletonRow}>
-                  <View style={styles.skeletonInfo}>
-                    <Skeleton width={60} height={10} style={{ marginBottom: 6 }} />
-                    <Skeleton width="75%" height={14} style={{ marginBottom: 4 }} />
-                    <Skeleton width={80} height={10} />
-                  </View>
-                </View>
-              ))
-            ) : (
-              workouts.map((w) => (
-                <Pressable
-                  key={w.id}
-                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                  onPress={() => navigation.navigate('EditWorkout', { workoutId: w.id })}
-                >
-                  <View style={styles.rowInfo}>
-                    <Text style={styles.dayLabel}>{t.dayLabels[w.day_of_week]}</Text>
-                    <Text style={styles.workoutTitle}>{w.title}</Text>
-                    <Text style={styles.exerciseCount}>
-                      {t.exerciseCount(exerciseCounts[w.id] ?? 0)}
-                    </Text>
-                  </View>
-                  <Text style={styles.chevron}>›</Text>
-                </Pressable>
-              ))
-            )}
-          </View>
-        </View>
-
-        {/* ── Add training day ── */}
-        {!isLoading && (
-          <Pressable
-            style={({ pressed }) => [styles.addDayButton, pressed && styles.addDayButtonPressed]}
-            onPress={() => navigation.navigate('AddTrainingDay')}
-          >
-            <Text style={styles.addDayButtonLabel}>{t.addTrainingDay}</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <Pressable onPress={handleBack} hitSlop={16} accessibilityRole="button">
+            <Text style={styles.backLabel}>{t.back}</Text>
           </Pressable>
-        )}
-      </ScrollView>
+          {step === 'edit' && renderEdit()}
+          {step === 'import' && renderImport()}
+          {step === 'review' && renderReview()}
+        </ScrollView>
+
+        {step === 'edit' && dirty && footerButton(t.saveChanges, handleSaveEdits)}
+        {step === 'import' && footerButton(t.onboardingImportButton, handleOrganise, !pasted.trim())}
+        {step === 'review' &&
+          footerButton(
+            t.replaceSave(importedCount),
+            () => validate(imported) && setConfirm('replaceImport'),
+            importedCount === 0,
+          )}
+      </KeyboardAvoidingView>
+
+      <ConfirmModal
+        visible={activeConfirm !== null}
+        title={activeConfirm?.title ?? ''}
+        message={activeConfirm?.message ?? ''}
+        confirmLabel={activeConfirm?.confirmLabel ?? ''}
+        cancelLabel={t.cancel}
+        onConfirm={() => activeConfirm?.onConfirm()}
+        onCancel={() => setConfirm(null)}
+        confirmDanger={activeConfirm?.danger ?? false}
+      />
     </SafeAreaView>
   );
 }

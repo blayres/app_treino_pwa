@@ -39,6 +39,12 @@ export type WorkoutExercise = {
   workout_id: number;
   exercise_id: number;
   order_index: number;
+  /** `exercise.scheme`/`rest_seconds` are the effective values (per-workout
+   * override if set); these are the catalogue defaults underneath. */
+  base_scheme?: string;
+  base_rest_seconds?: number;
+  scheme_override?: string | null;
+  rest_seconds_override?: number | null;
   exercise: Exercise;
 };
 
