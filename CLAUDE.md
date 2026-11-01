@@ -97,6 +97,7 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Não logar dados pessoais/tokens no console.
 - Cabeçalhos de segurança em `vercel.json` (nosniff, frame DENY, HSTS, Permissions-Policy, CSP). **Todo domínio externo novo** (API, imagens, fontes) precisa entrar na CSP (`connect-src`/`img-src`/…), senão é bloqueado. CSP está em `Report-Only` até confirmar zero violações em produção.
 - Dependências: `npm audit --omit=dev` sem críticas; `npm audit fix` (nunca `--force` sem testar build/testes).
+- Ferramentas de teste/lint/tipos em `devDependencies` (instalar com `-D --save-exact <pkg>@<versão>` para não subir versão maior sem querer). Restam alertas "high" em `image-size`/`postcss`: são do build do Expo (não vão para o navegador) e só saem com `--force` (quebra o Expo 54).
 - Auditoria do banco: `supabase/audit_security.sql` (somente leitura) lista RLS, policies, grants, funções e admins.
 
 ## Performance

@@ -537,7 +537,6 @@ async function seedDatabase(db: DB) {
   // Check if seed was already done
   const existingUsers = await db.getAllAsync<{ id: number }>(`SELECT id FROM users;`);
 
-  console.log('[DB][SEED] existingUsers:', existingUsers);
   const insertProgram = async (userId: number, program: WorkoutDef[]) => {
     for (const [dayOfWeek, title, exerciseIds] of program) {
       // Delete existing workout for this day if exists
