@@ -20,6 +20,8 @@ import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/s
 import { getSessionUser, getOrCreateProfile, markOnboarded } from './src/services/authService';
 import { captureInviteFromUrl } from './src/services/coachInvite';
 import { PendingInviteHost } from './src/components/PendingInviteHost';
+import { GuidedTour } from './src/components/GuidedTour';
+import { useTourStore } from './src/store/useTourStore';
 import { backendMode } from './src/services/backendMode';
 import { supabase } from './src/services/supabaseClient';
 import { AlertHost } from './src/components/AlertHost';
@@ -48,6 +50,7 @@ export default function App() {
   const setActiveSession = useAppStore((s) => s.setActiveSession);
   const activeSession = useAppStore((s) => s.activeSession);
   const needsOnboarding = useAppStore((s) => s.needsOnboarding);
+  const currentUserId = useAppStore((s) => s.currentUser?.id ?? null);
   const setNeedsOnboarding = useAppStore((s) => s.setNeedsOnboarding);
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
   // 'loading'         — waiting for the first auth event, show spinner
@@ -224,6 +227,11 @@ export default function App() {
     didOnboardingRedirectRef.current = true;
   }, [authStatus, navigationReady, needsOnboarding, navigationRef]);
 
+  // Which guided tours the signed-in user has already seen.
+  useEffect(() => {
+    if (authStatus === 'authenticated' && currentUserId) void useTourStore.getState().load(currentUserId);
+  }, [authStatus, currentUserId]);
+
   // A new student who joined a coach skips onboarding: the coach builds the program.
   const handleJoinedCoach = React.useCallback(() => {
     const { currentUser, needsOnboarding: onboarding } = useAppStore.getState();
@@ -328,6 +336,7 @@ export default function App() {
         enabled={authStatus === 'authenticated' && navigationReady}
         onJoined={handleJoinedCoach}
       />
+      {authStatus === 'authenticated' && <GuidedTour />}
       <AlertHost />
     </NavigationContainer>
   );

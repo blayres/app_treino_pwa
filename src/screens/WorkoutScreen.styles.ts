@@ -110,6 +110,8 @@ export const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
   },
+  /** Wrapper the guided tour measures (hugs the pill). */
+  tourAnchor: { alignSelf: 'flex-start' },
   loadColumn: {
     marginLeft: spacing.lg,
     alignItems: 'flex-end',

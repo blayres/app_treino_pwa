@@ -4,6 +4,7 @@ import { styles } from '../screens/WorkoutScreen.styles';
 import { CircularCheckbox } from './CircularCheckbox';
 import { ExerciseLibraryCard } from './ExerciseLibraryCard';
 import { PillButton } from './PillButton';
+import { useTourTarget } from '../store/useTourStore';
 import type { Exercise } from '../services/types';
 import { useI18n } from '../i18n';
 import { formatRest } from '../utils/date';
@@ -24,6 +25,8 @@ type Props = {
   onLoadFocus: (index: number) => void;
   onLoadBlur: (exerciseId: number) => void;
   onShowSubstitutes: (exercise: Exercise) => void;
+  /** First row: the guided tour points at its load inputs and "Ver substitutos". */
+  isTourAnchor?: boolean;
 };
 
 /**
@@ -43,8 +46,11 @@ export const ExerciseRow = memo(function ExerciseRow({
   onLoadFocus,
   onLoadBlur,
   onShowSubstitutes,
+  isTourAnchor = false,
 }: Props) {
   const { t } = useI18n();
+  const loadTourRef = useTourTarget(isTourAnchor ? 'workout.load' : null);
+  const substitutesTourRef = useTourTarget(isTourAnchor ? 'workout.substitutes' : null);
   const [focused, setFocused] = useState<LoadField | null>(null);
   const inputs = useRef<Record<LoadField, TextInput | null>>({ normal: null, progression: null });
   const values = useRef({ normal: loadNormal, progression: loadProgression });
@@ -106,17 +112,19 @@ export const ExerciseRow = memo(function ExerciseRow({
             </Text>
             {exercise.tip ? <Text style={styles.tip}>{exercise.tip}</Text> : null}
             {exercise.library ? <ExerciseLibraryCard library={exercise.library} /> : null}
-            <PillButton
-              label={t.showSubstitutes}
-              onPress={() => onShowSubstitutes(exercise)}
-              accessibilityLabel={t.substitutesTitle(exercise.name)}
-            />
+            <View ref={substitutesTourRef} collapsable={false} style={styles.tourAnchor}>
+              <PillButton
+                label={t.showSubstitutes}
+                onPress={() => onShowSubstitutes(exercise)}
+                accessibilityLabel={t.substitutesTitle(exercise.name)}
+              />
+            </View>
           </>
         ) : null}
       </Pressable>
 
       {!isCompleted ? (
-        <View style={styles.loadColumn}>
+        <View ref={loadTourRef} collapsable={false} style={styles.loadColumn}>
           <Text style={styles.loadLabel}>{t.loadKg}</Text>
           {loadInput('normal', loadNormal)}
           <Text style={styles.loadLabelProgression}>{t.progression}</Text>

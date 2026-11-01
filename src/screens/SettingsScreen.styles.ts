@@ -35,6 +35,7 @@ export const styles = StyleSheet.create({
     marginTop: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.md,
     backgroundColor: colors.surfaceMutedLight, borderRadius: 12,
   },
+  noTopMargin: { marginTop: 0 },
   actionText: { flex: 1, minWidth: 0, marginRight: spacing.sm },
   actionDesc: { ...typography.caption, marginTop: 2 },
   actionLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '500' },
