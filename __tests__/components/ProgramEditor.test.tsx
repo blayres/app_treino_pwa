@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { describe, expect, it, jest } from '@jest/globals';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 // The real picker talks to Supabase; a stub lets the test "pick" an exercise.
 jest.mock('../../src/components/ExercisePickerSheet', () => ({

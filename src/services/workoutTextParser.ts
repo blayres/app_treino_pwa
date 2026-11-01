@@ -32,7 +32,7 @@ export type ParsedDay = {
   exercises: ParsedExercise[];
 };
 
-const WEEKDAYS: Array<[number, string[]]> = [
+const WEEKDAYS: [number, string[]][] = [
   [1, ['segunda', 'segunda-feira', 'seg', 'monday', 'mon', 'lunes', 'lun', 'lundi']],
   [2, ['terca', 'terca-feira', 'ter', 'tuesday', 'tue', 'tues', 'martes', 'mar', 'mardi']],
   [3, ['quarta', 'quarta-feira', 'qua', 'wednesday', 'wed', 'miercoles', 'mie', 'mercredi', 'mer']],

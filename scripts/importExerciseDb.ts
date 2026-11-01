@@ -298,7 +298,7 @@ async function linkExercises(): Promise<void> {
 
   let linked = 0;
   const unmatched: string[] = [];
-  const matchLog: Array<{ from: string; to: string; strategy: string }> = [];
+  const matchLog: { from: string; to: string; strategy: string }[] = [];
 
   for (const ex of exercises) {
     const exNorm = normalize(ex.name);

@@ -7,13 +7,12 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import type { RootStackParamList } from '../navigation/types';
 import { useAppStore } from '../store/useAppStore';
 import { backendMode } from '../services/backendMode';
-import { getLocalUsers, loginWithEmail, setLocalCurrentUser } from '../services/authService';
+import { getLocalUsers, loginWithEmail, setLocalCurrentUser, signInWithGoogle } from '../services/authService';
 import { mapAuthError } from '../services/authErrorMapper';
 import { feedbackStyles } from './FeedbackStyles';
 import { useI18n } from '../i18n';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { OrDivider } from '../components/OrDivider';
-import { signInWithGoogle } from '../services/authService';
 import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Login'>;

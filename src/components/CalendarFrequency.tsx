@@ -124,9 +124,13 @@ export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
       }
     };
 
+    // Latest loadCalendar (it reads current props/state) without re-running the
+    // effect on every render; reload when the month or the user changes.
+    const loadCalendarRef = useRef(loadCalendar);
+    loadCalendarRef.current = loadCalendar;
     useEffect(() => {
-      loadCalendar(offset);
-    }, [offset]);
+      loadCalendarRef.current(offset);
+    }, [offset, userId]);
 
     useImperativeHandle(ref, () => ({
       refresh: () => loadCalendar(offset, true),
