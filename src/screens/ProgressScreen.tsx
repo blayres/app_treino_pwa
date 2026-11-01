@@ -5,8 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../store/useAppStore';
 import { showAlert } from '../store/useDialogStore';
 import { useI18n } from '../i18n';
-import { colors, spacing, typography } from '../theme';
+import { colors, layout, spacing, typography } from '../theme';
 import { LogoBar } from '../components/LogoBar';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { formatShortDate, ProgressChart, Sparkline } from '../components/ProgressChart';
 import {
@@ -147,14 +148,10 @@ export default function ProgressScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={layout.screen} edges={['left', 'right', 'bottom']}>
       <LogoBar />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={16} accessibilityRole="button">
-          <Text style={styles.back}>{t.back}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t.progress}</Text>
-        <Text style={styles.subtitle}>{t.progressHeaderSubtitle}</Text>
+      <ScrollView contentContainerStyle={[layout.content, styles.wide]} showsVerticalScrollIndicator={false}>
+        <ScreenHeader onBack={() => navigation.goBack()} title={t.progress} subtitle={t.progressHeaderSubtitle} />
 
         <View style={styles.periodRow} accessibilityRole="tablist">
           {PERIODS.map((p) => (
@@ -267,20 +264,8 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.backgroundLight },
-  scroll: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
-    width: '100%',
-    maxWidth: 720,
-    alignSelf: 'center',
-  },
-  back: { ...typography.caption, color: colors.olive, marginBottom: spacing.sm },
-  title: { ...typography.h2, color: colors.oliveDark },
-  subtitle: { ...typography.body, marginTop: spacing.xs },
-
-  periodRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, marginBottom: spacing.lg },
+  wide: { maxWidth: 720 },
+  periodRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   periodChip: {
     flex: 1,
     alignItems: 'center',

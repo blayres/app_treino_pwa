@@ -1,14 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useAppStore } from '../store/useAppStore';
 import { showAlert } from '../store/useDialogStore';
 import { useI18n } from '../i18n';
-import { colors } from '../theme';
+import { colors, layout, spacing, typography } from '../theme';
 import { LogoBar } from '../components/LogoBar';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { FooterButton } from '../components/FooterButton';
+import { OptionCard } from '../components/OptionCard';
 import { Skeleton } from '../components/Skeleton';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { invalidateExerciseCatalogue, loadExerciseCatalogue } from '../components/ExercisePickerSheet';
@@ -23,7 +26,6 @@ import {
   visibleDays,
   type DraftDay,
 } from '../services/programService';
-import { styles } from './OnboardingScreen.styles';
 import { FEATURES } from '../config/features';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'MyWorkout'>;
@@ -41,7 +43,6 @@ export default function MyWorkoutScreen() {
   const navigation = useNavigation<Navigation>();
   const currentUser = useAppStore((s) => s.currentUser);
   const { t } = useI18n();
-  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<Step>('edit');
   const [original, setOriginal] = useState<DraftDay[]>([]);
@@ -192,60 +193,9 @@ export default function MyWorkoutScreen() {
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
-  const footerButton = (label: string, onPress: () => void, disabled = false) => (
-    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-      <Pressable
-        onPress={onPress}
-        disabled={disabled || isBusy}
-        accessibilityRole="button"
-        style={({ pressed }) => [
-          styles.primaryButton,
-          pressed && styles.primaryButtonPressed,
-          (disabled || isBusy) && styles.primaryButtonDisabled,
-        ]}
-      >
-        {isBusy ? (
-          <ActivityIndicator color={colors.textPrimaryDark} />
-        ) : (
-          <Text style={styles.primaryButtonLabel}>{label}</Text>
-        )}
-      </Pressable>
-    </View>
-  );
-
-  const replaceOption = (title: string, desc: string, onPress: () => void, disabled = false) => (
-    <Pressable
-      key={title}
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-        styles.option,
-        hovered && !disabled && styles.optionHovered,
-        pressed && styles.optionPressed,
-        disabled && styles.optionDisabled,
-      ]}
-    >
-      <View style={styles.optionBody}>
-        <View style={styles.optionTitleRow}>
-          <Text style={styles.optionTitle}>{title}</Text>
-          {disabled && (
-            <View style={[styles.badge, styles.badgeMuted]}>
-              <Text style={[styles.badgeText, styles.badgeTextMuted]}>{t.comingSoon}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.optionDesc}>{desc}</Text>
-      </View>
-      {!disabled && <Text style={styles.chevron}>›</Text>}
-    </Pressable>
-  );
-
   const renderEdit = () => (
     <>
-      <Text style={styles.title}>{t.myWorkoutOverviewTitle}</Text>
-      <Text style={styles.subtitle}>{t.myWorkoutSubtitle}</Text>
+      <ScreenHeader onBack={handleBack} title={t.myWorkoutOverviewTitle} subtitle={t.myWorkoutSubtitle} />
       {isLoading ? (
         [...Array(3)].map((_, i) => (
           <View key={i} style={{ marginBottom: 12 }}>
@@ -255,11 +205,21 @@ export default function MyWorkoutScreen() {
       ) : (
         <>
           <ProgramEditor userId={userId} days={days} onChange={setDays} />
-          <Text style={[styles.title, { fontSize: 18, marginTop: 24, marginBottom: 12 }]}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">
             {t.replaceSectionTitle}
           </Text>
-          {replaceOption(t.replaceDefaultTitle, t.replaceDefaultDesc, () => setConfirm('replaceDefault'))}
-          {replaceOption(t.replaceImportTitle, t.replaceImportDesc, () => setStep('import'), !FEATURES.importWorkout)}
+          <OptionCard
+            title={t.replaceDefaultTitle}
+            description={t.replaceDefaultDesc}
+            onPress={() => setConfirm('replaceDefault')}
+          />
+          <OptionCard
+            title={t.replaceImportTitle}
+            description={t.replaceImportDesc}
+            onPress={() => setStep('import')}
+            badge={FEATURES.importWorkout ? undefined : t.comingSoon}
+            disabled={!FEATURES.importWorkout}
+          />
         </>
       )}
     </>
@@ -267,16 +227,14 @@ export default function MyWorkoutScreen() {
 
   const renderImport = () => (
     <>
-      <Text style={styles.title}>{t.replaceImportPasteTitle}</Text>
-      <Text style={styles.subtitle}>{t.onboardingImportPasteSubtitle}</Text>
+      <ScreenHeader onBack={handleBack} title={t.replaceImportPasteTitle} subtitle={t.onboardingImportPasteSubtitle} />
       <PasteWorkoutInput value={pasted} onChangeText={setPasted} />
     </>
   );
 
   const renderReview = () => (
     <>
-      <Text style={styles.title}>{t.replaceReviewTitle}</Text>
-      <Text style={styles.subtitle}>{t.replaceReviewSubtitle}</Text>
+      <ScreenHeader onBack={handleBack} title={t.replaceReviewTitle} subtitle={t.replaceReviewSubtitle} />
       <ProgramEditor userId={userId} days={imported} onChange={setImported} />
       <AddAnotherSheetButton
         onPress={() => {
@@ -334,26 +292,31 @@ export default function MyWorkoutScreen() {
   const activeConfirm = confirm ? confirmProps[confirm] : null;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <SafeAreaView style={layout.screen} edges={['left', 'right']}>
       <LogoBar />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <Pressable onPress={handleBack} hitSlop={16} accessibilityRole="button">
-            <Text style={styles.backLabel}>{t.back}</Text>
-          </Pressable>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[layout.content, layout.contentWithFooter]}
+          keyboardShouldPersistTaps="handled"
+        >
           {step === 'edit' && renderEdit()}
           {step === 'import' && renderImport()}
           {step === 'review' && renderReview()}
         </ScrollView>
 
-        {step === 'edit' && dirty && footerButton(t.saveChanges, handleSaveEdits)}
-        {step === 'import' && footerButton(t.onboardingImportButton, handleOrganise, !pasted.trim())}
-        {step === 'review' &&
-          footerButton(
-            t.replaceSave(importedCount),
-            () => validate(imported) && setConfirm('replaceImport'),
-            importedCount === 0,
-          )}
+        {step === 'edit' && dirty && <FooterButton label={t.saveChanges} onPress={handleSaveEdits} loading={isBusy} />}
+        {step === 'import' && (
+          <FooterButton label={t.onboardingImportButton} onPress={handleOrganise} disabled={!pasted.trim()} loading={isBusy} />
+        )}
+        {step === 'review' && (
+          <FooterButton
+            label={t.replaceSave(importedCount)}
+            onPress={() => validate(imported) && setConfirm('replaceImport')}
+            disabled={importedCount === 0}
+            loading={isBusy}
+          />
+        )}
       </KeyboardAvoidingView>
 
       <ConfirmModal
@@ -369,3 +332,7 @@ export default function MyWorkoutScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionTitle: { ...typography.h3, color: colors.oliveDark, marginTop: spacing.xl, marginBottom: spacing.md },
+});

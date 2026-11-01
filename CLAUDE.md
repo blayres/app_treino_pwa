@@ -47,6 +47,12 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 | Aviso / erro | `showAlert(título, msg)` de `store/useDialogStore` (renderizado pelo `AlertHost`) |
 | Confirmação | `ConfirmModal` (`confirmDanger` para ações destrutivas) |
 | Banner do topo | `LogoBar` (toda tela; SafeAreaView **sem** `'top'` nos edges) |
+| Layout de página | `layout.screen` (SafeAreaView), `layout.content` (+ `layout.contentWithFooter` com FooterButton), `layout.card` / `...cardSurface` |
+| "Voltar" + título + subtítulo | `ScreenHeader` |
+| Botão principal fixo no rodapé | `FooterButton` (`loading` mostra spinner sem trocar o texto) |
+| Cartão de escolha grande | `OptionCard` (`highlight`, `badge`, `disabled` para "Em breve") |
+| Sombra | `shadows.card` / `shadows.popover` / `shadows.toast` de `theme/surfaces` (`boxShadow`; nunca `shadow*`/`elevation`) |
+| Datas/dias (fuso do aparelho) | `utils/date`: `localDateKey`, `calendarDaysBetween`, `relativeDay` — nunca fuso fixo |
 | Editar treino (dias, exercícios, séries) | `ProgramEditor` + `services/programService` (`saveProgram`, `loadProgramDraft`, `draftFromText`) |
 | Buscar/criar/apagar exercício | `ExercisePickerSheet` |
 | Gráfico de evolução / mini gráfico | `ProgressChart`, `Sparkline` |
@@ -108,4 +114,4 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 ## Decisões e pendências conhecidas
 - Importar treino (`FEATURES.importWorkout`) desligado até ter IA; planejado também "criar treino com IA por perguntas". Saída da IA deve usar `DraftDay`/`saveProgram`.
 - Exercícios privados: `exercises.owner_id` (null = catálogo). Séries/descanso/notas por treino em `workout_exercises`.
-- Dívidas: estilos `shadow*` obsoletos no react-native-web (usar `boxShadow`); `components/ExerciseRow.tsx` não é usado (a linha está duplicada dentro de `WorkoutScreen`); `AdminScreen` usa formulários antigos; DDL de `exercise_library` não está no repo.
+- Dívidas: `components/ExerciseRow.tsx` não é usado (a linha está duplicada dentro de `WorkoutScreen`); `AdminScreen` usa formulários antigos; DDL de `exercise_library` não está no repo.
