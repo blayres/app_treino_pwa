@@ -408,7 +408,7 @@ export default function WorkoutScreen() {
                     style={({ pressed }) => [styles.buttonSecondary, pressed && styles.buttonSecondaryPressed]}
                     onPress={() => handleStopWithConfirm(true)}
                   >
-                    <Text style={styles.buttonSecondaryLabel}>{t.stopError}</Text>
+                    <Text style={styles.buttonSecondaryLabel}>{t.discardWorkout}</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
@@ -596,9 +596,9 @@ export default function WorkoutScreen() {
 
       <ConfirmModal
         visible={showConfirmModal}
-        title={isCancelAction ? t.stopWorkoutTitle : t.finishWorkoutTitle}
-        message={isCancelAction ? t.stopWorkoutMsg : t.finishWorkoutMsg}
-        confirmLabel={isCancelAction ? t.stop : t.finish}
+        title={isCancelAction ? t.discardWorkoutTitle : t.finishWorkoutTitle}
+        message={isCancelAction ? t.discardWorkoutMsg : t.finishWorkoutMsg}
+        confirmLabel={isCancelAction ? t.discard : t.finish}
         cancelLabel={t.cancel}
         onConfirm={confirmAction}
         onCancel={cancelAction}
