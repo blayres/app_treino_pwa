@@ -1,441 +1,365 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  useWindowDimensions,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../store/useAppStore';
+import { showAlert } from '../store/useDialogStore';
 import { useI18n } from '../i18n';
 import { colors, spacing, typography } from '../theme';
-import { LineChart } from '../components/LineChart';
+import { LogoBar } from '../components/LogoBar';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { formatShortDate, ProgressChart, Sparkline } from '../components/ProgressChart';
 import {
+  deleteLoadHistoryEntries,
+  getCompletedSessionDates,
   getLoadHistoryByUser,
-  getTrackedExercises,
 } from '../services/progressService';
 import {
-  buildProgressionSeries,
-  calculatePersonalRecords,
-  calculateVolumeComparison,
-  countImprovedExercises,
-  countNewPersonalRecords,
-  type PeriodKey,
+  buildExerciseProgress,
+  summarizeProgress,
+  type ExerciseProgress,
   type LoadHistoryRow,
-  type PersonalRecord,
-  type ProgressDataPoint,
+  type PeriodKey,
 } from '../services/progressUtils';
-import { StyleSheet } from 'react-native';
-import { LogoBar } from '../components/LogoBar';
+import { formatDecimal, formatKg, formatKgDelta } from '../utils/decimal';
 
 const PERIODS: PeriodKey[] = ['1m', '3m', '6m', 'all'];
-
-type TrackedExercise = { exercise_id: number; exercise_name: string };
-
-// Three possible states — never render "loading skeletons" so there is no flicker.
-// 'pending'  — first fetch not yet resolved; render nothing below the chrome.
-// 'ready'    — data fetched (may be empty or populated).
-// 'error'    — fetch failed.
 type LoadState = 'pending' | 'ready' | 'error';
+type Entry = ExerciseProgress['entries'][number];
 
+/**
+ * Progress: how each exercise's load evolves.
+ * 1. Period filter (scopes everything below).
+ * 2. Three stat tiles: workouts (vs previous period), exercises improving, records.
+ * 3. One row per exercise (current load, change, sparkline), biggest gain first;
+ *    tapping expands its chart, start/current/best/change and the entries
+ *    (table view, where a wrongly typed entry can be deleted).
+ */
 export default function ProgressScreen() {
   const navigation = useNavigation();
-  const currentUser = useAppStore(state => state.currentUser);
-  const { t } = useI18n();
-  const { width: screenWidth } = useWindowDimensions();
+  const currentUser = useAppStore((state) => state.currentUser);
+  const { t, locale } = useI18n();
 
   const [loadState, setLoadState] = useState<LoadState>('pending');
-  const [history, setHistory] = useState<(LoadHistoryRow & { scheme: string })[]>([]);
-  const [trackedExercises, setTrackedExercises] = useState<TrackedExercise[]>([]);
+  const [history, setHistory] = useState<LoadHistoryRow[]>([]);
+  const [sessionDates, setSessionDates] = useState<string[]>([]);
   const [period, setPeriod] = useState<PeriodKey>('3m');
-  const [selectedExerciseId, setSelectedExerciseId] = useState<number | null>(null);
-
-  // Derived — recalculated synchronously after each state update, no extra renders.
-  const now = new Date();
-  const prs: PersonalRecord[] = calculatePersonalRecords(history);
-  const volumeResult = calculateVolumeComparison(history, now, period);
-  const improvedCount = countImprovedExercises(history, now, period);
-  const newPRCount = countNewPersonalRecords(history, now, period);
-  const progressionData: ProgressDataPoint[] = selectedExerciseId
-    ? buildProgressionSeries(history, selectedExerciseId, now, period)
-    : [];
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [chartWidth, setChartWidth] = useState(0);
+  const [toDelete, setToDelete] = useState<Entry | null>(null);
 
   const load = useCallback(async () => {
     if (!currentUser) return;
     try {
-      const [hist, exercises] = await Promise.all([
+      const [rows, sessions] = await Promise.all([
         getLoadHistoryByUser(currentUser.id),
-        getTrackedExercises(currentUser.id),
+        getCompletedSessionDates(currentUser.id).catch(() => [] as string[]),
       ]);
-      setHistory(hist);
-      setTrackedExercises(exercises);
-      setSelectedExerciseId(id =>
-        id === null && exercises.length > 0 ? exercises[0].exercise_id : id,
-      );
+      setHistory(rows);
+      setSessionDates(sessions);
       setLoadState('ready');
     } catch {
       setLoadState('error');
     }
   }, [currentUser]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  const periodLabel = (p: PeriodKey): string => {
-    if (p === '1m') return t.period1m;
-    if (p === '3m') return t.period3m;
-    if (p === '6m') return t.period6m;
-    return t.periodAll;
+  const now = useMemo(() => new Date(), [history]);
+  const progress = useMemo(() => buildExerciseProgress(history, now, period), [history, now, period]);
+  const summary = useMemo(() => summarizeProgress(progress, sessionDates, now, period), [progress, sessionDates, now, period]);
+
+  // Keep the first exercise open by default so the page always shows a chart.
+  const openExercise = progress.find((p) => p.exercise_id === openId) ?? progress[0] ?? null;
+
+  const periodLabel = (p: PeriodKey) =>
+    p === '1m' ? t.period1m : p === '3m' ? t.period3m : p === '6m' ? t.period6m : t.periodAll;
+  const shortDate = (iso: string) => formatShortDate(iso.slice(0, 10), locale);
+  const pct = (value: number | null) => (value === null ? '' : ` · ${value > 0 ? '+' : ''}${value}%`);
+
+  const handleDelete = async () => {
+    const entry = toDelete;
+    setToDelete(null);
+    if (!entry || entry.ids.length === 0) return;
+    try {
+      await deleteLoadHistoryEntries(entry.ids);
+      setHistory((rows) => rows.filter((r) => r.id == null || !entry.ids.includes(r.id)));
+    } catch (err: any) {
+      showAlert(t.saveError, err?.message ?? t.genericError);
+    }
   };
 
-  const chartWidth = screenWidth - spacing.md * 2 - 2;
+  const renderStat = (label: string, value: string, caption: string) => (
+    <View style={styles.stat} accessible accessibilityLabel={`${label}: ${value} ${caption}`}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statCaption} numberOfLines={2}>{caption}</Text>
+    </View>
+  );
+
+  const renderDetail = (item: ExerciseProgress) => (
+    <View style={styles.detail} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+      {chartWidth > 0 && (
+        <ProgressChart
+          points={item.points}
+          width={chartWidth}
+          locale={locale}
+          bestDate={item.bestDate}
+          accessibilityLabel={t.chartLabel(item.exercise_name)}
+        />
+      )}
+
+      <View style={styles.figures}>
+        {[
+          [t.startLabel, formatKg(item.start, locale)],
+          [t.currentLabel, formatKg(item.current, locale)],
+          [t.bestLabel, formatKg(item.best, locale)],
+          [t.changeLabel, formatKgDelta(item.change, locale)],
+        ].map(([label, value], index) => (
+          <View key={label} style={styles.figure}>
+            <Text style={styles.figureLabel}>{label}</Text>
+            <Text style={[styles.figureValue, index === 3 && item.change > 0 && styles.deltaUp]}>{value}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.entriesTitle}>{t.entriesTitle}</Text>
+      {item.entries.map((entry) => (
+        <View key={entry.date} style={styles.entryRow}>
+          <Text style={styles.entryDate}>{shortDate(entry.date)}</Text>
+          <Text style={styles.entryLoad}>{formatKg(entry.load_kg, locale)}</Text>
+          {entry.ids.length > 0 && (
+            <Pressable
+              onPress={() => setToDelete(entry)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t.deleteEntry(formatKg(entry.load_kg, locale), shortDate(entry.date))}
+              style={({ pressed }) => [styles.entryDelete, pressed && styles.entryDeletePressed]}
+            >
+              <Text style={styles.entryDeleteLabel}>✕</Text>
+            </Pressable>
+          )}
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <LogoBar />
-      {/* Header — always visible immediately, no waiting */}
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
-          <Text style={styles.backLabel}>{t.back}</Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={16} accessibilityRole="button">
+          <Text style={styles.back}>{t.back}</Text>
         </Pressable>
         <Text style={styles.title}>{t.progress}</Text>
-        <Text style={styles.subtitle}>{t.progressSubtitle}</Text>
-      </View>
+        <Text style={styles.subtitle}>{t.progressHeaderSubtitle}</Text>
 
-      {/* Period filter — always visible */}
-      <View style={styles.periodRow}>
-        {PERIODS.map(p => (
-          <Pressable
-            key={p}
-            style={[styles.periodBtn, period === p && styles.periodBtnActive]}
-            onPress={() => setPeriod(p)}
-          >
-            <Text style={[styles.periodLabel, period === p && styles.periodLabelActive]}>
-              {periodLabel(p)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        <View style={styles.periodRow} accessibilityRole="tablist">
+          {PERIODS.map((p) => (
+            <Pressable
+              key={p}
+              onPress={() => setPeriod(p)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: period === p }}
+              style={[styles.periodChip, period === p && styles.periodChipActive]}
+            >
+              <Text style={[styles.periodLabel, period === p && styles.periodLabelActive]}>{periodLabel(p)}</Text>
+            </Pressable>
+          ))}
+        </View>
 
-      {/* Content — only rendered once the fetch resolves (no skeleton flash) */}
-      {loadState === 'pending' ? null : (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {loadState === 'error' ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>{t.progressError}</Text>
-              <Pressable style={styles.retryBtn} onPress={load}>
-                <Text style={styles.retryLabel}>{t.tryAgain}</Text>
-              </Pressable>
+        {loadState === 'pending' ? null : loadState === 'error' ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>{t.progressError}</Text>
+            <Pressable style={styles.retry} onPress={load}>
+              <Text style={styles.retryLabel}>{t.tryAgain}</Text>
+            </Pressable>
+          </View>
+        ) : history.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>{t.loadHistoryEmpty}</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.stats}>
+              {renderStat(
+                t.statWorkouts,
+                String(summary.sessions),
+                summary.previousSessions === null
+                  ? t.statInPeriod
+                  : t.statVsPrevious(summary.sessions - summary.previousSessions),
+              )}
+              {renderStat(t.statImproving, String(summary.improved), t.statImprovingOf(summary.trained))}
+              {/* "Records in the period" needs an earlier period to beat; not shown for "Tudo". */}
+              {period !== 'all' && renderStat(t.statRecords, String(summary.records), t.statRecordsSub)}
             </View>
 
-          ) : history.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>{t.loadHistoryEmpty}</Text>
-            </View>
-
-          ) : (
-            <>
-              {/* ── Summary card ── */}
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>{t.progressSummary}</Text>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryValue}>{improvedCount}</Text>
-                  <Text style={styles.summaryDesc}>{t.improvedExercises(improvedCount)}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryValue}>{newPRCount}</Text>
-                  <Text style={styles.summaryDesc}>{t.newPersonalRecords(newPRCount)}</Text>
-                </View>
-                <View style={[styles.summaryRow, { marginTop: spacing.sm }]}>
-                  <View>
-                    <Text style={styles.summaryLabel}>{t.volumeLabel}</Text>
-                    <Text style={styles.summaryValueLarge}>
-                      {volumeResult.current.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      <Text style={styles.summaryUnit}> {t.volumeUnit}</Text>
-                    </Text>
-                    <Text style={styles.summaryChange}>
-                      {volumeResult.changePercent !== null
-                        ? t.volumeVsPrevious(volumeResult.changePercent)
-                        : t.volumeNoPrevious}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* ── Personal Records card ── */}
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>{t.personalRecords}</Text>
-                {prs.length === 0 ? (
-                  <Text style={styles.emptyCardText}>{t.noPersonalRecords}</Text>
-                ) : (
-                  prs.map(pr => (
-                    <View key={pr.exercise_id} style={styles.prRow}>
-                      <Text style={styles.prName} numberOfLines={1}>{pr.exercise_name}</Text>
-                      <View style={styles.prRight}>
-                        <Text style={styles.prLoad}>
-                          {pr.load_kg % 1 === 0 ? pr.load_kg.toFixed(0) : pr.load_kg.toFixed(1)}
-                          {' '}{t.kgAbbrev}
-                        </Text>
-                        <View style={styles.prBadge}>
-                          <Text style={styles.prBadgeText}>{t.prBadge}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))
-                )}
-              </View>
-
-              {/* ── Exercise Progression card ── */}
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>{t.exerciseProgression}</Text>
-                {trackedExercises.length === 0 ? (
-                  <Text style={styles.emptyCardText}>{t.noPersonalRecords}</Text>
-                ) : (
-                  <>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.exerciseSelectorScroll}
-                      contentContainerStyle={styles.exerciseSelectorContent}
-                    >
-                      {trackedExercises.map(ex => (
+            <Text style={styles.sectionTitle}>{t.evolutionTitle}</Text>
+            {progress.length === 0 ? (
+              <Text style={styles.emptyText}>{t.noDataInPeriod}</Text>
+            ) : (
+              <>
+                <Text style={styles.sectionHint}>{t.evolutionHint}</Text>
+                <View style={styles.list}>
+                  {progress.map((item, index) => {
+                    const isOpen = openExercise?.exercise_id === item.exercise_id;
+                    return (
+                      <View
+                        key={item.exercise_id}
+                        style={[styles.item, index === progress.length - 1 && styles.itemLast]}
+                      >
                         <Pressable
-                          key={ex.exercise_id}
-                          style={[
-                            styles.exerciseChip,
-                            selectedExerciseId === ex.exercise_id && styles.exerciseChipActive,
-                          ]}
-                          onPress={() => setSelectedExerciseId(ex.exercise_id)}
+                          onPress={() => setOpenId(isOpen ? -1 : item.exercise_id)}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: isOpen }}
+                          style={({ pressed }) => [styles.itemHeader, pressed && styles.itemHeaderPressed]}
                         >
-                          <Text
-                            style={[
-                              styles.exerciseChipLabel,
-                              selectedExerciseId === ex.exercise_id && styles.exerciseChipLabelActive,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {ex.exercise_name}
-                          </Text>
+                          <View style={styles.itemInfo}>
+                            <View style={styles.itemNameRow}>
+                              <Text style={styles.itemName} numberOfLines={2}>{item.exercise_name}</Text>
+                              {item.isNewRecord && (
+                                <View style={styles.recordBadge}>
+                                  <Text style={styles.recordBadgeText}>{t.newRecordBadge}</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={styles.itemMeta}>{t.lastTrained(formatShortDate(item.lastDate, locale))}</Text>
+                          </View>
+                          <Sparkline points={item.points} />
+                          <View style={styles.itemValues}>
+                            <Text style={styles.itemCurrent}>
+                              {formatDecimal(item.current, locale, 1)}
+                              <Text style={styles.itemUnit}> kg</Text>
+                            </Text>
+                            <Text style={[styles.itemDelta, item.change > 0 && styles.deltaUp]}>
+                              {formatKgDelta(item.change, locale)}
+                              {pct(item.changePercent)}
+                            </Text>
+                          </View>
                         </Pressable>
-                      ))}
-                    </ScrollView>
-                    {progressionData.length === 0 ? (
-                      <Text style={styles.emptyCardText}>{t.noProgressionData}</Text>
-                    ) : (
-                      <View style={styles.chartContainer}>
-                        <LineChart data={progressionData} width={chartWidth} height={180} />
+                        {isOpen && renderDetail(item)}
                       </View>
-                    )}
-                  </>
-                )}
-              </View>
-            </>
-          )}
-        </ScrollView>
-      )}
+                    );
+                  })}
+                </View>
+              </>
+            )}
+          </>
+        )}
+      </ScrollView>
+
+      <ConfirmModal
+        visible={toDelete !== null}
+        title={t.deleteEntryTitle}
+        message={
+          toDelete ? t.deleteEntryMsg(formatKg(toDelete.load_kg, locale), shortDate(toDelete.date)) : ''
+        }
+        confirmLabel={t.remove}
+        cancelLabel={t.cancel}
+        onConfirm={handleDelete}
+        onCancel={() => setToDelete(null)}
+        confirmDanger
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.backgroundLight,
-  },
-  header: {
+  safe: { flex: 1, backgroundColor: colors.backgroundLight },
+  scroll: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  backLabel: {
-    ...typography.caption,
-    color: colors.olive,
-  },
-  title: {
-    ...typography.h2,
-    marginTop: spacing.sm,
-  },
-  subtitle: {
-    ...typography.caption,
-    marginTop: 2,
-  },
-  periodRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-    gap: spacing.xs,
-  },
-  periodBtn: {
-    flex: 1,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMutedLight,
-    borderWidth: 1,
-    borderColor: colors.borderSoftLight,
-  },
-  periodBtnActive: {
-    backgroundColor: colors.olive,
-    borderColor: colors.olive,
-  },
-  periodLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  periodLabelActive: {
-    color: colors.textPrimaryDark,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
-    gap: spacing.md,
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
   },
-  card: {
+  back: { ...typography.caption, color: colors.olive, marginBottom: spacing.sm },
+  title: { ...typography.h2, color: colors.oliveDark },
+  subtitle: { ...typography.body, marginTop: spacing.xs },
+
+  periodRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, marginBottom: spacing.lg },
+  periodChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderSoftLight,
     backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
+  },
+  periodChipActive: { backgroundColor: colors.olive, borderColor: colors.olive },
+  periodLabel: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  periodLabelActive: { color: colors.textPrimaryDark },
+
+  stats: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xl },
+  stat: {
+    flex: 1,
     padding: spacing.md,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
     borderColor: colors.borderSoftLight,
   },
-  cardTitle: {
-    ...typography.h3,
-    marginBottom: spacing.xs,
+  statLabel: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
+  statValue: { fontSize: 28, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
+  statCaption: { ...typography.caption, fontSize: 11, lineHeight: 14, marginTop: 2 },
+
+  sectionTitle: { ...typography.h3, marginBottom: spacing.xs },
+  sectionHint: { ...typography.caption, marginBottom: spacing.md },
+  list: {
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.borderSoftLight,
+    overflow: 'hidden',
   },
-  summaryRow: {
+  item: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSoftLight },
+  itemLast: { borderBottomWidth: 0 },
+  itemHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
+  itemHeaderPressed: { backgroundColor: colors.surfaceMutedLight },
+  itemInfo: { flex: 1, minWidth: 0 },
+  itemNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  itemName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, flexShrink: 1 },
+  itemMeta: { ...typography.caption, marginTop: 2 },
+  itemValues: { alignItems: 'flex-end', minWidth: 84 },
+  itemCurrent: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  itemUnit: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
+  itemDelta: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
+  deltaUp: { color: colors.deltaUpText },
+  recordBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: colors.accentSoft },
+  recordBadgeText: { fontSize: 10, fontWeight: '700', color: colors.oliveDark },
+
+  detail: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  figures: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.xs,
-    gap: spacing.sm,
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.olive,
-    minWidth: 32,
-    textAlign: 'center',
-  },
-  summaryDesc: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  summaryLabel: {
-    ...typography.caption,
-    marginBottom: 2,
-  },
-  summaryValueLarge: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  summaryUnit: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: colors.textSecondary,
-  },
-  summaryChange: {
-    ...typography.caption,
-    marginTop: 2,
-    color: colors.olive,
-  },
-  prRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderSoftLight,
   },
-  prName: {
-    flex: 1,
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: '500',
-    marginRight: spacing.sm,
-  },
-  prRight: {
+  figure: { flex: 1 },
+  figureLabel: { ...typography.caption, fontSize: 11 },
+  figureValue: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
+  entriesTitle: { ...typography.caption, fontWeight: '600', marginTop: spacing.md, marginBottom: spacing.xs },
+  entryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSoftLight,
   },
-  prLoad: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  prBadge: {
-    backgroundColor: colors.olive,
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  prBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textPrimaryDark,
-  },
-  exerciseSelectorScroll: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  exerciseSelectorContent: {
-    gap: spacing.xs,
-    paddingRight: spacing.xs,
-  },
-  exerciseChip: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 999,
-    backgroundColor: colors.surfaceMutedLight,
-    borderWidth: 1,
-    borderColor: colors.borderSoftLight,
-    maxWidth: 160,
-  },
-  exerciseChipActive: {
-    backgroundColor: colors.olive,
-    borderColor: colors.olive,
-  },
-  exerciseChipLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  exerciseChipLabelActive: {
-    color: colors.textPrimaryDark,
-  },
-  chartContainer: {
-    marginTop: spacing.xs,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  emptyContainer: {
-    marginTop: spacing.xl,
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
-  emptyText: {
-    ...typography.body,
-    textAlign: 'center',
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  emptyCardText: {
-    ...typography.caption,
-    marginTop: spacing.sm,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  retryBtn: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 999,
-    backgroundColor: colors.olive,
-  },
-  retryLabel: {
-    color: colors.textPrimaryDark,
-    fontWeight: '600',
-    fontSize: 14,
-  },
+  entryDate: { flex: 1, ...typography.body, color: colors.textSecondary },
+  entryLoad: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
+  entryDelete: { width: 32, height: 32, marginLeft: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: 16 },
+  entryDeletePressed: { backgroundColor: colors.danger + '1A' },
+  entryDeleteLabel: { fontSize: 14, color: colors.textSecondary },
+
+  empty: { marginTop: spacing.xl, alignItems: 'center', gap: spacing.md },
+  emptyText: { ...typography.body, textAlign: 'center', lineHeight: 20 },
+  retry: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: 999, backgroundColor: colors.olive },
+  retryLabel: { color: colors.textPrimaryDark, fontWeight: '600', fontSize: 14 },
 });

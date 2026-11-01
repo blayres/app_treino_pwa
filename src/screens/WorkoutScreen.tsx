@@ -32,6 +32,7 @@ import { Skeleton } from '../components/Skeleton';
 import { ExerciseLibraryCard } from '../components/ExerciseLibraryCard';
 import { useI18n } from '../i18n';
 import { LogoBar } from '../components/LogoBar';
+import { formatDecimal, parseDecimal, sanitizeDecimalInput } from '../utils/decimal';
 
 const STALE_THRESHOLD_SECONDS = 2 * 60 * 60; // 2 hours
 
@@ -49,7 +50,7 @@ export default function WorkoutScreen() {
   const currentUser = useAppStore(state => state.currentUser);
   const activeSession = useAppStore(state => state.activeSession);
   const setActiveSession = useAppStore(state => state.setActiveSession);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [focusedLoadInput, setFocusedLoadInput] = useState<string | null>(null);
   const routeTitle = route.params?.workoutTitle;
@@ -111,8 +112,8 @@ export default function WorkoutScreen() {
 
       loadRows.forEach(row => {
         map[row.exercise_id] = {
-          normal: row.load_kg != null ? String(row.load_kg) : '',
-          progression: row.progression_kg != null ? String(row.progression_kg) : '',
+          normal: row.load_kg != null ? formatDecimal(Number(row.load_kg), locale) : '',
+          progression: row.progression_kg != null ? formatDecimal(Number(row.progression_kg), locale) : '',
         };
       });
 
@@ -270,47 +271,63 @@ export default function WorkoutScreen() {
     setShowConfirmModal(false);
   };
 
+  // Latest typed loads, readable from timers/handlers without stale closures.
+  const loadsRef = useRef(loads);
+  loadsRef.current = loads;
+  // Per-exercise debounce of the "current load" save, and exercises whose final
+  // value still has to go to the progress history (recorded on blur only, so
+  // intermediate keystrokes like 4 → 43 → 43,5 never become history entries).
+  const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const pendingHistoryRef = useRef<Set<number>>(new Set());
+
+  const saveLoads = (exerciseId: number, recordHistory: boolean) => {
+    if (!currentUser) return;
+    clearTimeout(saveTimersRef.current[exerciseId]);
+    delete saveTimersRef.current[exerciseId];
+    const current = loadsRef.current[exerciseId] || { normal: '', progression: '' };
+    void upsertExerciseLoad({
+      userId: currentUser.id,
+      exerciseId,
+      loadKg: parseDecimal(current.normal) || null,
+      progressionKg: parseDecimal(current.progression) || null,
+      recordHistory,
+    }).catch(err => console.warn('Falha ao salvar carga:', err));
+  };
+
+  const flushLoad = (exerciseId: number) => {
+    const recordHistory = pendingHistoryRef.current.has(exerciseId);
+    if (!recordHistory && !saveTimersRef.current[exerciseId]) return;
+    pendingHistoryRef.current.delete(exerciseId);
+    saveLoads(exerciseId, recordHistory);
+  };
+
+  // Leaving the screen saves anything still pending.
+  useEffect(() => () => {
+    const ids = new Set([
+      ...Object.keys(saveTimersRef.current).map(Number),
+      ...pendingHistoryRef.current,
+    ]);
+    ids.forEach(id => flushLoad(id));
+  }, []);
+
   const handleChangeLoad = (
     exerciseId: number,
-    value: string,
+    text: string,
     type: 'normal' | 'progression',
   ) => {
     if (!currentUser) return;
+    const value = sanitizeDecimalInput(text, locale);
 
     setLoads(prev => {
       const current = prev[exerciseId] || { normal: '', progression: '' };
-      const updated = {
-        ...prev,
-        [exerciseId]: {
-          ...current,
-          [type]: value,
-        },
-      };
-
-      // Save to database
-      const numeric = Number(value.replace(',', '.'));
-      const normalValue =
-        type === 'normal'
-          ? numeric || null
-          : Number(updated[exerciseId].normal.replace(',', '.')) || null;
-      const progressionValue =
-        type === 'progression'
-          ? numeric || null
-          : Number(updated[exerciseId].progression.replace(',', '.')) || null;
-
-      if (!Number.isNaN(numeric) || value === '') {
-        (async () => {
-          await upsertExerciseLoad({
-            userId: currentUser.id,
-            exerciseId,
-            loadKg: normalValue,
-            progressionKg: progressionValue,
-          });
-        })();
-      }
-
-      return updated;
+      const next = { ...prev, [exerciseId]: { ...current, [type]: value } };
+      loadsRef.current = next;
+      return next;
     });
+
+    if (type === 'normal') pendingHistoryRef.current.add(exerciseId);
+    clearTimeout(saveTimersRef.current[exerciseId]);
+    saveTimersRef.current[exerciseId] = setTimeout(() => saveLoads(exerciseId, false), 700);
   };
 
   const handleInputFocus = (index: number) => {
@@ -319,14 +336,16 @@ export default function WorkoutScreen() {
     }, 100);
   };
 
-  const moveLoadCaretToEnd = (inputKey: string, value: string, index: number) => {
+  const moveLoadCaretToEnd = (inputKey: string, index: number) => {
     setFocusedLoadInput(inputKey);
     handleInputFocus(index);
 
-    // Safari normally places the caret where the user tapped. For short
-    // numeric values, editing from the end is faster and avoids a manual tap.
+    // Safari places the caret where the user tapped; editing short numbers from
+    // the end is faster. Read the value at that moment (never a captured one)
+    // and only on focus, so the caret is never moved while the user types.
     requestAnimationFrame(() => {
-      const position = value.length;
+      const [exerciseId, type] = inputKey.split('-') as [string, 'normal' | 'progression'];
+      const position = (loadsRef.current[Number(exerciseId)]?.[type] ?? '').length;
       loadInputRefs.current[inputKey]?.setNativeProps({
         selection: { start: position, end: position },
       });
@@ -544,17 +563,11 @@ export default function WorkoutScreen() {
                         onChangeText={text =>
                           handleChangeLoad(item.exercise.id, text, 'normal')
                         }
-                        onFocus={() => moveLoadCaretToEnd(
-                          `${item.exercise.id}-normal`,
-                          currentLoads.normal,
-                          index,
-                        )}
-                        onPressIn={() => moveLoadCaretToEnd(
-                          `${item.exercise.id}-normal`,
-                          currentLoads.normal,
-                          index,
-                        )}
-                        onBlur={() => setFocusedLoadInput(null)}
+                        onFocus={() => moveLoadCaretToEnd(`${item.exercise.id}-normal`, index)}
+                        onBlur={() => {
+                          setFocusedLoadInput(null);
+                          flushLoad(item.exercise.id);
+                        }}
                         placeholder={
                           focusedLoadInput === `${item.exercise.id}-normal` ? '' : t.loadPlaceholder
                         }
@@ -572,17 +585,11 @@ export default function WorkoutScreen() {
                         onChangeText={text =>
                           handleChangeLoad(item.exercise.id, text, 'progression')
                         }
-                        onFocus={() => moveLoadCaretToEnd(
-                          `${item.exercise.id}-progression`,
-                          currentLoads.progression,
-                          index,
-                        )}
-                        onPressIn={() => moveLoadCaretToEnd(
-                          `${item.exercise.id}-progression`,
-                          currentLoads.progression,
-                          index,
-                        )}
-                        onBlur={() => setFocusedLoadInput(null)}
+                        onFocus={() => moveLoadCaretToEnd(`${item.exercise.id}-progression`, index)}
+                        onBlur={() => {
+                          setFocusedLoadInput(null);
+                          flushLoad(item.exercise.id);
+                        }}
                         placeholder={
                           focusedLoadInput === `${item.exercise.id}-progression` ? '' : t.loadPlaceholder
                         }

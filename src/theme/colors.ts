@@ -29,6 +29,12 @@ export const colors = {
   borderSoftLight: '#D3D6CA',
   borderSoftDark: '#2E3126',
 
+  // Charts (validated: lightness band, chroma floor, ≥3:1 on white)
+  chartLine: '#5A7A1E',
+  chartLineWash: 'rgba(90, 122, 30, 0.10)',
+  chartGrid: '#E4E6DD',
+  deltaUpText: '#3B6312',
+
   // Status
   success: '#76C893',
   warning: '#E9C46A',

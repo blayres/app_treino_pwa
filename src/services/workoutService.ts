@@ -677,8 +677,11 @@ export async function upsertExerciseLoad(params: {
   exerciseId: number;
   loadKg: number | null;
   progressionKg: number | null;
+  /** Also add the load to the progress history (default true). */
+  recordHistory?: boolean;
 }) {
   const now = new Date().toISOString();
+  const recordHistory = params.recordHistory ?? true;
 
   exerciseLoadsCache.delete(params.userId);
 
@@ -699,7 +702,7 @@ export async function upsertExerciseLoad(params: {
     if (error) throw error;
 
     // Record history snapshot for progress tracking (non-blocking)
-    if (params.loadKg != null && params.loadKg > 0) {
+    if (recordHistory && params.loadKg != null && params.loadKg > 0) {
       void recordLoadHistory({ userId: params.userId, exerciseId: params.exerciseId, loadKg: params.loadKg });
     }
     return;
@@ -720,7 +723,7 @@ export async function upsertExerciseLoad(params: {
   );
 
   // Record history snapshot for progress tracking (non-blocking)
-  if (params.loadKg != null && params.loadKg > 0) {
+  if (recordHistory && params.loadKg != null && params.loadKg > 0) {
     void recordLoadHistory({ userId: params.userId, exerciseId: params.exerciseId, loadKg: params.loadKg });
   }
 }

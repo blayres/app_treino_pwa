@@ -45,6 +45,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
     marginBottom: spacing.sm,
   },
   changeDay: { ...typography.caption, color: colors.olive, fontWeight: '600' },
@@ -137,7 +138,7 @@ export const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlignVertical: 'top',
   },
-  dayActions: { flexDirection: 'row', gap: spacing.md },
+  dayActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', columnGap: spacing.md, rowGap: 2, flexShrink: 1 },
   itemNotes: { ...typography.caption, marginTop: 2, lineHeight: 16 },
   notesToggle: { ...typography.caption, color: colors.olive, fontWeight: '600', marginTop: 2 },
   anotherSheet: {

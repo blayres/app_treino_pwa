@@ -87,6 +87,7 @@ export async function getLoadHistoryByUser(userId: number): Promise<
       .from('exercise_load_history')
       .select(
         `
+        id,
         exercise_id,
         load_kg,
         recorded_at,
@@ -102,6 +103,7 @@ export async function getLoadHistoryByUser(userId: number): Promise<
     if (error) throw error;
 
     return (data ?? []).map((row: any) => ({
+      id: Number(row.id),
       exercise_id: Number(row.exercise_id),
       exercise_name: String(row.exercises?.name ?? '—'),
       load_kg: Number(row.load_kg),
@@ -112,6 +114,7 @@ export async function getLoadHistoryByUser(userId: number): Promise<
 
   const db = await getLocalDb();
   const rows = await db.getAllAsync<{
+    id: number;
     exercise_id: number;
     exercise_name: string;
     load_kg: number;
@@ -119,6 +122,7 @@ export async function getLoadHistoryByUser(userId: number): Promise<
     scheme: string;
   }>(
     `SELECT
+       h.id,
        h.exercise_id,
        e.name AS exercise_name,
        h.load_kg,
@@ -172,4 +176,38 @@ export async function getTrackedExercises(userId: number): Promise<
     userId,
   );
   return rows;
+}
+
+/** Deletes history entries (e.g. a typo like 435 kg instead of 43,5). */
+export async function deleteLoadHistoryEntries(ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { error } = await supabase.from('exercise_load_history').delete().in('id', ids);
+    if (error) throw error;
+    return;
+  }
+  const db = await getLocalDb();
+  for (const id of ids) await db.runAsync(`DELETE FROM exercise_load_history WHERE id = ?;`, id);
+}
+
+/** Start times (ISO) of the user's completed workout sessions. */
+export async function getCompletedSessionDates(userId: number): Promise<string[]> {
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { data, error } = await supabase
+      .from('workout_sessions')
+      .select('started_at')
+      .eq('user_id', userId)
+      .eq('completed', 1)
+      .order('started_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((row: any) => String(row.started_at));
+  }
+  const db = await getLocalDb();
+  const rows = await db.getAllAsync<{ started_at: string }>(
+    `SELECT started_at FROM workout_sessions WHERE user_id = ? AND completed = 1 ORDER BY started_at ASC;`,
+    userId,
+  );
+  return rows.map((row) => row.started_at);
 }

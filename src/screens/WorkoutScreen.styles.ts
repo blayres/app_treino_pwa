@@ -34,6 +34,9 @@ export const styles = StyleSheet.create({
   },
   buttonPrimary: {
     flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
     backgroundColor: colors.olive,
     borderRadius: 999,
     paddingVertical: spacing.sm,
@@ -43,11 +46,15 @@ export const styles = StyleSheet.create({
     opacity: 0.9,
   },
   buttonPrimaryLabel: {
+    textAlign: 'center',
     color: colors.textPrimaryDark,
     fontWeight: '600',
   },
   buttonSecondary: {
     flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
     backgroundColor: colors.surfaceMutedLight,
     borderRadius: 999,
     paddingVertical: spacing.sm,
@@ -59,6 +66,7 @@ export const styles = StyleSheet.create({
     opacity: 0.9,
   },
   buttonSecondaryLabel: {
+    textAlign: 'center',
     color: colors.textSecondary,
     fontWeight: '500',
   },
