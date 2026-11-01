@@ -81,7 +81,7 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
     return () => {
       cancelled = true;
     };
-  }, [visible, userId]);
+  }, [visible, userId, t]);
 
   // Mobile Safari keeps the layout viewport at full height when its keyboard
   // opens. Use the visual viewport so the bottom sheet stays above it.

@@ -60,14 +60,16 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
     return ago.value === 1 ? t.done1Month : t.doneMonths(ago.value);
   };
 
+  // Keep previous content visible while refreshing (no skeleton → content
+  // layout shift); only the very first load shows the skeleton.
+  const hasDataRef = useRef(false);
   useEffect(() => {
     (async () => {
-      // Don't set isLoading=true if we already have data — keep previous content
-      // visible during refresh to eliminate the skeleton→content layout shift (CLS)
-      if (workouts.length === 0) setIsLoading(true);
+      if (!hasDataRef.current) setIsLoading(true);
       try {
         const workoutsWithLastDone = await getWorkoutsByUser(userId);
         setWorkouts(workoutsWithLastDone);
+        hasDataRef.current = true;
       } finally {
         setIsLoading(false);
       }

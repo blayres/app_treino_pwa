@@ -10,12 +10,13 @@ PWA de treino (Expo 54 + React Native Web) com Supabase (auth + Postgres). Produ
 | Ação | Comando |
 |---|---|
 | Dev (web) | `npm run web` → http://localhost:8081 |
+| Lint | `npm run lint` (ESLint, config do Expo; zero avisos) |
 | Tipos | `npm run typecheck` |
 | Testes | `npm test` (Jest + ts-jest, arquivos em `__tests__/`) |
 | Cobertura | `npm run test:coverage` |
 | Build web | `npm run build:web` |
 
-O pre-commit (Husky) roda `npm test` e `build:web`. Antes de todo commit também: `npm run typecheck` sem erros.
+O pre-commit (Husky) roda `lint`, `typecheck`, `npm test` e `build:web`.
 
 ## Git e deploy
 - Trabalhar na `develop`. `main` = produção (deploy automático na Vercel a cada push).

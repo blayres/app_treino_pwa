@@ -72,12 +72,12 @@ export default function MyWorkoutScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [userId, t]);
 
   useEffect(() => {
     load();
     if (userId) loadExerciseCatalogue(userId).catch(() => {});
-  }, [load]);
+  }, [load, userId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo?.({ y: 0, animated: false });

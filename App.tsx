@@ -15,6 +15,13 @@ import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import { lazyScreen } from './src/navigation/lazyScreen';
 import type { RootStackParamList } from './src/navigation/types';
+import { colors } from './src/theme/colors';
+import { useAppStore } from './src/store/useAppStore';
+import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
+import { getSessionUser, getOrCreateProfile } from './src/services/authService';
+import { backendMode } from './src/services/backendMode';
+import { supabase } from './src/services/supabaseClient';
+import { AlertHost } from './src/components/AlertHost';
 
 // Non-critical screens — lazy loaded after first paint
 const WorkoutScreen = lazyScreen(() => import('./src/screens/WorkoutScreen'));
@@ -25,14 +32,6 @@ const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen')
 const SettingsScreen = lazyScreen(() => import('./src/screens/SettingsScreen'));
 const ProgressScreen = lazyScreen(() => import('./src/screens/ProgressScreen'));
 const OnboardingScreen = lazyScreen(() => import('./src/screens/OnboardingScreen'));
-
-import { colors } from './src/theme/colors';
-import { useAppStore } from './src/store/useAppStore';
-import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
-import { getSessionUser, getOrCreateProfile } from './src/services/authService';
-import { backendMode } from './src/services/backendMode';
-import { supabase } from './src/services/supabaseClient';
-import { AlertHost } from './src/components/AlertHost';
 
 export type { RootStackParamList } from './src/navigation/types';
 

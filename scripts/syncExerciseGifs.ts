@@ -67,38 +67,6 @@ type RapidExercise = {
     instructions?: string[];
 };
 
-async function fetchRapidExercises(): Promise<RapidExercise[]> {
-    const res = await fetch('https://exercisedb.p.rapidapi.com/exercises?limit=1500', {
-        headers: {
-            'X-RapidAPI-Key': RAPIDAPI_KEY,
-            'X-RapidAPI-Host': 'exercisedb.p.rapidapi.com',
-        },
-    });
-
-    if (!res.ok) {
-        throw new Error(`RapidAPI exercises error: ${res.status} ${await res.text()}`);
-    }
-
-    const data: any = await res.json();
-
-    console.log('RapidAPI response type:', Array.isArray(data) ? 'array' : typeof data);
-    console.log('RapidAPI sample:', JSON.stringify(data).slice(0, 1000));
-
-    if (Array.isArray(data)) {
-        return data as RapidExercise[];
-    }
-
-    if (data && Array.isArray(data.data)) {
-        return data.data as RapidExercise[];
-    }
-
-    if (data && Array.isArray(data.exercises)) {
-        return data.exercises as RapidExercise[];
-    }
-
-    throw new Error('Unexpected RapidAPI response format');
-}
-
 async function searchRapidExerciseByName(name: string): Promise<RapidExercise | null> {
     const res = await fetch(
         `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(name)}?offset=0&limit=10`,

@@ -134,7 +134,7 @@ describe('matchExercise', () => {
 });
 
 describe('coach sheets (real examples)', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+   
   const { readFileSync } = require('fs');
   const fixture = (name: string) => readFileSync(`${__dirname}/fixtures/${name}`, 'utf8');
   const byName = (days: ReturnType<typeof parseWorkoutText>) =>

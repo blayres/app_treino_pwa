@@ -170,7 +170,7 @@ export default function WorkoutScreen() {
     return () => {
       cancelled = true;
     };
-  }, [workoutId, currentUser]);
+  }, [workoutId, currentUser, locale]);
 
   const handleStart = async () => {
     if (!currentUser || isSessionForThisWorkout) return;

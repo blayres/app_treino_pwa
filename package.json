@@ -13,7 +13,8 @@
     "prepare": "husky",
     "test": "jest --runInBand",
     "test:coverage": "jest --coverage --collectCoverageFrom='src/{services,utils,store}/**/*.ts'",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
     "@jest/globals": "29.7.0",
@@ -45,6 +46,8 @@
     "@testing-library/react": "^16.3.0",
     "@types/react": "~19.1.0",
     "@types/sql.js": "^1.4.9",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~10.0.0",
     "husky": "^9.1.7",
     "typescript": "~5.9.2"
   },

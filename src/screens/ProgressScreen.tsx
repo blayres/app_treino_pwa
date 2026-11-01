@@ -68,7 +68,7 @@ export default function ProgressScreen() {
     void load();
   }, [load]);
 
-  const now = useMemo(() => new Date(), [history]);
+  const now = useMemo(() => new Date(), []);
   const progress = useMemo(() => buildExerciseProgress(history, now, period), [history, now, period]);
   const summary = useMemo(() => summarizeProgress(progress, sessionDates, now, period), [progress, sessionDates, now, period]);
 

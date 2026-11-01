@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { calendarDaysBetween, localDateKey, relativeDay } from '../src/utils/date';
+import { calendarDaysBetween, localDateKey, relativeDay , formatRest } from '../src/utils/date';
 
 // Dates are built in the machine's local time zone, like the app does on the phone.
 const at = (y: number, m: number, d: number, h = 12, min = 0) => new Date(y, m - 1, d, h, min);
@@ -38,7 +38,6 @@ describe('relativeDay', () => {
   });
 });
 
-import { formatRest } from '../src/utils/date';
 
 describe('formatRest', () => {
   it.each([
