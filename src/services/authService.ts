@@ -1,9 +1,15 @@
-import { getDb } from '../db';
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import { applyDefaultProgram } from './defaultWorkoutService';
 import { getWorkoutsByUser } from './workoutService';
 import type { User } from './types';
+
+// Local SQLite (sql.js) is only for local mode: load it on demand so it stays
+// out of the main bundle in production.
+async function getDb() {
+  const { getDb: open } = await import('../db');
+  return open();
+}
 
 const LAST_USER_KEY = 'lastUserId';
 const AUTH_SESSION_MISSING = 'Auth session missing';
