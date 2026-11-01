@@ -81,6 +81,9 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - No app só existem `EXPO_PUBLIC_SUPABASE_URL` e a anon key. Service role apenas em `scripts/` (env local). **Nunca** commitar segredos; chaves de API (ex.: IA) ficam em Edge Function/secret do Supabase, configuradas pela usuária.
 - Validar entrada no cliente (ex.: `sanitizeDecimalInput`, `maxLength`) **e** confiar no banco para autorização.
 - Não logar dados pessoais/tokens no console.
+- Cabeçalhos de segurança em `vercel.json` (nosniff, frame DENY, HSTS, Permissions-Policy, CSP). **Todo domínio externo novo** (API, imagens, fontes) precisa entrar na CSP (`connect-src`/`img-src`/…), senão é bloqueado. CSP está em `Report-Only` até confirmar zero violações em produção.
+- Dependências: `npm audit --omit=dev` sem críticas; `npm audit fix` (nunca `--force` sem testar build/testes).
+- Auditoria do banco: `supabase/audit_security.sql` (somente leitura) lista RLS, policies, grants, funções e admins.
 
 ## Performance
 - Telas não críticas com `lazyScreen` (code splitting). Home e Login carregam direto.
