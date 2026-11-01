@@ -60,6 +60,9 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 | Gráfico de evolução / mini gráfico | `ProgressChart`, `Sparkline` |
 | Linha de exercício no treino | `ExerciseRow` (memo; callbacks estáveis via `useCallback`) |
 | Cartão com título | `SectionCard` |
+| Botão dentro de cartão (primário / contorno) | `ActionButton` |
+| Inicial do nome em círculo | `InitialAvatar` |
+| Aluno na lista do personal | `StudentRow` (+ `studentStatus` em `services/coachService`) |
 | Carregamento | `Skeleton` (só no 1º carregamento; em recarga manter o conteúdo) |
 | Números/cargas | `utils/decimal`: `sanitizeDecimalInput`, `parseDecimal`, `formatDecimal`, `formatKg`, `formatKgDelta` |
 | Ícones | SVG inline no estilo dos existentes (`PencilIcon`, ícones do onboarding); sem libs de ícones |
@@ -84,7 +87,7 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Sem transações via PostgREST: operações em várias etapas desfazem o que fizeram em caso de erro (ex.: `createWorkoutForUser`) ou viram RPC `security definer`.
 
 ## Segurança
-- **RLS em todas as tabelas**: cada usuário só lê/escreve as próprias linhas; admin (`profiles.role = 'admin'`) via `current_profile_is_admin()`. Ver `supabase/migration_security.sql`. Nunca criar policy `using (true)` para escrita.
+- **RLS em todas as tabelas**: cada usuário só lê/escreve as próprias linhas; admin (`profiles.role = 'admin'`) via `current_profile_is_admin()`; personal só nos alunos vinculados via `is_coach_of(user_id)` (lê tudo, escreve só treino/exercícios do aluno). Ver `supabase/migration_security.sql` e `migration_coach.sql`. Nunca criar policy `using (true)` para escrita.
 - Admin é decidido **só** por `profiles.role` no banco. **Nunca confiar em `user_metadata`** (o usuário edita).
 - Usuário não pode alterar `profiles.role`/`auth_id` (grants por coluna). Novas colunas editáveis → `grant update (coluna)`.
 - RPC `security definer`: `set search_path`, checar `auth.uid()`/dono no início, `revoke … from public, anon` e `grant execute … to authenticated`.
@@ -122,4 +125,6 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 ## Decisões e pendências conhecidas
 - Importar treino (`FEATURES.importWorkout`) desligado até ter IA; planejado também "criar treino com IA por perguntas". Saída da IA deve usar `DraftDay`/`saveProgram`.
 - Exercícios privados: `exercises.owner_id` (null = catálogo). Séries/descanso/notas por treino em `workout_exercises`.
-- Dívidas: `AdminScreen` usa formulários antigos; DDL de `exercise_library` não está no repo.
+- Personal (`migration_coach.sql`): qualquer usuário vira personal (`profiles.coach_code`); aluno entra por código/link `/convite/CODE` (`coachInvite.ts` guarda o código até o login, `PendingInviteHost` pergunta). Um personal por aluno (`coach_students`). O personal usa as **mesmas telas** do aluno com `studentId` na rota: `CoachProgram` → `MyWorkoutScreen`, `StudentProgress` → `ProgressScreen` (somente leitura). O aluno continua podendo editar o próprio treino.
+- Admin global (`role = 'admin'`) só para o catálogo de exercícios (sem tela; via SQL). `/admin` redireciona para a área do personal.
+- Dívidas: DDL de `exercise_library` não está no repo.

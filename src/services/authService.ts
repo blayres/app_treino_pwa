@@ -3,6 +3,7 @@ import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import { applyDefaultProgram } from './defaultWorkoutService';
 import { getWorkoutsByUser } from './workoutService';
 import type { User } from './types';
+import { appOrigin } from '../config/app';
 
 // Local SQLite (sql.js) is only for local mode: load it on demand so it stays
 // out of the main bundle in production.
@@ -28,10 +29,7 @@ export async function loginWithEmail(email: string, password: string) {
 export async function signUpWithEmail(email: string, password: string, name?: string) {
   ensureSupabaseEnabled();
 
-  const redirectTo =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/login`
-      : 'https://app-treino-pwa-pi.vercel.app/login';
+  const redirectTo = `${appOrigin()}/login`;
 
   const { error } = await supabase.auth.signUp({
     email,
