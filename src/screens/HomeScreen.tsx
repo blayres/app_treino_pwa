@@ -13,6 +13,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { useI18n } from '../i18n';
 import { PencilIcon } from '../components/PencilIcon';
 import { LogoBar } from '../components/LogoBar';
+import { ProgramUpdateReminder } from '../components/ProgramUpdateReminder';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -106,6 +107,12 @@ export default function HomeScreen() {
               <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
             </View>
           </View>
+
+          <ProgramUpdateReminder
+            userId={currentUser.id}
+            refreshKey={refreshKey}
+            onUpdate={() => navigation.navigate('MyWorkout')}
+          />
 
           <SectionCard
             title={t.workoutsThisWeek}

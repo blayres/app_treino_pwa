@@ -27,6 +27,7 @@ import {
   type DraftDay,
 } from '../services/programService';
 import { FEATURES } from '../config/features';
+import { restartProgramCycle } from '../services/programReminder';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'MyWorkout'>;
 /** edit = current program; import/review = replacing it with a pasted one. */
@@ -106,6 +107,8 @@ export default function MyWorkoutScreen() {
     try {
       await work();
       invalidateWorkoutsByUserCache(userId);
+      // The program was updated: the "time to update" reminder starts over.
+      restartProgramCycle(userId).catch(() => {});
       after();
     } catch (err: any) {
       showAlert(t.saveError, err?.message ?? t.errorSavingWorkout);
