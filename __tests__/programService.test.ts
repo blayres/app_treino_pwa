@@ -27,12 +27,17 @@ jest.mock('../src/services/workoutService', () => ({
   invalidateWorkoutExercisesCache: jest.fn(),
   getWorkoutsByUser: jest.fn(),
   getWorkoutExercises: jest.fn(),
+  MoveNotSupportedError: class MoveNotSupportedError extends Error {},
+  moveWorkoutsToDays: jest.fn(async (moves: any[]) => {
+    if (moves.length) calls.push(`move:${moves.map((m) => `${m.workoutId}->${m.dayOfWeek}`).join(',')}`);
+  }),
 }));
 
 import * as workoutService from '../src/services/workoutService';
 import {
   copyDayTo,
   draftFromText,
+  swapDays,
   isProgramDirty,
   loadProgramDraft,
   saveProgram,
@@ -86,7 +91,23 @@ describe('saveProgram', () => {
     expect(calls).toEqual(['archive:1', 'create:5:Dia 5:30/-']);
   });
 
-  it('moves a day by archiving and re-creating it, archiving before creating (swap-safe)', async () => {
+  it('swapping two days moves the same workouts in place (history stays) and updates nothing else', async () => {
+    const draft = [{ ...original[0], dayOfWeek: 3 }, { ...original[1], dayOfWeek: 1 }];
+    await saveProgram({ userId: 1, draft, original, defaultTitle });
+    expect(calls).toEqual(['move:1->3,2->1']);
+  });
+
+  it('removed days are archived before moves, so a moved day can take a freed weekday', async () => {
+    const draft = [{ ...original[0], dayOfWeek: 3 }, { ...original[1], hidden: true }];
+    await saveProgram({ userId: 1, draft, original, defaultTitle });
+    expect(calls).toEqual(['archive:2', 'move:1->3']);
+  });
+
+  it('without the move_workouts migration, falls back to archive + re-create', async () => {
+    const mocked = jest.requireMock('../src/services/workoutService') as any;
+    mocked.moveWorkoutsToDays.mockImplementationOnce(async () => {
+      throw new mocked.MoveNotSupportedError();
+    });
     const draft = [{ ...original[0], dayOfWeek: 3 }, { ...original[1], dayOfWeek: 1 }];
     await saveProgram({ userId: 1, draft, original, defaultTitle });
     expect(calls).toEqual(['archive:1', 'archive:2', 'create:3:A:10/-,11/-', 'create:1:B:20/-']);
@@ -178,5 +199,17 @@ describe('copyDayTo', () => {
     expect(copy.workoutId).toBeUndefined();
     expect(copy.items.map((i) => i.exercise?.id)).toEqual([10, 11]);
     expect(copy.items[0].key).not.toBe(original[0].items[0].key);
+  });
+});
+
+describe('swapDays', () => {
+  it('exchanges the weekdays of two cards and keeps them sorted', () => {
+    const result = swapDays(original, original[0].key, original[1].key);
+    expect(result.map((d) => [d.workoutId, d.dayOfWeek])).toEqual([[2, 1], [1, 3]]);
+  });
+
+  it('is a no-op for the same or an unknown card', () => {
+    expect(swapDays(original, original[0].key, original[0].key)).toBe(original);
+    expect(swapDays(original, original[0].key, 'nope')).toBe(original);
   });
 });
