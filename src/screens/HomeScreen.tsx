@@ -17,6 +17,7 @@ import { ProgramUpdateReminder } from '../components/ProgramUpdateReminder';
 import { ActionButton } from '../components/ActionButton';
 import { InitialAvatar } from '../components/InitialAvatar';
 import { getCoachCode } from '../services/coachService';
+import { useTourStore, useTourTarget } from '../store/useTourStore';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -29,6 +30,13 @@ export default function HomeScreen() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showWorkoutCompleted, setShowWorkoutCompleted] = useState(false);
   const [isCoach, setIsCoach] = useState(false);
+  const toursLoaded = useTourStore((s) => s.seen !== null);
+  const startTourIfNew = useTourStore((s) => s.startIfNew);
+  const daysRef = useTourTarget('home.days');
+  const editRef = useTourTarget('home.edit');
+  const frequencyRef = useTourTarget('home.frequency');
+  const progressRef = useTourTarget('home.progress');
+  const settingsRef = useTourTarget('home.settings');
 
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
@@ -44,6 +52,15 @@ export default function HomeScreen() {
     if (!userId) return;
     getCoachCode(userId).then((code) => setIsCoach(code !== null)).catch(() => setIsCoach(false));
   }, [userId]);
+
+  // New users: guided tour once the week's workouts had time to render.
+  useFocusEffect(
+    useCallback(() => {
+      if (!toursLoaded) return;
+      const timer = setTimeout(() => startTourIfNew('home'), 900);
+      return () => clearTimeout(timer);
+    }, [toursLoaded, startTourIfNew]),
+  );
 
   useEffect(() => {
     const handleWorkoutSessionUpdated = () => refreshHomeData();
@@ -97,6 +114,7 @@ export default function HomeScreen() {
                 <Text style={styles.greeting} numberOfLines={1} ellipsizeMode="tail">{t.greeting(currentUser.name)}</Text>
                 <View style={styles.actionsRow}>
                   <Pressable
+                    ref={settingsRef}
                     onPress={() => navigation.navigate('Settings')}
                     hitSlop={10}
                     style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
@@ -121,37 +139,44 @@ export default function HomeScreen() {
             onUpdate={() => navigation.navigate('MyWorkout')}
           />
 
-          <SectionCard
-            title={t.workoutsThisWeek}
-            rightElement={
-              <Pressable
-                onPress={() => navigation.navigate('MyWorkout')}
-                hitSlop={10}
-                style={({ pressed }) => [homeStyles.pencilButton, pressed && homeStyles.pencilButtonPressed]}
-                accessibilityRole="button"
-                accessibilityLabel={t.customizeMyWorkout}
-              >
-                <PencilIcon size={15} color={colors.olive} opacity={0.65} />
-              </Pressable>
-            }
-          >
-            <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} />
-          </SectionCard>
+          <View ref={daysRef} collapsable={false}>
+            <SectionCard
+              title={t.workoutsThisWeek}
+              rightElement={
+                <Pressable
+                  ref={editRef}
+                  onPress={() => navigation.navigate('MyWorkout')}
+                  hitSlop={10}
+                  style={({ pressed }) => [homeStyles.pencilButton, pressed && homeStyles.pencilButtonPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.customizeMyWorkout}
+                >
+                  <PencilIcon size={15} color={colors.olive} opacity={0.65} />
+                </Pressable>
+              }
+            >
+              <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} />
+            </SectionCard>
+          </View>
 
-          <SectionCard title={t.frequency} rightLabel={checkInLabel}>
-            <CalendarFrequency
-              ref={calendarRef}
-              userId={currentUser.id}
-              onLoad={(count, total) => setCheckInLabel(t.checkInCountLabel(count, total))}
-            />
-          </SectionCard>
+          <View ref={frequencyRef} collapsable={false}>
+            <SectionCard title={t.frequency} rightLabel={checkInLabel}>
+              <CalendarFrequency
+                ref={calendarRef}
+                userId={currentUser.id}
+                onLoad={(count, total) => setCheckInLabel(t.checkInCountLabel(count, total))}
+              />
+            </SectionCard>
+          </View>
 
-          <SectionCard title={t.progress}>
-            <Text style={styles.sectionDescription}>{t.progressSubtitle}</Text>
-            <View style={styles.cardAction}>
-              <ActionButton label={t.viewMyProgress} onPress={() => navigation.navigate('Progress')} />
-            </View>
-          </SectionCard>
+          <View ref={progressRef} collapsable={false}>
+            <SectionCard title={t.progress}>
+              <Text style={styles.sectionDescription}>{t.progressSubtitle}</Text>
+              <View style={styles.cardAction}>
+                <ActionButton label={t.viewMyProgress} onPress={() => navigation.navigate('Progress')} />
+              </View>
+            </SectionCard>
+          </View>
 
           <SectionCard title={t.myWorkout}>
             <Text style={styles.sectionDescription}>{t.myWorkoutDescription}</Text>

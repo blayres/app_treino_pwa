@@ -32,6 +32,7 @@ import { SubstitutesSheet } from '../components/SubstitutesSheet';
 import { useI18n } from '../i18n';
 import { LogoBar } from '../components/LogoBar';
 import { formatDecimal, parseDecimal, sanitizeDecimalInput } from '../utils/decimal';
+import { useTourStore, useTourTarget } from '../store/useTourStore';
 
 const STALE_THRESHOLD_SECONDS = 2 * 60 * 60; // 2 hours
 
@@ -70,6 +71,9 @@ export default function WorkoutScreen() {
   const [isCancelAction, setIsCancelAction] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+  const startTourRef = useTourTarget('workout.start');
+  const toursLoaded = useTourStore((s) => s.seen !== null);
+  const startTourIfNew = useTourStore((s) => s.startIfNew);
 
   // Keep durable storage in sync whenever completedIds changes.
   useEffect(() => {
@@ -95,6 +99,14 @@ export default function WorkoutScreen() {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [workoutId]);
+
+  // New users: tips on the first workout opened (start, load, substitutes).
+  const hasExercises = !isLoading && exercises.length > 0;
+  useEffect(() => {
+    if (!toursLoaded || !hasExercises) return;
+    const timer = setTimeout(() => startTourIfNew('workout'), 600);
+    return () => clearTimeout(timer);
+  }, [toursLoaded, hasExercises, startTourIfNew]);
 
   const isSessionForThisWorkout =
     activeSession && activeSession.workoutId === workoutId && activeSession.isRunning;
@@ -403,6 +415,7 @@ export default function WorkoutScreen() {
             <View style={styles.actions}>
               {!isSessionForThisWorkout ? (
                 <Pressable
+                  ref={startTourRef}
                   style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
                   onPress={handleStart}
                 >
@@ -484,6 +497,7 @@ export default function WorkoutScreen() {
                   onLoadFocus={scrollToRow}
                   onLoadBlur={flushLoad}
                   onShowSubstitutes={setSubstitutesFor}
+                  isTourAnchor={index === 0}
                 />
               );
             }}

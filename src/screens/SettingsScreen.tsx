@@ -14,6 +14,7 @@ import { showAlert } from '../store/useDialogStore';
 import { LogoBar } from '../components/LogoBar';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { getMyCoach, joinCoach, joinErrorKey } from '../services/coachService';
+import { useTourStore } from '../store/useTourStore';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -123,6 +124,23 @@ export default function SettingsScreen() {
         </View>
 
         <CoachCard onOpenCoachArea={() => navigation.navigate('Coach')} />
+
+        <View style={styles.card}>
+          <Pressable
+            onPress={() => {
+              useTourStore.getState().replay();
+              navigation.navigate('Home');
+            }}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.actionRow, styles.noTopMargin, pressed && styles.buttonPressed]}
+          >
+            <View style={styles.actionText}>
+              <Text style={styles.actionLabel}>{t.tourReplay}</Text>
+              <Text style={styles.actionDesc}>{t.tourReplayDesc}</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t.account}</Text>

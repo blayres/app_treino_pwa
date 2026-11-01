@@ -63,6 +63,7 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 | Botão dentro de cartão (primário / contorno) | `ActionButton` |
 | Inicial do nome em círculo | `InitialAvatar` |
 | Aluno na lista do personal | `StudentRow` (+ `studentStatus` em `services/coachService`) |
+| Dica/tutorial apontando algo na tela | `GuidedTour` + `useTourTarget('id')` no elemento + passo em `services/tours.ts` (`TOURS`); a tela chama `useTourStore().startIfNew(tour)` |
 | Carregamento | `Skeleton` (só no 1º carregamento; em recarga manter o conteúdo) |
 | Números/cargas | `utils/decimal`: `sanitizeDecimalInput`, `parseDecimal`, `formatDecimal`, `formatKg`, `formatKgDelta` |
 | Ícones | SVG inline no estilo dos existentes (`PencilIcon`, ícones do onboarding); sem libs de ícones |
@@ -127,5 +128,6 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Importar treino (`FEATURES.importWorkout`) desligado até ter IA; planejado também "criar treino com IA por perguntas". Saída da IA deve usar `DraftDay`/`saveProgram`.
 - Exercícios privados: `exercises.owner_id` (null = catálogo). Séries/descanso/notas por treino em `workout_exercises`.
 - Personal (`migration_coach.sql`): qualquer usuário vira personal (`profiles.coach_code`); aluno entra por código/link `/convite/CODE` (`coachInvite.ts` guarda o código até o login, `PendingInviteHost` pergunta). Um personal por aluno (`coach_students`). O personal usa as **mesmas telas** do aluno com `studentId` na rota: `CoachProgram` → `MyWorkoutScreen`, `StudentProgress` → `ProgressScreen` (somente leitura). O aluno continua podendo editar o próprio treino.
+- Tutorial guiado (`migration_guided_tour.sql`): `profiles.tours_seen` (contas antigas marcadas como vistas). Passo sem alvo na tela é pulado; elemento novo importante → novo passo em `TOURS` com textos `tour*` nos 4 idiomas.
 - Admin global (`role = 'admin'`) só para o catálogo de exercícios (sem tela; via SQL). `/admin` redireciona para a área do personal.
 - Dívidas: DDL de `exercise_library` não está no repo.
