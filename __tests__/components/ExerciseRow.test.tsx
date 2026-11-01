@@ -27,6 +27,7 @@ const setup = (overrides: Partial<React.ComponentProps<typeof ExerciseRow>> = {}
     onChangeLoad: jest.fn(),
     onLoadFocus: jest.fn(),
     onLoadBlur: jest.fn(),
+    onShowSubstitutes: jest.fn(),
     ...overrides,
   };
   render(<ExerciseRow {...props} />);
@@ -52,6 +53,12 @@ describe('ExerciseRow', () => {
     expect(props.onChangeLoad).toHaveBeenCalledWith(7, '45', 'progression');
     fireEvent.blur(input);
     expect(props.onLoadBlur).toHaveBeenCalledWith(7);
+  });
+
+  it('"Ver substitutos" asks the screen to show alternatives for this exercise', () => {
+    const props = setup();
+    fireEvent.click(screen.getByLabelText('Substitutos de Supino Reto'));
+    expect(props.onShowSubstitutes).toHaveBeenCalledWith(exercise);
   });
 
   it('only offers the checkbox while a session of this workout runs', () => {

@@ -3,6 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { styles } from '../screens/WorkoutScreen.styles';
 import { CircularCheckbox } from './CircularCheckbox';
 import { ExerciseLibraryCard } from './ExerciseLibraryCard';
+import { PillButton } from './PillButton';
 import type { Exercise } from '../services/types';
 import { useI18n } from '../i18n';
 import { formatRest } from '../utils/date';
@@ -22,11 +23,12 @@ type Props = {
   onChangeLoad: (exerciseId: number, text: string, field: LoadField) => void;
   onLoadFocus: (index: number) => void;
   onLoadBlur: (exerciseId: number) => void;
+  onShowSubstitutes: (exercise: Exercise) => void;
 };
 
 /**
  * One exercise in the workout screen: name, scheme, rest, coach notes,
- * animation, and the load/progression inputs. Memoised: typing in one row
+ * animation, "Ver substitutos", and the load/progression inputs. Memoised: typing in one row
  * doesn't re-render the others.
  */
 export const ExerciseRow = memo(function ExerciseRow({
@@ -40,6 +42,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   onChangeLoad,
   onLoadFocus,
   onLoadBlur,
+  onShowSubstitutes,
 }: Props) {
   const { t } = useI18n();
   const [focused, setFocused] = useState<LoadField | null>(null);
@@ -103,6 +106,11 @@ export const ExerciseRow = memo(function ExerciseRow({
             </Text>
             {exercise.tip ? <Text style={styles.tip}>{exercise.tip}</Text> : null}
             {exercise.library ? <ExerciseLibraryCard library={exercise.library} /> : null}
+            <PillButton
+              label={t.showSubstitutes}
+              onPress={() => onShowSubstitutes(exercise)}
+              accessibilityLabel={t.substitutesTitle(exercise.name)}
+            />
           </>
         ) : null}
       </Pressable>
