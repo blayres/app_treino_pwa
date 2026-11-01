@@ -25,14 +25,6 @@ export function getCachedWorkoutExercises(workoutId: number): WorkoutExercise[] 
   return null;
 }
 
-export function getCachedWorkoutsByUser(userId: number): WorkoutWithLastDone[] | null {
-  const cached = workoutsByUserCache.get(userId);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
-  return null;
-}
-
 export function getCachedExerciseLoads(userId: number): ExerciseLoad[] | null {
   const cached = exerciseLoadsCache.get(userId);
 
@@ -324,64 +316,6 @@ export async function replaceWorkoutItems(workoutId: number, items: WorkoutItemI
   invalidateWorkoutExercisesCache(workoutId);
 }
 
-export async function addExerciseToWorkout(workoutId: number, exerciseId: number): Promise<void> {
-  if (backendMode === 'supabase') {
-    ensureSupabaseEnabled();
-    // Get current max order_index
-    const { data, error: fetchError } = await supabase
-      .from('workout_exercises')
-      .select('order_index')
-      .eq('workout_id', workoutId)
-      .order('order_index', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (fetchError) throw fetchError;
-    const nextIndex = data ? Number(data.order_index) + 1 : 0;
-
-    const { error } = await supabase.from('workout_exercises').insert({
-      workout_id: workoutId,
-      exercise_id: exerciseId,
-      order_index: nextIndex,
-    });
-    if (error) throw error;
-    return;
-  }
-
-  const db = await getLocalDb();
-  const row = await db.getFirstAsync<{ max_idx: number }>(
-    `SELECT MAX(order_index) as max_idx FROM workout_exercises WHERE workout_id = ?;`,
-    workoutId,
-  );
-  const nextIndex = row?.max_idx != null ? row.max_idx + 1 : 0;
-  await db.runAsync(
-    `INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (?, ?, ?);`,
-    workoutId,
-    exerciseId,
-    nextIndex,
-  );
-}
-
-export async function removeExerciseFromWorkout(workoutExerciseId: number): Promise<void> {
-  if (backendMode === 'supabase') {
-    ensureSupabaseEnabled();
-    const { data, error } = await supabase
-      .from('workout_exercises')
-      .delete()
-      .eq('id', workoutExerciseId)
-      .select('id')
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) throw new Error('Exercício não encontrado ou sem permissão para removê-lo.');
-    return;
-  }
-
-  const db = await getLocalDb();
-  await db.runAsync(
-    `DELETE FROM workout_exercises WHERE id = ?;`,
-    workoutExerciseId,
-  );
-}
-
 export async function archiveWorkout(workoutId: number): Promise<void> {
   const archivedAt = new Date().toISOString();
 
@@ -406,25 +340,6 @@ export async function archiveWorkout(workoutId: number): Promise<void> {
   );
 }
 
-export async function getWorkoutExerciseCount(workoutId: number): Promise<number> {
-  if (backendMode === 'supabase') {
-    ensureSupabaseEnabled();
-    const { count, error } = await supabase
-      .from('workout_exercises')
-      .select('id', { count: 'exact', head: true })
-      .eq('workout_id', workoutId);
-    if (error) throw error;
-    return count ?? 0;
-  }
-
-  const db = await getLocalDb();
-  const row = await db.getFirstAsync<{ cnt: number }>(
-    `SELECT COUNT(*) as cnt FROM workout_exercises WHERE workout_id = ?;`,
-    workoutId,
-  );
-  return row?.cnt ?? 0;
-}
-
 export function invalidateWorkoutsByUserCache(userId?: number) {
   if (typeof userId === 'number') {
     workoutsByUserCache.delete(userId);
@@ -441,15 +356,6 @@ export function invalidateWorkoutExercisesCache(workoutId?: number) {
   }
 
   workoutExercisesCache.clear();
-}
-
-export function invalidateExerciseLoadsCache(userId?: number) {
-  if (typeof userId === 'number') {
-    exerciseLoadsCache.delete(userId);
-    return;
-  }
-
-  exerciseLoadsCache.clear();
 }
 
 export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExercise[]> {

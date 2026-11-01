@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Text, View } from 'react-native';
 import { useI18n } from '../i18n';
-import { styles } from './Timer.styles';
+import { styles } from './LiveTimer.styles';
 
 type Props = {
   startedAt: string; // ISO string

@@ -40,8 +40,4 @@ export const useI18n = create<I18nState>((set) => {
 
 // Convenience: get translations without subscribing to locale changes
 // (useful in non-component code)
-export function getT(): Translations {
-  return useI18n.getState().t;
-}
-
 export type { Locale, Translations };
