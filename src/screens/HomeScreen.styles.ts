@@ -9,19 +9,9 @@ export const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: spacing.xxl,
   },
-  logoBar: {
-    width: '100%',
-    backgroundColor: colors.oliveLogo,
-    alignItems: 'center',
-  },
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
-  },
-  logo: {
-    width: '75%',
-    maxWidth: 280,
-    height: 52,
   },
   header: {
     flexDirection: 'row',
@@ -82,22 +72,34 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     overflow: 'visible',
   },
+  // Profile-avatar pattern (Gmail/Notion/Slack): initial in a filled circle
+  // opens Settings. 40px touch target, soft halo on hover/press.
   settingsButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.borderSoftLight,
-    backgroundColor: colors.surfaceMutedLight,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settingsButtonPressed: {
-    opacity: 0.7,
+  settingsButtonHovered: {
+    backgroundColor: colors.olive + '14',
   },
-  settingsIcon: {
-    fontSize: 25,
-    color: colors.olive,
+  settingsButtonPressed: {
+    backgroundColor: colors.olive + '24',
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.olive,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 18,
+    color: colors.textPrimaryDark,
   },
   toolsRow: {
     flexDirection: 'row',

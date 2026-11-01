@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, Image, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles } from './HomeScreen.styles';
 import { useAppStore } from '../store/useAppStore';
@@ -12,6 +12,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useI18n } from '../i18n';
 import { PencilIcon } from '../components/PencilIcon';
+import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -75,17 +76,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
       >
-        <View style={[styles.logoBar, { paddingTop: insets.top }]}>
-          <Image
-            source={require('../../assets/logo_completed_light_background.png')}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityElementsHidden
-            importantForAccessibility="no"
-            // @ts-ignore — web-only prop; tells the browser not to lazy-load this above-fold image
-            loading="eager"
-          />
-        </View>
+        <LogoBar />
 
         <View style={styles.content}>
           <View style={styles.header}>
@@ -96,11 +87,19 @@ export default function HomeScreen() {
                   <Pressable
                     onPress={() => navigation.navigate('Settings')}
                     hitSlop={10}
-                    style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsButtonPressed]}
+                    style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+                      styles.settingsButton,
+                      hovered && styles.settingsButtonHovered,
+                      pressed && styles.settingsButtonPressed,
+                    ]}
                     accessibilityRole="button"
                     accessibilityLabel={t.settings}
                   >
-                    <Text style={styles.settingsIcon}>⚙︎</Text>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarInitial}>
+                        {(currentUser.name.trim()[0] ?? '?').toUpperCase()}
+                      </Text>
+                    </View>
                   </Pressable>
                 </View>
               </View>

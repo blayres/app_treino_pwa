@@ -19,8 +19,7 @@ export const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   cardTitle: { ...typography.h3 },
-  languageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
-  rowDescription: { ...typography.body },
+  languageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   fieldLabel: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.xs },
   usernameRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   input: {
@@ -53,6 +52,7 @@ export const styles = StyleSheet.create({
   dangerRow: { borderWidth: 1, borderColor: colors.danger + '55', backgroundColor: colors.danger + '0D' },
   dangerLabel: { ...typography.body, color: colors.danger, fontWeight: '600' },
   dangerChevron: { fontSize: 22, lineHeight: 22, color: colors.danger },
+  errorText: { ...typography.caption, color: colors.danger, marginTop: spacing.sm },
   buttonPressed: { opacity: 0.72 },
   buttonDisabled: { opacity: 0.5 },
   planHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

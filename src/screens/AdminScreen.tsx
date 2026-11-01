@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from './AdminScreen.styles';
@@ -9,6 +9,8 @@ import { isCurrentUserAdmin } from '../services/authService';
 import { getStudentStats, type StudentStats } from '../services/adminStatsService';
 import { colors } from '../theme/colors';
 import { useI18n } from '../i18n';
+import { showAlert } from '../store/useDialogStore';
+import { LogoBar } from '../components/LogoBar';
 
 export default function AdminScreen() {
   const navigation = useNavigation();
@@ -108,11 +110,11 @@ export default function AdminScreen() {
         tip: exerciseForm.tip.trim() || null,
         exercise_library_id: null,
       });
-      Alert.alert(t.savedSuccess, t.exerciseSaved);
+      showAlert(t.savedSuccess, t.exerciseSaved);
       setExerciseForm({ id: '', name: '', primary: '', secondary: '', rest: '90', scheme: '3x10-12', tip: '' });
       setExercises(await listExercises());
     } catch (error: any) {
-      Alert.alert(t.saveError, error?.message ?? t.couldNotSaveExercise);
+      showAlert(t.saveError, error?.message ?? t.couldNotSaveExercise);
     }
   };
 
@@ -130,17 +132,18 @@ export default function AdminScreen() {
         .map((value) => Number(value.trim()))
         .filter((value) => Number.isFinite(value) && value > 0);
       await replaceWorkoutExerciseOrder(workoutId, parsedExerciseIds);
-      Alert.alert(t.savedSuccess, t.workoutSaved);
+      showAlert(t.savedSuccess, t.workoutSaved);
       setWorkoutForm({ id: '', title: '', day: '1', exerciseIds: '' });
       setWorkouts(await getWorkoutsByUser(selectedUserId));
     } catch (error: any) {
-      Alert.alert(t.saveError, error?.message ?? t.couldNotSaveWorkout);
+      showAlert(t.saveError, error?.message ?? t.couldNotSaveWorkout);
     }
   };
 
   if (authorized === false) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+        <LogoBar />
         <View style={styles.container}>
           <Text style={styles.title}>{t.accessDenied}</Text>
           <Text style={styles.description}>{t.accessDeniedMsg}</Text>
@@ -153,7 +156,8 @@ export default function AdminScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{t.adminPanel}</Text>
         <Text style={styles.description}>{t.adminPanelDesc}</Text>

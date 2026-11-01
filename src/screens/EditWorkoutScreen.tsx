@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Alert,
   ActivityIndicator,
   Dimensions,
   Modal,
@@ -32,6 +31,8 @@ import {
 import { ConfirmModal } from '../components/ConfirmModal';
 import type { Exercise, WorkoutExercise } from '../services/types';
 import { styles, pickerStyles } from './EditWorkoutScreen.styles';
+import { showAlert } from '../store/useDialogStore';
+import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'EditWorkout'>;
 type Route = RouteProp<RootStackParamList, 'EditWorkout'>;
@@ -72,7 +73,7 @@ export default function EditWorkoutScreen() {
       const data = await getWorkoutExercises(workoutId);
       setExercises(data);
     } catch (err: any) {
-      Alert.alert(t.saveError, err?.message ?? t.genericError);
+      showAlert(t.saveError, err?.message ?? t.genericError);
     } finally {
       setIsLoadingExercises(false);
     }
@@ -139,7 +140,7 @@ export default function EditWorkoutScreen() {
         invalidateWorkoutsByUserCache(currentUser?.id);
         return true;
       } catch (err: any) {
-        Alert.alert(t.saveError, err?.message ?? t.errorSavingWorkout);
+        showAlert(t.saveError, err?.message ?? t.errorSavingWorkout);
         setTitle(savedTitle);
         return false;
       } finally {
@@ -171,7 +172,7 @@ export default function EditWorkoutScreen() {
         const data = await listExercises();
         setAllExercises(data);
       } catch (err: any) {
-        Alert.alert(t.saveError, err?.message ?? t.genericError);
+        showAlert(t.saveError, err?.message ?? t.genericError);
       } finally {
         setIsLoadingPicker(false);
       }
@@ -182,7 +183,7 @@ export default function EditWorkoutScreen() {
   const handlePickExercise = async (exercise: Exercise) => {
     const alreadyAdded = exercises.some((we) => we.exercise_id === exercise.id);
     if (alreadyAdded) {
-      Alert.alert('', t.exerciseAlreadyAdded);
+      showAlert('', t.exerciseAlreadyAdded);
       return;
     }
     setShowPicker(false);
@@ -192,7 +193,7 @@ export default function EditWorkoutScreen() {
       invalidateWorkoutsByUserCache(currentUser?.id);
       await loadExercises();
     } catch (err: any) {
-      Alert.alert(t.saveError, err?.message ?? t.errorAddingExercise);
+      showAlert(t.saveError, err?.message ?? t.errorAddingExercise);
     }
   };
 
@@ -222,7 +223,7 @@ export default function EditWorkoutScreen() {
         await loadExercises();
       }
     } catch (err: any) {
-      Alert.alert(
+      showAlert(
         t.saveError,
         err?.message ?? (isLast ? t.errorArchivingWorkout : t.errorRemovingExercise),
       );
@@ -238,7 +239,7 @@ export default function EditWorkoutScreen() {
       invalidateWorkoutsByUserCache(currentUser?.id);
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert(t.saveError, err?.message ?? t.errorArchivingWorkout);
+      showAlert(t.saveError, err?.message ?? t.errorArchivingWorkout);
     }
   };
 
@@ -252,7 +253,8 @@ export default function EditWorkoutScreen() {
   const isLast = exercises.length === 1;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
           <Text style={styles.backLabel}>{t.back}</Text>

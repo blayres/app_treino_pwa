@@ -8,7 +8,8 @@ type ConfirmModalProps = {
   title: string;
   message: string;
   confirmLabel: string;
-  cancelLabel: string;
+  /** Omit for a single-button (informational) dialog. */
+  cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
   confirmDanger?: boolean;
@@ -28,15 +29,17 @@ export function ConfirmModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
+          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {message ? <Text style={styles.message}>{message}</Text> : null}
           <View style={styles.actions}>
-            <Pressable
-              style={({ pressed }) => [styles.buttonCancel, pressed && styles.buttonPressed]}
-              onPress={onCancel}
-            >
-              <Text style={styles.buttonCancelLabel}>{cancelLabel}</Text>
-            </Pressable>
+            {cancelLabel ? (
+              <Pressable
+                style={({ pressed }) => [styles.buttonCancel, pressed && styles.buttonPressed]}
+                onPress={onCancel}
+              >
+                <Text style={styles.buttonCancelLabel}>{cancelLabel}</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               style={({ pressed }) => [
                 confirmDanger ? styles.buttonConfirmDanger : styles.buttonConfirm,

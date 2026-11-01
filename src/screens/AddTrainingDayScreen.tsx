@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Alert,
   ActivityIndicator,
   Dimensions,
   Modal,
@@ -25,6 +24,8 @@ import {
 } from '../services/workoutService';
 import type { Exercise } from '../services/types';
 import { styles, pickerStyles } from './AddTrainingDayScreen.styles';
+import { showAlert } from '../store/useDialogStore';
+import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'AddTrainingDay'>;
 
@@ -101,7 +102,7 @@ export default function AddTrainingDayScreen() {
         const data = await listExercises();
         setAllExercises(data);
       } catch (err: any) {
-        Alert.alert(t.saveError, err?.message ?? t.genericError);
+        showAlert(t.saveError, err?.message ?? t.genericError);
       } finally {
         setIsLoadingPicker(false);
       }
@@ -111,7 +112,7 @@ export default function AddTrainingDayScreen() {
   const handlePickExercise = (exercise: Exercise) => {
     const alreadyAdded = selectedExercises.some((e) => e.id === exercise.id);
     if (alreadyAdded) {
-      Alert.alert('', t.exerciseAlreadyAdded);
+      showAlert('', t.exerciseAlreadyAdded);
       return;
     }
     setSelectedExercises((prev) => [...prev, exercise]);
@@ -124,15 +125,15 @@ export default function AddTrainingDayScreen() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('', t.titleRequired);
+      showAlert('', t.titleRequired);
       return;
     }
     if (selectedDay === null) {
-      Alert.alert('', t.dayRequired);
+      showAlert('', t.dayRequired);
       return;
     }
     if (selectedExercises.length === 0) {
-      Alert.alert('', t.atLeastOneExercise);
+      showAlert('', t.atLeastOneExercise);
       return;
     }
     if (!currentUser) return;
@@ -155,7 +156,7 @@ export default function AddTrainingDayScreen() {
         err?.status === 409 ||
         String(err?.message ?? '').toLowerCase().includes('unique') ||
         String(err?.message ?? '').toLowerCase().includes('conflict');
-      Alert.alert(
+      showAlert(
         t.saveError,
         isConflict ? t.dayAlreadyHasWorkout : (err?.message ?? t.errorSavingWorkout),
       );
@@ -171,7 +172,8 @@ export default function AddTrainingDayScreen() {
     : allExercises;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
           <Text style={styles.backLabel}>{t.back}</Text>

@@ -31,6 +31,7 @@ import type { Exercise } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
 import { ExerciseLibraryCard } from '../components/ExerciseLibraryCard';
 import { useI18n } from '../i18n';
+import { LogoBar } from '../components/LogoBar';
 
 const STALE_THRESHOLD_SECONDS = 2 * 60 * 60; // 2 hours
 
@@ -345,7 +346,8 @@ export default function WorkoutScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

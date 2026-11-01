@@ -114,6 +114,9 @@ export async function deleteCurrentAccount(): Promise<void> {
     ensureSupabaseEnabled();
     const { error } = await supabase.rpc('delete_own_account');
     if (error) throw error;
+    // The auth user no longer exists; drop the stored session locally so a
+    // reload doesn't try to restore it (a server-side signOut would fail).
+    await supabase.auth.signOut({ scope: 'local' });
     return;
   }
 

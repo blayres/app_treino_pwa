@@ -23,6 +23,7 @@ import { useI18n } from '../i18n';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { OrDivider } from '../components/OrDivider';
 import { colors } from '../theme/colors';
+import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
 
@@ -139,7 +140,8 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

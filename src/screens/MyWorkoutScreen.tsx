@@ -4,8 +4,7 @@ import {
   Text,
   Pressable,
   ScrollView,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +20,8 @@ import {
 import type { WorkoutWithLastDone } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
 import { styles } from './MyWorkoutScreen.styles';
+import { showAlert } from '../store/useDialogStore';
+import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'MyWorkout'>;
 
@@ -71,7 +72,7 @@ export default function MyWorkoutScreen() {
       );
       setExerciseCounts(counts);
     } catch (err: any) {
-      Alert.alert(t.saveError, err?.message ?? t.genericError);
+      showAlert(t.saveError, err?.message ?? t.genericError);
     } finally {
       setIsFirstLoad(false);
     }
@@ -88,7 +89,8 @@ export default function MyWorkoutScreen() {
   const isLoading = isFirstLoad;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={16}>

@@ -33,6 +33,7 @@ import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/s
 import { getSessionUser, getOrCreateProfile } from './src/services/authService';
 import { backendMode } from './src/services/backendMode';
 import { supabase } from './src/services/supabaseClient';
+import { AlertHost } from './src/components/AlertHost';
 
 export type { RootStackParamList } from './src/navigation/types';
 
@@ -272,6 +273,7 @@ export default function App() {
           )}
         </Stack.Navigator>
       </Suspense>
+      <AlertHost />
     </NavigationContainer>
   );
 }

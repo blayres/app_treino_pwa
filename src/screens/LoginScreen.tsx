@@ -14,6 +14,7 @@ import { useI18n } from '../i18n';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { OrDivider } from '../components/OrDivider';
 import { signInWithGoogle } from '../services/authService';
+import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 type Route = NativeStackScreenProps<RootStackParamList, 'Login'>['route'];
@@ -93,7 +94,8 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       <View style={styles.container}>
         {backendMode === 'supabase' ? (
           <>

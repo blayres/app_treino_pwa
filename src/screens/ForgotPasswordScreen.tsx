@@ -8,6 +8,7 @@ import { styles } from './LoginScreen.styles';
 import { feedbackStyles } from './FeedbackStyles';
 import { sendPasswordReset } from '../services/authService';
 import { useI18n } from '../i18n';
+import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
@@ -41,7 +42,8 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <LogoBar />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{t.recoverPassword}</Text>
         <Text style={styles.subtitle}>{t.recoverPasswordSubtitle}</Text>
