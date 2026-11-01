@@ -135,4 +135,15 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: spacing.sm,
   },
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.xs,
+  },
+  deleteButtonPressed: {
+    backgroundColor: colors.danger + '1A',
+  },
 });

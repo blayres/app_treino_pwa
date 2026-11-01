@@ -12,7 +12,13 @@ import {
 import { useI18n } from '../i18n';
 import { colors } from '../theme';
 import type { Exercise } from '../services/types';
-import { createCustomExercise, listExercises } from '../services/workoutService';
+import {
+  createCustomExercise,
+  deleteCustomExercise,
+  ExerciseInUseError,
+  listExercises,
+} from '../services/workoutService';
+import { ConfirmModal } from './ConfirmModal';
 import { normalizeForMatch } from '../services/workoutTextParser';
 import { showAlert } from '../store/useDialogStore';
 import { styles } from './ExercisePickerSheet.styles';
@@ -57,6 +63,7 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [toDelete, setToDelete] = useState<Exercise | null>(null);
   const [layout, setLayout] = useState(() => ({
     bottom: 0,
     height: Dimensions.get('window').height * 0.8,
@@ -123,6 +130,21 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
       showAlert(t.saveError, err?.message ?? t.errorCreatingExercise);
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    const exercise = toDelete;
+    setToDelete(null);
+    if (!exercise) return;
+    try {
+      await deleteCustomExercise(userId, exercise.id);
+      const next = exercises.filter((e) => e.id !== exercise.id);
+      catalogueCache = { userId, data: next };
+      setExercises(next);
+    } catch (err: any) {
+      if (err instanceof ExerciseInUseError) showAlert(t.exerciseInUseTitle, t.exerciseInUseMsg);
+      else showAlert(t.saveError, err?.message ?? t.errorDeletingExercise);
     }
   };
 
@@ -207,6 +229,17 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
                       <Text style={styles.customTag}>{t.customExerciseTag}</Text>
                     )}
                     {alreadyAdded && <Text style={styles.addedTag}>✓</Text>}
+                    {item.owner_id != null && (
+                      <Pressable
+                        onPress={() => setToDelete(item)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.deleteCustomExercise(item.name)}
+                        style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+                      >
+                        <TrashIcon />
+                      </Pressable>
+                    )}
                   </Pressable>
                 );
               }}
@@ -214,6 +247,27 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
           )}
         </View>
       </View>
+
+      <ConfirmModal
+        visible={toDelete !== null}
+        title={t.deleteCustomExerciseTitle}
+        message={toDelete ? t.deleteCustomExerciseMsg(toDelete.name) : ''}
+        confirmLabel={t.deleteCustomExerciseConfirm}
+        cancelLabel={t.cancel}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setToDelete(null)}
+        confirmDanger
+      />
     </Modal>
+  );
+}
+
+function TrashIcon() {
+  return (
+    // @ts-ignore — SVG JSX is valid in react-native-web / DOM environments
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.textSecondary} strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }} aria-hidden="true">
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" />
+    </svg>
   );
 }

@@ -179,6 +179,13 @@ export const pt = {
   createExerciseHint: 'Exercício novo, só você vê',
   customExerciseTag: 'meu',
   errorCreatingExercise: 'Não foi possível criar o exercício.',
+  deleteCustomExercise: (name: string) => `Apagar ${name}`,
+  deleteCustomExerciseTitle: 'Apagar exercício?',
+  deleteCustomExerciseMsg: (name: string) => `“${name}” e as cargas registradas nele serão apagados. Esta ação não pode ser desfeita.`,
+  deleteCustomExerciseConfirm: 'Apagar',
+  exerciseInUseTitle: 'Exercício em uso',
+  exerciseInUseMsg: 'Esse exercício está no seu treino. Remova-o do treino antes de apagar.',
+  errorDeletingExercise: 'Não foi possível apagar o exercício.',
 
   // Onboarding
   onboardingTitle: (name: string) => `Boas-vindas, ${name}!`,
@@ -448,6 +455,13 @@ export const en: Translations = {
   createExerciseHint: 'New exercise, only you can see it',
   customExerciseTag: 'mine',
   errorCreatingExercise: 'Could not create the exercise.',
+  deleteCustomExercise: (name: string) => `Delete ${name}`,
+  deleteCustomExerciseTitle: 'Delete exercise?',
+  deleteCustomExerciseMsg: (name: string) => `“${name}” and the loads logged for it will be deleted. This can’t be undone.`,
+  deleteCustomExerciseConfirm: 'Delete',
+  exerciseInUseTitle: 'Exercise in use',
+  exerciseInUseMsg: 'This exercise is in your workout. Remove it from the workout before deleting it.',
+  errorDeletingExercise: 'Could not delete the exercise.',
 
   // Onboarding
   onboardingTitle: (name: string) => `Welcome, ${name}!`,
@@ -716,6 +730,13 @@ export const es: Translations = {
   createExerciseHint: 'Ejercicio nuevo, solo tú lo ves',
   customExerciseTag: 'mío',
   errorCreatingExercise: 'No se pudo crear el ejercicio.',
+  deleteCustomExercise: (name: string) => `Eliminar ${name}`,
+  deleteCustomExerciseTitle: '¿Eliminar ejercicio?',
+  deleteCustomExerciseMsg: (name: string) => `“${name}” y las cargas registradas se eliminarán. Esta acción no se puede deshacer.`,
+  deleteCustomExerciseConfirm: 'Eliminar',
+  exerciseInUseTitle: 'Ejercicio en uso',
+  exerciseInUseMsg: 'Este ejercicio está en tu entrenamiento. Quítalo del entrenamiento antes de eliminarlo.',
+  errorDeletingExercise: 'No se pudo eliminar el ejercicio.',
 
   // Onboarding
   onboardingTitle: (name: string) => `¡Te damos la bienvenida, ${name}!`,
@@ -984,6 +1005,13 @@ export const fr: Translations = {
   createExerciseHint: 'Nouvel exercice, visible uniquement par vous',
   customExerciseTag: 'perso',
   errorCreatingExercise: 'Impossible de créer l’exercice.',
+  deleteCustomExercise: (name: string) => `Supprimer ${name}`,
+  deleteCustomExerciseTitle: 'Supprimer l’exercice ?',
+  deleteCustomExerciseMsg: (name: string) => `« ${name} » et les charges enregistrées seront supprimés. Action irréversible.`,
+  deleteCustomExerciseConfirm: 'Supprimer',
+  exerciseInUseTitle: 'Exercice utilisé',
+  exerciseInUseMsg: 'Cet exercice est dans votre programme. Retirez-le du programme avant de le supprimer.',
+  errorDeletingExercise: 'Impossible de supprimer l’exercice.',
 
   // Onboarding
   onboardingTitle: (name: string) => `Bienvenue, ${name} !`,

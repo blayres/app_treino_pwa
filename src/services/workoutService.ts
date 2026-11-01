@@ -751,3 +751,44 @@ export async function createCustomExercise(params: {
     owner_id: params.userId,
   };
 }
+
+/** Thrown when the exercise is still in one of the user's active workouts. */
+export class ExerciseInUseError extends Error {
+  constructor() {
+    super('EXERCISE_IN_USE');
+    this.name = 'ExerciseInUseError';
+  }
+}
+
+/**
+ * Deletes a private exercise created by the user, with its loads and history.
+ * Refuses (ExerciseInUseError) if it is in an active workout.
+ */
+export async function deleteCustomExercise(userId: number, exerciseId: number): Promise<void> {
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { error } = await supabase.rpc('delete_own_exercise', { p_exercise_id: exerciseId });
+    if (error) {
+      if (error.message?.includes('EXERCISE_IN_USE')) throw new ExerciseInUseError();
+      throw error;
+    }
+  } else {
+    const db = await getLocalDb();
+    const inUse = await db.getFirstAsync<{ n: number }>(
+      `SELECT COUNT(*) as n FROM workout_exercises we JOIN workouts w ON w.id = we.workout_id
+       WHERE we.exercise_id = ? AND w.user_id = ? AND w.archived_at IS NULL;`,
+      exerciseId,
+      userId,
+    );
+    if ((inUse?.n ?? 0) > 0) throw new ExerciseInUseError();
+    await db.runAsync(
+      `DELETE FROM workout_exercises WHERE exercise_id = ? AND workout_id IN (SELECT id FROM workouts WHERE user_id = ?);`,
+      exerciseId,
+      userId,
+    );
+    await db.runAsync(`DELETE FROM exercise_loads WHERE user_id = ? AND exercise_id = ?;`, userId, exerciseId);
+    await db.runAsync(`DELETE FROM exercise_load_history WHERE user_id = ? AND exercise_id = ?;`, userId, exerciseId);
+    await db.runAsync(`DELETE FROM exercises WHERE id = ? AND owner_id = ?;`, exerciseId, userId);
+  }
+  exerciseLoadsCache.delete(userId);
+}
