@@ -113,6 +113,10 @@ export const pt = {
   // ExerciseLibraryCard
   showAnimation: 'Ver animação',
   hideAnimation: 'Ocultar animação',
+  showSubstitutes: 'Ver substitutos',
+  substitutesTitle: (name: string) => `Substitutos de ${name}`,
+  substitutesSubtitle: 'Mesmo músculo, outro aparelho. Use se o seu estiver ocupado.',
+  noSubstitutes: 'Nenhum substituto encontrado para este exercício.',
 
   // Calendar — month names
   months: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
@@ -407,6 +411,10 @@ export const en: Translations = {
   workoutDuration: 'Workout duration',
   showAnimation: 'View animation',
   hideAnimation: 'Hide animation',
+  showSubstitutes: 'See alternatives',
+  substitutesTitle: (name: string) => `Alternatives to ${name}`,
+  substitutesSubtitle: 'Same muscle, different equipment. Use one if yours is busy.',
+  noSubstitutes: 'No alternatives found for this exercise.',
 
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
   dayHeaders: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -696,6 +704,10 @@ export const es: Translations = {
   workoutDuration: 'Duración del entrenamiento',
   showAnimation: 'Ver animación',
   hideAnimation: 'Ocultar animación',
+  showSubstitutes: 'Ver sustitutos',
+  substitutesTitle: (name: string) => `Sustitutos de ${name}`,
+  substitutesSubtitle: 'Mismo músculo, otro aparato. Úsalo si el tuyo está ocupado.',
+  noSubstitutes: 'No se encontraron sustitutos para este ejercicio.',
 
   months: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
   dayHeaders: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
@@ -985,6 +997,10 @@ export const fr: Translations = {
   workoutDuration: 'Durée de la séance',
   showAnimation: 'Voir l\'animation',
   hideAnimation: 'Masquer l\'animation',
+  showSubstitutes: 'Voir les alternatives',
+  substitutesTitle: (name: string) => `Alternatives à ${name}`,
+  substitutesSubtitle: 'Même muscle, autre appareil. Utilisez-en une si le vôtre est occupé.',
+  noSubstitutes: 'Aucune alternative trouvée pour cet exercice.',
 
   months: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
   dayHeaders: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],

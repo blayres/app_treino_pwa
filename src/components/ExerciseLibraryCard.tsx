@@ -1,15 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import {
   View,
-  Text,
   Image,
-  Pressable,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import type { ExerciseLibrary } from '../services/types';
 import { colors, spacing } from '../theme';
 import { useI18n } from '../i18n';
+import { PillButton } from './PillButton';
 
 type Props = {
   library: ExerciseLibrary;
@@ -28,14 +27,7 @@ export function ExerciseLibraryCard({ library }: Props) {
 
   return (
     <View style={styles.card}>
-      <Pressable
-        onPress={handleToggleGif}
-        style={({ pressed }) => [styles.gifToggle, pressed && { opacity: 0.7 }]}
-      >
-        <Text style={styles.gifToggleLabel}>
-          {gifVisible ? t.hideAnimation : t.showAnimation}
-        </Text>
-      </Pressable>
+      <PillButton label={gifVisible ? t.hideAnimation : t.showAnimation} onPress={handleToggleGif} />
 
       {gifVisible ? (
         <View style={styles.gifWrap}>
@@ -59,21 +51,6 @@ export function ExerciseLibraryCard({ library }: Props) {
 const styles = StyleSheet.create({
   card: {
     marginTop: spacing.xs,
-  },
-  gifToggle: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.xs,
-    paddingVertical: 3,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 999,
-    backgroundColor: colors.surfaceMutedLight,
-    borderWidth: 1,
-    borderColor: colors.borderSoftLight,
-  },
-  gifToggleLabel: {
-    fontSize: 11,
-    color: colors.olive,
-    fontWeight: '500',
   },
   gifWrap: {
     marginTop: spacing.sm,

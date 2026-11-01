@@ -28,6 +28,7 @@ import { startWorkoutSession, stopWorkoutSession } from '../services/sessionServ
 import type { Exercise } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
 import { ExerciseRow, type LoadField } from '../components/ExerciseRow';
+import { SubstitutesSheet } from '../components/SubstitutesSheet';
 import { useI18n } from '../i18n';
 import { LogoBar } from '../components/LogoBar';
 import { formatDecimal, parseDecimal, sanitizeDecimalInput } from '../utils/decimal';
@@ -336,6 +337,9 @@ export default function WorkoutScreen() {
     }, 100);
   }, []);
 
+  // Exercise whose substitutes are shown (null = sheet closed).
+  const [substitutesFor, setSubstitutesFor] = useState<Exercise | null>(null);
+
   const toggleCompleted = useCallback((exerciseId: number) => {
     setCompletedIds(prev => {
       const next = new Set(prev);
@@ -479,12 +483,17 @@ export default function WorkoutScreen() {
                   onChangeLoad={handleChangeLoad}
                   onLoadFocus={scrollToRow}
                   onLoadBlur={flushLoad}
+                  onShowSubstitutes={setSubstitutesFor}
                 />
               );
             }}
           />
         )}
       </KeyboardAvoidingView>
+
+      {currentUser && (
+        <SubstitutesSheet exercise={substitutesFor} userId={currentUser.id} onClose={() => setSubstitutesFor(null)} />
+      )}
 
       <ConfirmModal
         visible={showConfirmModal}
