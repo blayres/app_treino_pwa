@@ -11,7 +11,9 @@
     "import:exercises": "ts-node --project tsconfig.json scripts/importExerciseDb.ts",
     "link:exercises": "ts-node --skip-project scripts/linkExercises.ts",
     "prepare": "husky",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "test:coverage": "jest --coverage --collectCoverageFrom='src/{services,utils,store}/**/*.ts'",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@jest/globals": "29.7.0",
@@ -39,6 +41,8 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.0",
     "@types/react": "~19.1.0",
     "@types/sql.js": "^1.4.9",
     "husky": "^9.1.7",

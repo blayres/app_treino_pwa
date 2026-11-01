@@ -42,3 +42,6 @@ yarn-error.*
 
 # env (values live in Vercel → Settings → Environment Variables)
 .env
+
+# test coverage
+coverage/

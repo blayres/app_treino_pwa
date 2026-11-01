@@ -6,14 +6,21 @@ import { hasSupabaseConfig } from './backendMode';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web',
-    storage: Platform.OS === 'web' ? undefined : AsyncStorage,
+// supabase-js throws on an empty URL at import time, which would break local
+// (SQLite) mode and tests. Without config, build an inert client: every real
+// call goes through ensureSupabaseEnabled() first, which explains the problem.
+export const supabase = createClient(
+  hasSupabaseConfig ? supabaseUrl : 'http://localhost.invalid',
+  hasSupabaseConfig ? supabaseAnonKey : 'not-configured',
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: Platform.OS === 'web',
+      storage: Platform.OS === 'web' ? undefined : AsyncStorage,
+    },
   },
-});
+);
 
 export function ensureSupabaseEnabled() {
   if (!hasSupabaseConfig) {
