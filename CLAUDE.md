@@ -78,6 +78,7 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Admin é decidido **só** por `profiles.role` no banco. **Nunca confiar em `user_metadata`** (o usuário edita).
 - Usuário não pode alterar `profiles.role`/`auth_id` (grants por coluna). Novas colunas editáveis → `grant update (coluna)`.
 - RPC `security definer`: `set search_path`, checar `auth.uid()`/dono no início, `revoke … from public, anon` e `grant execute … to authenticated`.
+- Privilégios: `anon` só lê `exercise_library`; `authenticated` só SELECT/INSERT/UPDATE/DELETE (sem TRUNCATE). Tabelas/funções novas não recebem nada por padrão (`migration_security_hardening.sql`) → toda função nova precisa de `grant execute … to authenticated` e toda tabela nova de `grant select, insert, update, delete … to authenticated` + RLS + policies.
 - No app só existem `EXPO_PUBLIC_SUPABASE_URL` e a anon key. Service role apenas em `scripts/` (env local). **Nunca** commitar segredos; chaves de API (ex.: IA) ficam em Edge Function/secret do Supabase, configuradas pela usuária.
 - Validar entrada no cliente (ex.: `sanitizeDecimalInput`, `maxLength`) **e** confiar no banco para autorização.
 - Não logar dados pessoais/tokens no console.
