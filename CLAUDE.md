@@ -10,11 +10,12 @@ PWA de treino (Expo 54 + React Native Web) com Supabase (auth + Postgres). Produ
 | Ação | Comando |
 |---|---|
 | Dev (web) | `npm run web` → http://localhost:8081 |
-| Tipos | `npx tsc --noEmit -p .` |
+| Tipos | `npm run typecheck` |
 | Testes | `npm test` (Jest + ts-jest, arquivos em `__tests__/`) |
-| Build web | `npm run build:web` (roda no pre-commit via Husky) |
+| Cobertura | `npm run test:coverage` |
+| Build web | `npm run build:web` |
 
-Antes de todo commit: `tsc` sem erros e `npm test` verde.
+O pre-commit (Husky) roda `npm test` e `build:web`. Antes de todo commit também: `npm run typecheck` sem erros.
 
 ## Git e deploy
 - Trabalhar na `develop`. `main` = produção (deploy automático na Vercel a cada push).
@@ -97,7 +98,9 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 
 ## Testes
 - Toda lógica nova em função pura com teste em `__tests__/` (padrão: `progressUtils`, `workoutTextParser`, `programService`, `decimal`).
-- Serviços com Supabase: testar a lógica isolando dependências com `jest.mock` (ver `programService.test.ts`).
+- Serviços com Supabase: usar o simulador `__tests__/helpers/supabaseMock.ts` (registra tabela/ação/payload/filtros e devolve respostas enfileiradas com `supabaseMock.queue('tabela.acao', …)`); outros serviços com `jest.mock` (ver `programService.test.ts`). Nunca testar contra o banco real.
+- Testar o comportamento que importa ao usuário e à segurança: o que é gravado, com quais filtros (ex.: só linhas do usuário), o que acontece em erro (rollback, nada parcial).
+- Ao criar um teste, garantir que ele falha se o código quebrar (injetar o bug e ver o teste ficar vermelho).
 - Bug corrigido = teste que reproduz o bug. Casos reais vão para `__tests__/fixtures/`.
 - Verificar visualmente no navegador (Claude in Chrome) o que muda na UI, em ~400px; usar a conta de teste, **nunca** digitar/salvar dados numa conta real sem permissão.
 

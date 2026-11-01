@@ -11,7 +11,9 @@
     "import:exercises": "ts-node --project tsconfig.json scripts/importExerciseDb.ts",
     "link:exercises": "ts-node --skip-project scripts/linkExercises.ts",
     "prepare": "husky",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "test:coverage": "jest --coverage --collectCoverageFrom='src/{services,utils,store}/**/*.ts'",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@jest/globals": "29.7.0",

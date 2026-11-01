@@ -29,7 +29,15 @@ jest.mock('../src/services/workoutService', () => ({
   getWorkoutExercises: jest.fn(),
 }));
 
-import { isProgramDirty, saveProgram, type DraftDay } from '../src/services/programService';
+import * as workoutService from '../src/services/workoutService';
+import {
+  copyDayTo,
+  draftFromText,
+  isProgramDirty,
+  loadProgramDraft,
+  saveProgram,
+  type DraftDay,
+} from '../src/services/programService';
 
 const ex = (id: number, scheme = '4x10') =>
   ({ id, name: `Ex${id}`, scheme, rest_seconds: 60, primary_muscle: null, secondary_muscle: null, tip: null, exercise_library_id: null }) as any;
@@ -118,5 +126,57 @@ describe('isProgramDirty', () => {
     expect(isProgramDirty(original, [{ ...original[0], title: 'Novo' }, original[1]])).toBe(true);
     expect(isProgramDirty(original, [{ ...original[0], hidden: true }, original[1]])).toBe(true);
     expect(isProgramDirty(original, [original[0], { ...original[1], items: [item(20, '3x8')] }])).toBe(true);
+  });
+});
+
+describe('loadProgramDraft', () => {
+  it('loads days sorted by weekday with effective scheme and explicit rest overrides', async () => {
+    const mocked = workoutService as jest.Mocked<typeof workoutService>;
+    mocked.getWorkoutsByUser.mockResolvedValue([
+      { id: 2, user_id: 1, day_of_week: 4, title: 'B', last_done: null },
+      { id: 1, user_id: 1, day_of_week: 1, title: 'A', last_done: null },
+    ] as any);
+    mocked.getWorkoutExercises.mockImplementation(async (id: number) =>
+      id === 1
+        ? ([{ id: 9, workout_id: 1, exercise_id: 10, order_index: 0, base_scheme: '3x12', base_rest_seconds: 60,
+              rest_seconds_override: 90, notes: 'Lento', exercise: ex(10, '4x8') }] as any)
+        : [],
+    );
+
+    const days = await loadProgramDraft(1);
+
+    expect(days.map((d) => [d.workoutId, d.dayOfWeek])).toEqual([[1, 1], [2, 4]]);
+    expect(days[0].items[0]).toMatchObject({ scheme: '4x8', restSeconds: 90, notes: 'Lento' });
+  });
+});
+
+describe('draftFromText', () => {
+  const catalogue = [ex(10), { ...ex(11), name: 'Puxada Alta na Máquina' }];
+
+  it('matches the catalogue, keeps unmatched as new and skips weekdays already used', () => {
+    const days = draftFromText('Treino X\nEx10 4x10\nPuxada alta 3x12\nRemada cavalinho 3x10', catalogue, [1]);
+    expect(days[0].dayOfWeek).toBe(2);
+    expect(days[0].items.map((i) => [i.exercise?.id ?? null, i.name, i.wrote])).toEqual([
+      [10, 'Ex10', null],
+      [11, 'Puxada Alta na Máquina', 'Puxada alta'],
+      [null, 'Remada cavalinho', null],
+    ]);
+  });
+
+  it('returns nothing for text without exercises', () => {
+    expect(draftFromText('   ', catalogue)).toEqual([]);
+  });
+});
+
+describe('copyDayTo', () => {
+  it('copies a day with new keys and replaces a hidden card on the target weekday', () => {
+    const days: DraftDay[] = [original[0], { ...original[1], dayOfWeek: 4, hidden: true }];
+    const result = copyDayTo(days, original[0].key, 4);
+    const copy = result.find((d) => d.dayOfWeek === 4)!;
+    expect(result).toHaveLength(2);
+    expect(copy.hidden).toBeUndefined();
+    expect(copy.workoutId).toBeUndefined();
+    expect(copy.items.map((i) => i.exercise?.id)).toEqual([10, 11]);
+    expect(copy.items[0].key).not.toBe(original[0].items[0].key);
   });
 });
