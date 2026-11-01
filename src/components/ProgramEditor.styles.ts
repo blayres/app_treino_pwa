@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors, spacing, typography, cardSurface } from '../theme';
+import { colors, spacing, typography, cardSurface, shadows } from '../theme';
 
 export const styles = StyleSheet.create({
   card: { ...cardSurface, marginBottom: spacing.md },
@@ -144,4 +144,18 @@ export const styles = StyleSheet.create({
   anotherSheetLabel: { fontSize: 15, fontWeight: '600', color: colors.olive },
   anotherSheetHint: { ...typography.caption, textAlign: 'center', marginTop: spacing.xs },
   schemeInputLong: { width: '100%', textAlign: 'left', marginTop: spacing.xs },
+  dayLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dragHandle: {
+    width: 32,
+    height: 32,
+    marginLeft: -spacing.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dragHandleIcon: { fontSize: 20, lineHeight: 22, color: colors.textSecondary },
+  cardDragging: { zIndex: 10, opacity: 0.95, ...shadows.popover },
+  cardDropTarget: { borderWidth: 2, borderStyle: 'dashed', borderColor: colors.olive },
+  reorderHint: { ...typography.caption, marginTop: -spacing.md, marginBottom: spacing.md },
+  sheetOptionHint: { ...typography.caption, marginTop: 2 },
 });

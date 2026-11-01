@@ -14,6 +14,8 @@ import {
   getWorkoutsByUser,
   invalidateWorkoutExercisesCache,
   invalidateWorkoutsByUserCache,
+  MoveNotSupportedError,
+  moveWorkoutsToDays,
   replaceWorkoutItems,
   updateWorkoutTitle,
   type WorkoutItemInput,
@@ -186,10 +188,9 @@ export type SaveProgramOptions = {
 };
 
 /**
- * Applies the draft: archives removed days (history is kept), updates titles
- * and exercise lists that changed, and creates new days. A day moved to another
- * weekday is archived and re-created there. Archiving runs first so moves and
- * swaps never collide with the one-workout-per-weekday rule.
+ * Applies the draft: archives removed days (history is kept), moves days to
+ * other weekdays in place (swaps included, history stays attached), updates
+ * titles and exercise lists that changed, and creates new days.
  */
 export async function saveProgram(options: SaveProgramOptions): Promise<void> {
   const { userId, original, replaceAll, defaultTitle } = options;
@@ -199,19 +200,36 @@ export async function saveProgram(options: SaveProgramOptions): Promise<void> {
   const originalById = new Map(original.filter((d) => d.workoutId).map((d) => [d.workoutId!, d]));
   const titleOf = (day: DraftDay) => day.title.trim() || defaultTitle(day.dayOfWeek);
 
-  // 1. Archive: everything (replace), removed days, and days moved to another weekday.
+  // Classify existing days: kept on the same weekday, moved, or removed.
   const keptIds = new Set<number>();
+  const moves: { workoutId: number; dayOfWeek: number }[] = [];
   if (!replaceAll) {
     draft.forEach((day) => {
       const before = day.workoutId ? originalById.get(day.workoutId) : undefined;
-      if (before && before.dayOfWeek === day.dayOfWeek) keptIds.add(day.workoutId!);
+      if (!before) return;
+      keptIds.add(day.workoutId!);
+      if (before.dayOfWeek !== day.dayOfWeek) moves.push({ workoutId: day.workoutId!, dayOfWeek: day.dayOfWeek });
     });
   }
+
+  // 1. Archive removed days (all of them when replacing) — frees their weekdays.
   for (const workoutId of originalById.keys()) {
     if (!keptIds.has(workoutId)) await archiveWorkout(workoutId);
   }
 
-  // 2. Update kept days that changed.
+  // 2. Move days in place (swaps included), keeping their history. Without the
+  //    move_workouts migration, fall back to archiving + re-creating them.
+  try {
+    await moveWorkoutsToDays(moves);
+  } catch (err) {
+    if (!(err instanceof MoveNotSupportedError)) throw err;
+    for (const move of moves) {
+      await archiveWorkout(move.workoutId);
+      keptIds.delete(move.workoutId);
+    }
+  }
+
+  // 3. Update kept/moved days whose title or exercises changed.
   for (const day of draft) {
     if (!day.workoutId || !keptIds.has(day.workoutId)) continue;
     const before = originalById.get(day.workoutId)!;
@@ -221,7 +239,7 @@ export async function saveProgram(options: SaveProgramOptions): Promise<void> {
     }
   }
 
-  // 3. Create new (and moved) days.
+  // 4. Create new days (and moved ones, in the fallback).
   for (const day of draft) {
     if (day.workoutId && keptIds.has(day.workoutId)) continue;
     if (createdDays.has(day.dayOfWeek)) continue;
@@ -260,4 +278,14 @@ export function copyDayTo(days: DraftDay[], dayKey: string, dayOfWeek: number): 
   return [...days.filter((d) => !(d.hidden && d.dayOfWeek === dayOfWeek)), copy].sort(
     (a, b) => a.dayOfWeek - b.dayOfWeek,
   );
+}
+
+/** Swaps the weekdays of two visible cards (drag & drop / "Trocar dia" onto a taken day). */
+export function swapDays(days: DraftDay[], keyA: string, keyB: string): DraftDay[] {
+  const a = days.find((d) => d.key === keyA);
+  const b = days.find((d) => d.key === keyB);
+  if (!a || !b || a === b) return days;
+  return days
+    .map((d) => (d.key === keyA ? { ...d, dayOfWeek: b.dayOfWeek } : d.key === keyB ? { ...d, dayOfWeek: a.dayOfWeek } : d))
+    .sort((x, y) => x.dayOfWeek - y.dayOfWeek);
 }

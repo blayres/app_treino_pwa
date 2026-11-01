@@ -81,6 +81,24 @@ describe('ProgramEditor', () => {
     expect(thursday.items.map((i) => i.name)).toEqual(['Supino']);
   });
 
+  it('"Trocar dia" onto a taken day swaps the two days', () => {
+    const tuesday: DraftDay = {
+      key: 'tue',
+      workoutId: 2,
+      dayOfWeek: 2,
+      title: 'Superior A',
+      items: [{ key: 'i2', exercise: supino, name: 'Supino', scheme: '4x10', restSeconds: null, wrote: null, notes: null }],
+    };
+    render(<Harness days={[{ ...initial[0], title: 'Inferior A' }, tuesday]} />);
+    expect(screen.getByText('Segure ≡ e arraste um dia sobre outro para trocá-los.')).toBeTruthy();
+
+    fireEvent.click(screen.getAllByText('Trocar dia')[0]); // Monday card
+    fireEvent.click(screen.getByText('Trocar com Superior A'));
+
+    expect(latest.map((d) => [d.title, d.dayOfWeek])).toEqual([['Superior A', 1], ['Inferior A', 2]]);
+    expect(latest.map((d) => d.workoutId)).toEqual([2, 1]); // same workouts, swapped weekdays
+  });
+
   it('marks exercises that will be created and lets an import suggestion be used as new', () => {
     render(
       <Harness

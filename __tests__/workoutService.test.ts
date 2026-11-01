@@ -12,6 +12,8 @@ import {
   createWorkoutForUser,
   deleteCustomExercise,
   ExerciseInUseError,
+  MoveNotSupportedError,
+  moveWorkoutsToDays,
   getWorkoutExercises,
   invalidateWorkoutExercisesCache,
   replaceWorkoutItems,
@@ -245,5 +247,26 @@ describe('upsertExerciseLoad', () => {
     await upsertExerciseLoad({ userId: 5, exerciseId: 10, loadKg: null, progressionKg: null });
     await flush();
     expect(supabaseMock.calls('exercise_load_history')).toHaveLength(0);
+  });
+});
+
+describe('moveWorkoutsToDays', () => {
+  it('moves all days in one atomic call (swaps included)', async () => {
+    await moveWorkoutsToDays([
+      { workoutId: 1, dayOfWeek: 2 },
+      { workoutId: 2, dayOfWeek: 1 },
+    ]);
+    expect(supabaseMock.rpcs).toEqual([{ name: 'move_workouts', args: { p_moves: [{ id: 1, day: 2 }, { id: 2, day: 1 }] } }]);
+  });
+
+  it('does nothing without moves and reports a missing migration distinctly', async () => {
+    await moveWorkoutsToDays([]);
+    expect(supabaseMock.rpcs).toHaveLength(0);
+
+    supabaseMock.queue('rpc.move_workouts', { error: { code: 'PGRST202' } });
+    await expect(moveWorkoutsToDays([{ workoutId: 1, dayOfWeek: 2 }])).rejects.toBeInstanceOf(MoveNotSupportedError);
+
+    supabaseMock.queue('rpc.move_workouts', { error: { code: 'P0001', message: 'WORKOUT_NOT_FOUND 1' } });
+    await expect(moveWorkoutsToDays([{ workoutId: 1, dayOfWeek: 2 }])).rejects.toMatchObject({ code: 'P0001' });
   });
 });

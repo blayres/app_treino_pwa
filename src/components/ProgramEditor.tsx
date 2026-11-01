@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { Modal, PanResponder, Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import { useI18n } from '../i18n';
 import { colors } from '../theme';
 import type { Exercise } from '../services/types';
@@ -7,6 +7,7 @@ import { DEFAULT_CUSTOM_SCHEME } from '../services/workoutService';
 import {
   copyDayTo,
   newDraftItem,
+  swapDays,
   nextDraftKey,
   visibleDays,
   type DraftDay,
@@ -25,10 +26,48 @@ type Props = {
 
 const byWeekday = (a: DraftDay, b: DraftDay) => a.dayOfWeek - b.dayOfWeek;
 
+type DragHandlers = {
+  onStart: () => void;
+  onMove: (dy: number) => void;
+  onEnd: (dy: number) => void;
+  onCancel: () => void;
+};
+
+/** "≡" grip: press and drag a day card onto another one to swap their weekdays. */
+function DragHandle({ label, handlers }: { label: string; handlers: DragHandlers }) {
+  // Latest handlers without re-creating the responder mid-gesture.
+  const latest = useRef(handlers);
+  latest.current = handlers;
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => latest.current.onStart(),
+      onPanResponderMove: (_, gesture) => latest.current.onMove(gesture.dy),
+      onPanResponderRelease: (_, gesture) => latest.current.onEnd(gesture.dy),
+      onPanResponderTerminate: () => latest.current.onCancel(),
+    }),
+  ).current;
+
+  return (
+    <View
+      {...responder.panHandlers}
+      accessible
+      accessibilityLabel={label}
+      // Web: no page scroll / text selection while dragging, grab cursor.
+      style={[styles.dragHandle, { touchAction: 'none', cursor: 'grab', userSelect: 'none' } as object]}
+    >
+      <Text style={styles.dragHandleIcon}>≡</Text>
+    </View>
+  );
+}
+
 /**
  * Weekly program editor used by onboarding and "Meu treino": weekday chips,
- * one card per day (title, exercises with editable scheme, add/remove), and
- * "Trocar dia". Purely a view over `days`; saving is up to the screen.
+ * one card per day (title, exercises with editable scheme, add/remove),
+ * drag & drop by the "≡" grip to swap two days, "Trocar dia" (onto a taken
+ * day = swap) and "Repetir em outro dia". Purely a view over `days`.
  */
 export function ProgramEditor({ userId, days, onChange }: Props) {
   const { t } = useI18n();
@@ -44,10 +83,40 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
     return longLayout.current.get(item.key)!;
   };
 
+  // Drag & drop: card being dragged, its offset, and every card's position.
+  const [drag, setDrag] = useState<{ key: string; dy: number } | null>(null);
+  const cardLayouts = useRef(new Map<string, { y: number; height: number }>());
+
   const shown = visibleDays(days);
   const dayName = (day: number) => t.dayLabels[day];
   const shortDay = (day: number) => t.dayLabels[day].slice(0, 3);
   const selectedDays = new Set(shown.map((d) => d.dayOfWeek));
+
+  /** Card under the dragged card's centre (other than itself), if any. */
+  const dropTarget = (key: string, dy: number): string | null => {
+    const from = cardLayouts.current.get(key);
+    if (!from) return null;
+    const centre = from.y + from.height / 2 + dy;
+    for (const day of shown) {
+      if (day.key === key) continue;
+      const box = cardLayouts.current.get(day.key);
+      if (box && centre >= box.y && centre <= box.y + box.height) return day.key;
+    }
+    return null;
+  };
+
+  const dragHandlers = (key: string): DragHandlers => ({
+    onStart: () => setDrag({ key, dy: 0 }),
+    onMove: (dy) => setDrag({ key, dy }),
+    onEnd: (dy) => {
+      const target = dropTarget(key, dy);
+      setDrag(null);
+      if (target) onChange(swapDays(days, key, target));
+    },
+    onCancel: () => setDrag(null),
+  });
+
+  const hoverKey = drag ? dropTarget(drag.key, drag.dy) : null;
 
   const toggleDay = (day: number) => {
     const visible = shown.find((d) => d.dayOfWeek === day);
@@ -140,10 +209,27 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
         })}
       </View>
 
+      {shown.length > 1 && <Text style={styles.reorderHint}>{t.reorderHint}</Text>}
+
       {shown.map((day) => (
-        <View key={day.key} style={styles.card}>
+        <View
+          key={day.key}
+          onLayout={(e: LayoutChangeEvent) =>
+            cardLayouts.current.set(day.key, { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height })
+          }
+          style={[
+            styles.card,
+            drag?.key === day.key && [styles.cardDragging, { transform: [{ translateY: drag.dy }] }],
+            hoverKey === day.key && styles.cardDropTarget,
+          ]}
+        >
           <View style={styles.dayCardHeader}>
-            <Text style={styles.dayLabel}>{dayName(day.dayOfWeek)}</Text>
+            <View style={styles.dayLabelRow}>
+              {shown.length > 1 && (
+                <DragHandle label={t.dragToSwapDay(dayName(day.dayOfWeek))} handlers={dragHandlers(day.key)} />
+              )}
+              <Text style={styles.dayLabel}>{dayName(day.dayOfWeek)}</Text>
+            </View>
             <View style={styles.dayActions}>
               {shown.length < 7 && (
                 <Pressable onPress={() => setDaySheet({ key: day.key, mode: 'copy' })} hitSlop={10} accessibilityRole="button">
@@ -231,13 +317,16 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
             </Text>
             {ALL_DAYS.map((day) => {
               const isCurrent = sheetDay?.dayOfWeek === day;
-              const taken = daySheet?.mode === 'copy' ? selectedDays.has(day) : !isCurrent && selectedDays.has(day);
+              const occupant = isCurrent ? undefined : shown.find((d) => d.dayOfWeek === day);
+              // Copy needs a free day; move onto a taken day swaps the two.
+              const taken = daySheet?.mode === 'copy' && selectedDays.has(day);
               return (
                 <Pressable
                   key={day}
                   disabled={taken}
                   onPress={() => {
                     if (sheetDay && daySheet?.mode === 'copy') onChange(copyDayTo(days, sheetDay.key, day));
+                    else if (sheetDay && occupant) onChange(swapDays(days, sheetDay.key, occupant.key));
                     else if (sheetDay && !isCurrent) moveDay(sheetDay.key, day);
                     setDaySheet(null);
                   }}
@@ -251,6 +340,11 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
                   <Text style={[styles.sheetOptionLabel, isCurrent && styles.sheetOptionLabelActive]}>
                     {dayName(day)}
                   </Text>
+                  {daySheet?.mode === 'move' && occupant ? (
+                    <Text style={styles.sheetOptionHint} numberOfLines={1}>
+                      {t.swapWith(occupant.title.trim() || dayName(day))}
+                    </Text>
+                  ) : null}
                 </Pressable>
               );
             })}

@@ -315,6 +315,46 @@ export async function replaceWorkoutItems(workoutId: number, items: WorkoutItemI
   invalidateWorkoutExercisesCache(workoutId);
 }
 
+/** move_workouts() is not in the database yet (migration not applied). */
+export class MoveNotSupportedError extends Error {
+  constructor() {
+    super('MOVE_NOT_SUPPORTED');
+    this.name = 'MoveNotSupportedError';
+  }
+}
+
+/**
+ * Moves existing workouts to other weekdays keeping the same rows (history and
+ * "feito há…" stay attached). Swaps are fine: all moves apply atomically.
+ */
+export async function moveWorkoutsToDays(moves: { workoutId: number; dayOfWeek: number }[]): Promise<void> {
+  if (moves.length === 0) return;
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { error } = await supabase.rpc('move_workouts', {
+      p_moves: moves.map((m) => ({ id: m.workoutId, day: m.dayOfWeek })),
+    });
+    if (error) {
+      if (error.code === 'PGRST202') throw new MoveNotSupportedError();
+      throw error;
+    }
+    return;
+  }
+  const db = await getLocalDb();
+  const now = new Date().toISOString();
+  await db.execAsync('BEGIN;');
+  try {
+    for (const m of moves) await db.runAsync(`UPDATE workouts SET archived_at = ? WHERE id = ?;`, now, m.workoutId);
+    for (const m of moves) {
+      await db.runAsync(`UPDATE workouts SET day_of_week = ?, archived_at = NULL WHERE id = ?;`, m.dayOfWeek, m.workoutId);
+    }
+    await db.execAsync('COMMIT;');
+  } catch (err) {
+    await db.execAsync('ROLLBACK;');
+    throw err;
+  }
+}
+
 export async function archiveWorkout(workoutId: number): Promise<void> {
   const archivedAt = new Date().toISOString();
 
