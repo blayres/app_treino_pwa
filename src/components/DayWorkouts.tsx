@@ -13,6 +13,7 @@ import {
   getExerciseLoadsByUser,
 } from '../services/workoutService';
 import { useI18n } from '../i18n';
+import { relativeDay } from '../utils/date';
 
 type Props = {
   userId: number;
@@ -20,30 +21,6 @@ type Props = {
 };
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
-
-function getParisDateKey(date: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Paris',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
-}
-
-function dateKeyToUTC(dateKey: string): Date {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-function diffCalendarDaysInParis(from: Date, to: Date): number {
-  const fromKey = getParisDateKey(from);
-  const toKey = getParisDateKey(to);
-
-  const fromUtc = dateKeyToUTC(fromKey);
-  const toUtc = dateKeyToUTC(toKey);
-
-  return Math.floor((toUtc.getTime() - fromUtc.getTime()) / (1000 * 60 * 60 * 24));
-}
 
 function InProgressBadge({ label }: { label: string }) {
   const pulse = useRef(new Animated.Value(1)).current;
@@ -76,28 +53,11 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
   const [isLoading, setIsLoading] = useState(true);
 
   const formatRelativeDate = (dateStr: string): string => {
-    const now = new Date();
-    const date = new Date(dateStr);
-
-    const diffDays = diffCalendarDaysInParis(date, now);
-    const diffWeeks = Math.floor(diffDays / 7);
-
-    const nowKey = getParisDateKey(now);
-    const dateKey = getParisDateKey(date);
-
-    const [nowYear, nowMonth] = nowKey.split('-').map(Number);
-    const [dateYear, dateMonth] = dateKey.split('-').map(Number);
-
-    const diffMonths = (nowYear - dateYear) * 12 + (nowMonth - dateMonth);
-
-    if (diffDays <= 0) return t.doneToday;
-    if (diffDays === 1) return t.done1Day;
-    if (diffDays < 7) return t.doneDays(diffDays);
-    if (diffWeeks === 1) return t.done1Week;
-    if (diffMonths < 1) return t.doneWeeks(diffWeeks);
-    if (diffMonths === 1) return t.done1Month;
-
-    return t.doneMonths(diffMonths);
+    const ago = relativeDay(new Date(dateStr), new Date());
+    if (ago.unit === 'today') return t.doneToday;
+    if (ago.unit === 'days') return ago.value === 1 ? t.done1Day : t.doneDays(ago.value);
+    if (ago.unit === 'weeks') return ago.value === 1 ? t.done1Week : t.doneWeeks(ago.value);
+    return ago.value === 1 ? t.done1Month : t.doneMonths(ago.value);
   };
 
   useEffect(() => {
