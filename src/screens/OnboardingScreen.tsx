@@ -15,6 +15,7 @@ import { applyDefaultProgram, DEFAULT_PROGRAM } from '../services/defaultWorkout
 import { invalidateWorkoutsByUserCache } from '../services/workoutService';
 import { draftFromText, saveProgram, visibleDays, type DraftDay } from '../services/programService';
 import { markOnboarded } from '../services/authService';
+import { FEATURES } from '../config/features';
 import { styles } from './OnboardingScreen.styles';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
@@ -178,19 +179,23 @@ export default function OnboardingScreen() {
       <Text style={styles.title}>{t.onboardingTitle(currentUser.name)}</Text>
       <Text style={styles.subtitle}>{t.onboardingSubtitle}</Text>
       {[
-        { icon: ICON_ZAP, title: t.onboardingDefaultTitle, desc: t.onboardingDefaultDesc, onPress: () => setStep('default'), highlight: true },
-        { icon: ICON_PASTE, title: t.onboardingImportTitle, desc: t.onboardingImportDesc, onPress: () => setStep('import'), highlight: false },
-        { icon: ICON_PENCIL, title: t.onboardingManualTitle, desc: t.onboardingManualDesc, onPress: startManual, highlight: false },
+        { icon: ICON_ZAP, title: t.onboardingDefaultTitle, desc: t.onboardingDefaultDesc, onPress: () => setStep('default'), highlight: true, disabled: false },
+        { icon: ICON_PENCIL, title: t.onboardingManualTitle, desc: t.onboardingManualDesc, onPress: startManual, highlight: false, disabled: false },
+        // Import stays visible as "Em breve" until it is backed by AI.
+        { icon: ICON_PASTE, title: t.onboardingImportTitle, desc: t.onboardingImportDesc, onPress: () => setStep('import'), highlight: false, disabled: !FEATURES.importWorkout },
       ].map((option) => (
         <Pressable
           key={option.title}
           onPress={option.onPress}
+          disabled={option.disabled}
           accessibilityRole="button"
+          accessibilityState={{ disabled: option.disabled }}
           style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
             styles.option,
             option.highlight && styles.optionHighlighted,
-            hovered && !option.highlight && styles.optionHovered,
+            hovered && !option.highlight && !option.disabled && styles.optionHovered,
             pressed && styles.optionPressed,
+            option.disabled && styles.optionDisabled,
           ]}
         >
           <View style={[styles.optionIcon, option.highlight && styles.optionIconHighlighted]}>
@@ -204,10 +209,15 @@ export default function OnboardingScreen() {
                   <Text style={styles.badgeText}>{t.onboardingFastest}</Text>
                 </View>
               )}
+              {option.disabled && (
+                <View style={[styles.badge, styles.badgeMuted]}>
+                  <Text style={[styles.badgeText, styles.badgeTextMuted]}>{t.comingSoon}</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.optionDesc}>{option.desc}</Text>
           </View>
-          <Text style={styles.chevron}>›</Text>
+          {!option.disabled && <Text style={styles.chevron}>›</Text>}
         </Pressable>
       ))}
     </>

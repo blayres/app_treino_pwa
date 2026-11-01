@@ -24,6 +24,7 @@ import {
   type DraftDay,
 } from '../services/programService';
 import { styles } from './OnboardingScreen.styles';
+import { FEATURES } from '../config/features';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'MyWorkout'>;
 /** edit = current program; import/review = replacing it with a pasted one. */
@@ -212,22 +213,32 @@ export default function MyWorkoutScreen() {
     </View>
   );
 
-  const replaceOption = (title: string, desc: string, onPress: () => void) => (
+  const replaceOption = (title: string, desc: string, onPress: () => void, disabled = false) => (
     <Pressable
       key={title}
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
         styles.option,
-        hovered && styles.optionHovered,
+        hovered && !disabled && styles.optionHovered,
         pressed && styles.optionPressed,
+        disabled && styles.optionDisabled,
       ]}
     >
       <View style={styles.optionBody}>
-        <Text style={styles.optionTitle}>{title}</Text>
+        <View style={styles.optionTitleRow}>
+          <Text style={styles.optionTitle}>{title}</Text>
+          {disabled && (
+            <View style={[styles.badge, styles.badgeMuted]}>
+              <Text style={[styles.badgeText, styles.badgeTextMuted]}>{t.comingSoon}</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.optionDesc}>{desc}</Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
+      {!disabled && <Text style={styles.chevron}>›</Text>}
     </Pressable>
   );
 
@@ -247,8 +258,8 @@ export default function MyWorkoutScreen() {
           <Text style={[styles.title, { fontSize: 18, marginTop: 24, marginBottom: 12 }]}>
             {t.replaceSectionTitle}
           </Text>
-          {replaceOption(t.replaceImportTitle, t.replaceImportDesc, () => setStep('import'))}
           {replaceOption(t.replaceDefaultTitle, t.replaceDefaultDesc, () => setConfirm('replaceDefault'))}
+          {replaceOption(t.replaceImportTitle, t.replaceImportDesc, () => setStep('import'), !FEATURES.importWorkout)}
         </>
       )}
     </>

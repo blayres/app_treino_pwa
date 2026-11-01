@@ -35,6 +35,9 @@ export const styles = StyleSheet.create({
   optionHighlighted: { borderColor: colors.olive },
   optionHovered: { borderColor: colors.olive + '66' },
   optionPressed: { opacity: 0.85 },
+  optionDisabled: { opacity: 0.55, shadowOpacity: 0, elevation: 0 },
+  badgeMuted: { backgroundColor: colors.surfaceMutedLight },
+  badgeTextMuted: { color: colors.textSecondary },
   optionIcon: {
     width: 44,
     height: 44,
