@@ -101,10 +101,11 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Serviços com Supabase: usar o simulador `__tests__/helpers/supabaseMock.ts` (registra tabela/ação/payload/filtros e devolve respostas enfileiradas com `supabaseMock.queue('tabela.acao', …)`); outros serviços com `jest.mock` (ver `programService.test.ts`). Nunca testar contra o banco real.
 - Testar o comportamento que importa ao usuário e à segurança: o que é gravado, com quais filtros (ex.: só linhas do usuário), o que acontece em erro (rollback, nada parcial).
 - Ao criar um teste, garantir que ele falha se o código quebrar (injetar o bug e ver o teste ficar vermelho).
+- **Componentes**: `__tests__/components/*.test.tsx` (projeto Jest `components`, jsdom + react-native-web, `@testing-library/react`). Consultar como o usuário vê: `getByText`, `getByRole('checkbox', { name })`, `getByLabelText` (accessibilityLabel). Componentes que acessam dados: substituir o filho que busca dados por um stub com `jest.mock` (ver `ProgramEditor.test.tsx`). Textos em pt (setup).
 - Bug corrigido = teste que reproduz o bug. Casos reais vão para `__tests__/fixtures/`.
 - Verificar visualmente no navegador (Claude in Chrome) o que muda na UI, em ~400px; usar a conta de teste, **nunca** digitar/salvar dados numa conta real sem permissão.
 
 ## Decisões e pendências conhecidas
 - Importar treino (`FEATURES.importWorkout`) desligado até ter IA; planejado também "criar treino com IA por perguntas". Saída da IA deve usar `DraftDay`/`saveProgram`.
 - Exercícios privados: `exercises.owner_id` (null = catálogo). Séries/descanso/notas por treino em `workout_exercises`.
-- Dívidas: `components/ExerciseRow.tsx` não é usado (a linha está duplicada dentro de `WorkoutScreen`); `AdminScreen` usa formulários antigos; DDL de `exercise_library` não está no repo.
+- Dívidas: estilos `shadow*` obsoletos no react-native-web (usar `boxShadow`); `components/ExerciseRow.tsx` não é usado (a linha está duplicada dentro de `WorkoutScreen`); `AdminScreen` usa formulários antigos; DDL de `exercise_library` não está no repo.
