@@ -37,3 +37,16 @@ describe('relativeDay', () => {
     expect(relativeDay(at(2026, 11, 21), now)).toEqual({ unit: 'today' });
   });
 });
+
+import { formatRest } from '../src/utils/date';
+
+describe('formatRest', () => {
+  it.each([
+    [90, '1min 30s'],
+    [60, '1min'],
+    [45, '45s'],
+    [0, '0s'],
+  ])('%s s → %s', (seconds, label) => {
+    expect(formatRest(seconds as number, 'min', 's')).toBe(label);
+  });
+});

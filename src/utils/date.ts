@@ -38,3 +38,12 @@ export function relativeDay(done: Date, now: Date): RelativeDay {
   if (months < 1) return { unit: 'weeks', value: Math.floor(days / 7) };
   return { unit: 'months', value: months };
 }
+
+/** Rest/duration label: 90 → "1min 30s", 60 → "1min", 45 → "45s" (units from i18n). */
+export function formatRest(seconds: number, minuteShort: string, secondShort: string): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (minutes > 0 && rest > 0) return `${minutes}${minuteShort} ${rest}${secondShort}`;
+  if (minutes > 0) return `${minutes}${minuteShort}`;
+  return `${rest}${secondShort}`;
+}

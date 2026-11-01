@@ -56,6 +56,7 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 | Editar treino (dias, exercícios, séries) | `ProgramEditor` + `services/programService` (`saveProgram`, `loadProgramDraft`, `draftFromText`) |
 | Buscar/criar/apagar exercício | `ExercisePickerSheet` |
 | Gráfico de evolução / mini gráfico | `ProgressChart`, `Sparkline` |
+| Linha de exercício no treino | `ExerciseRow` (memo; callbacks estáveis via `useCallback`) |
 | Cartão com título | `SectionCard` |
 | Carregamento | `Skeleton` (só no 1º carregamento; em recarga manter o conteúdo) |
 | Números/cargas | `utils/decimal`: `sanitizeDecimalInput`, `parseDecimal`, `formatDecimal`, `formatKg`, `formatKgDelta` |
@@ -114,4 +115,4 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 ## Decisões e pendências conhecidas
 - Importar treino (`FEATURES.importWorkout`) desligado até ter IA; planejado também "criar treino com IA por perguntas". Saída da IA deve usar `DraftDay`/`saveProgram`.
 - Exercícios privados: `exercises.owner_id` (null = catálogo). Séries/descanso/notas por treino em `workout_exercises`.
-- Dívidas: `components/ExerciseRow.tsx` não é usado (a linha está duplicada dentro de `WorkoutScreen`); `AdminScreen` usa formulários antigos; DDL de `exercise_library` não está no repo.
+- Dívidas: `AdminScreen` usa formulários antigos; DDL de `exercise_library` não está no repo.
