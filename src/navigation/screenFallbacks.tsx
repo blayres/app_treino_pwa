@@ -69,6 +69,12 @@ export function CoachFallback({ navigation }: FallbackProps) {
   );
 }
 
+/** Coach's exercise videos. */
+export function CoachVideosFallback({ navigation }: FallbackProps) {
+  const { t } = useI18n();
+  return <ScreenShell onBack={back(navigation)} title={t.coachVideosTitle} subtitle={t.coachVideosDesc} cards={[44, 64, 64, 64]} />;
+}
+
 /** Student page (coach): real layout with skeletons for the student's data. */
 export function CoachStudentFallback({ navigation }: FallbackProps) {
   return (

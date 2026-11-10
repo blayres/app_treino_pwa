@@ -14,6 +14,9 @@ import { SectionCard } from '../components/SectionCard';
 import { FooterButton } from '../components/FooterButton';
 import { ActionButton } from '../components/ActionButton';
 import { MyTrainingButton } from '../components/MyTrainingButton';
+import { useVideoRows } from '../hooks/useExerciseVideos';
+import { ownVideos } from '../services/videoService';
+import { FEATURES } from '../config/features';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Skeleton } from '../components/Skeleton';
 import { StudentRow, StudentRowSkeleton } from '../components/StudentRow';
@@ -61,6 +64,7 @@ export default function CoachScreen() {
   const [busy, setBusy] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [now] = useState(() => new Date());
+  const videoRows = useVideoRows(code && FEATURES.coachVideos ? userId : null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -161,6 +165,19 @@ export default function CoachScreen() {
     </SectionCard>
   );
 
+  const videoCount = userId ? ownVideos(videoRows, userId).size : 0;
+  // Off until hosting fits the budget (FEATURES.coachVideos).
+  const renderVideos = () =>
+    FEATURES.coachVideos ? (
+      <SectionCard title={t.coachVideosTitle}>
+        <Text style={styles.helper}>{t.coachVideosDesc}</Text>
+        <Text style={styles.attention}>{t.coachVideosCount(videoCount)}</Text>
+        <View style={styles.buttonRow}>
+          <ActionButton label={t.manageVideos} variant="secondary" onPress={() => navigation.navigate('CoachVideos')} />
+        </View>
+      </SectionCard>
+    ) : null;
+
   const attention = countNeedingAttention(students ?? [], now);
   const renderStudents = () => (
     <SectionCard title={t.myStudents} rightLabel={students?.length ? t.studentsCount(students.length) : undefined}>
@@ -219,12 +236,14 @@ export default function CoachScreen() {
           students?.length ? (
             <>
               {renderStudents()}
+              {renderVideos()}
               {renderInvite()}
             </>
           ) : (
             <>
               {renderInvite()}
               {renderStudents()}
+              {renderVideos()}
             </>
           )
         ) : (

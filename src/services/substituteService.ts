@@ -10,6 +10,7 @@ import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import type { Exercise } from './types';
 import { listExercises } from './workoutService';
+import { normalizeSearch } from '../utils/text';
 
 export const MAX_SUBSTITUTES = 4;
 
@@ -35,8 +36,7 @@ function toExercise(row: any): Exercise {
   };
 }
 
-const muscleKey = (muscle: string | null | undefined) =>
-  (muscle ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const muscleKey = (muscle: string | null | undefined) => normalizeSearch(muscle);
 
 const nameKey = (name: string) => muscleKey(name).replace(/\s+/g, ' ');
 

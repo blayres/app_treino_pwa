@@ -2,7 +2,8 @@ import React, { memo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { styles } from '../screens/WorkoutScreen.styles';
 import { CircularCheckbox } from './CircularCheckbox';
-import { ExerciseLibraryCard } from './ExerciseLibraryCard';
+import { ExerciseMedia } from './ExerciseMedia';
+import type { ExerciseVideo } from '../services/videoService';
 import { PillButton } from './PillButton';
 import { useTourTarget } from '../store/useTourStore';
 import type { Exercise } from '../services/types';
@@ -27,6 +28,8 @@ type Props = {
   onShowSubstitutes: (exercise: Exercise) => void;
   /** First row: the guided tour points at its load inputs and "Ver substitutos". */
   isTourAnchor?: boolean;
+  /** The coach's video for this exercise (shown instead of the animation). */
+  video?: ExerciseVideo | null;
 };
 
 /**
@@ -47,6 +50,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   onLoadBlur,
   onShowSubstitutes,
   isTourAnchor = false,
+  video = null,
 }: Props) {
   const { t } = useI18n();
   const loadTourRef = useTourTarget(isTourAnchor ? 'workout.load' : null);
@@ -111,7 +115,7 @@ export const ExerciseRow = memo(function ExerciseRow({
               {t.restInterval(formatRest(exercise.rest_seconds, t.minuteShort, t.secondShort))}
             </Text>
             {exercise.tip ? <Text style={styles.tip}>{exercise.tip}</Text> : null}
-            {exercise.library ? <ExerciseLibraryCard library={exercise.library} /> : null}
+            <ExerciseMedia library={exercise.library} video={video} />
             <View ref={substitutesTourRef} collapsable={false} style={styles.tourAnchor}>
               <PillButton
                 label={t.showSubstitutes}

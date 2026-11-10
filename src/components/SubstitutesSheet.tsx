@@ -4,7 +4,8 @@ import { useI18n } from '../i18n';
 import { colors, spacing, typography } from '../theme';
 import type { Exercise } from '../services/types';
 import { getExerciseSubstitutes } from '../services/substituteService';
-import { ExerciseLibraryCard } from './ExerciseLibraryCard';
+import { ExerciseMedia } from './ExerciseMedia';
+import { useExerciseVideos } from '../hooks/useExerciseVideos';
 import { styles as sheet } from './ExercisePickerSheet.styles';
 
 type Props = {
@@ -20,6 +21,7 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
 export function SubstitutesSheet({ exercise, userId, onClose }: Props) {
   const { t } = useI18n();
   const [items, setItems] = useState<Exercise[] | null>(null);
+  const videos = useExerciseVideos(userId);
 
   useEffect(() => {
     if (!exercise) return;
@@ -62,7 +64,7 @@ export function SubstitutesSheet({ exercise, userId, onClose }: Props) {
                   <Text style={styles.meta}>
                     {[item.primary_muscle && capitalize(item.primary_muscle), item.scheme].filter(Boolean).join(' · ')}
                   </Text>
-                  {item.library ? <ExerciseLibraryCard library={item.library} /> : null}
+                  <ExerciseMedia library={item.library} video={videos.get(item.id)} />
                 </View>
               ))}
             </ScrollView>

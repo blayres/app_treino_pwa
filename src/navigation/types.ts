@@ -8,6 +8,8 @@ export type RootStackParamList = {
   /** Personal trainer area: invite + students list. */
   Coach: undefined;
   CoachStudent: { studentId: number };
+  /** The coach's own exercise videos (upload / replace / remove). */
+  CoachVideos: undefined;
   /** "Meu treino" editor opened by the coach for a student. */
   CoachProgram: { studentId: number; studentName?: string };
   StudentProgress: { studentId: number; studentName?: string };

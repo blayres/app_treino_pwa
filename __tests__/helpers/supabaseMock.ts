@@ -3,7 +3,7 @@
  *
  * - Records every query: table, action (select/insert/update/upsert/delete),
  *   payload, options and the filter/modifier chain (eq, is, neq, in, order…).
- * - Answers with results queued per "table.action" (or "rpc.name"), in order;
+ * - Answers with results queued per "table.action" (or "rpc.name" / "storage.method"), in order;
  *   unqueued calls resolve to `{ data: null, error: null }`.
  *
  * Usage in a test file (the factory must `require` this module so the test and
@@ -29,6 +29,9 @@ export type RecordedQuery = {
 
 export type RecordedRpc = { name: string; args: unknown };
 
+/** Storage call: bucket + method (upload/remove/createSignedUrl) + arguments. */
+export type RecordedStorage = { bucket: string; method: string; args: unknown[] };
+
 const FILTERS = [
   'eq', 'neq', 'is', 'in', 'gt', 'gte', 'lt', 'lte', 'ilike', 'like', 'match', 'not', 'or',
   'order', 'limit', 'range', 'single', 'maybeSingle',
@@ -37,6 +40,7 @@ const FILTERS = [
 class SupabaseMock {
   queries: RecordedQuery[] = [];
   rpcs: RecordedRpc[] = [];
+  storageCalls: RecordedStorage[] = [];
   private results = new Map<string, Result[]>();
 
   auth = {
@@ -58,6 +62,7 @@ class SupabaseMock {
   reset() {
     this.queries = [];
     this.rpcs = [];
+    this.storageCalls = [];
     this.results.clear();
     Object.values(this.auth).forEach((fn) => fn.mockClear());
   }
@@ -108,6 +113,17 @@ class SupabaseMock {
     builder.then = (resolve: (r: Result) => unknown, reject?: (e: unknown) => unknown) =>
       Promise.resolve(this.take(`${table}.${query.action}`)).then(resolve, reject);
     return builder;
+  };
+
+  /** storage.from(bucket).upload/remove/createSignedUrl → results queued as "storage.<method>". */
+  storage = {
+    from: (bucket: string) => {
+      const call = (method: string) => async (...args: unknown[]) => {
+        this.storageCalls.push({ bucket, method, args });
+        return this.take(`storage.${method}`);
+      };
+      return { upload: call('upload'), remove: call('remove'), createSignedUrl: call('createSignedUrl') };
+    },
   };
 
   rpc = jest.fn(async (name: string, args?: unknown) => {

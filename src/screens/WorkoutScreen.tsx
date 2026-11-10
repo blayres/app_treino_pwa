@@ -35,6 +35,7 @@ import { useI18n } from '../i18n';
 import { LogoBar } from '../components/LogoBar';
 import { formatDecimal, parseDecimal, sanitizeDecimalInput } from '../utils/decimal';
 import { useTourStore, useTourTarget } from '../store/useTourStore';
+import { useExerciseVideos } from '../hooks/useExerciseVideos';
 
 type WorkoutRoute = RouteProp<RootStackParamList, 'Workout'>;
 
@@ -91,6 +92,7 @@ export default function WorkoutScreen() {
   const [isLoading, setIsLoading] = useState(() => getCachedWorkoutExercises(workoutId) === null);
   const flatListRef = useRef<FlatList>(null);
   const startTourRef = useTourTarget('workout.start');
+  const videos = useExerciseVideos(currentUser?.id);
   const toursLoaded = useTourStore((s) => s.seen !== null);
   const startTourIfNew = useTourStore((s) => s.startIfNew);
 
@@ -452,6 +454,7 @@ export default function WorkoutScreen() {
                   onLoadBlur={flushLoad}
                   onShowSubstitutes={setSubstitutesFor}
                   isTourAnchor={index === 0}
+                  video={videos.get(item.exercise.id)}
                 />
               );
             }}

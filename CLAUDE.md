@@ -31,6 +31,7 @@ src/screens/             telas (lógica de tela + layout); estilos em X.styles.t
 src/components/          componentes reutilizáveis (ver lista abaixo)
 src/services/            acesso a dados (Supabase e SQLite local) + lógica pura testável
 src/utils/               funções puras genéricas (ex.: decimal.ts)
+src/hooks/               hooks reutilizáveis (ex.: useExerciseVideos)
 src/store/               zustand: useAppStore (usuário, sessão, onboarding), useDialogStore (alertas)
 src/i18n/translations.ts textos em pt (padrão), en, es, fr
 src/theme/               cores, espaçamentos, tipografia (tokens)
@@ -65,6 +66,9 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 | Trocar entre o treino do personal e a área do personal | `SwitchViewButton` (`MyTrainingButton` na área do personal; "Alunos" na Home) |
 | Botão/elemento à direita do "Voltar" | `ScreenHeader` / `ScreenShell` prop `action` |
 | Aluno na lista do personal | `StudentRow` (+ `studentStatus` em `services/coachService`) |
+| Animação ou vídeo do personal de um exercício | `ExerciseMedia` (vídeo do personal no lugar do GIF; player `ExerciseVideoPlayer` só monta ao tocar) + `useExerciseVideos(viewerId)` |
+| Normalizar texto para busca (acentos/maiúsculas) | `normalizeSearch` de `utils/text` |
+| Escolher arquivo do aparelho (web) | `pickFile(accept)` de `utils/pickFile` |
 | Dica/tutorial apontando algo na tela | `GuidedTour` + `useTourTarget('id')` no elemento + passo em `services/tours.ts` (`TOURS`); a tela chama `useTourStore().startIfNew(tour)` |
 | Carregamento | `Skeleton` só onde entra dado do banco, com o tamanho do elemento real (textos/títulos/rótulos fixos sempre visíveis); só no 1º carregamento — em recarga manter o conteúdo |
 | Cache de leitura | `createRequestCache` (`services/requestCache`): TTL, uma requisição por chave, `peek` síncrono para o 1º quadro, `invalidate` após escrita |
@@ -135,5 +139,6 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Exercícios privados: `exercises.owner_id` (null = catálogo). Séries/descanso/notas por treino em `workout_exercises`.
 - Personal (`migration_coach.sql`): qualquer usuário vira personal (`profiles.coach_code`); aluno entra por código/link `/convite/CODE` (`coachInvite.ts` guarda o código até o login, `PendingInviteHost` pergunta). Um personal por aluno (`coach_students`). O personal usa as **mesmas telas** do aluno com `studentId` na rota: `CoachProgram` → `MyWorkoutScreen`, `StudentProgress` → `ProgressScreen` (somente leitura). O aluno continua podendo editar o próprio treino.
 - Tutorial guiado (`migration_guided_tour.sql`): `profiles.tours_seen` (contas antigas marcadas como vistas). Passo sem alvo na tela é pulado; elemento novo importante → novo passo em `TOURS` com textos `tour*` nos 4 idiomas.
+- Vídeos do personal — **desligado** (`FEATURES.coachVideos = false`, migração ainda não aplicada; motivo: limites do Supabase grátis). Para ligar: aplicar `migration_exercise_videos.sql` e virar a chave. Detalhes: bucket privado `exercise-videos` (pasta = id do personal, 50 MB, mp4/mov/webm), tabela `exercise_videos` (1 por personal por exercício). Só a lista "quais exercícios têm vídeo" é carregada (cache); o arquivo é pedido por URL assinada (1 h) ao tocar em "Ver vídeo". Domínio do Supabase está em `media-src` da CSP.
 - Admin global (`role = 'admin'`) só para o catálogo de exercícios (sem tela; via SQL). `/admin` redireciona para a área do personal.
 - Dívidas: DDL de `exercise_library` não está no repo.
