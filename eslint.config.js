@@ -14,7 +14,7 @@ const nodeGlobals = {
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*', 'coverage/*', 'android/*', 'ios/*', '.expo/*'],
+    ignores: ['dist/*', 'coverage/*', 'android/*', 'ios/*', '.expo/*', 'node_modules.nosync/*'],
   },
   {
     // Node scripts and tool configs.

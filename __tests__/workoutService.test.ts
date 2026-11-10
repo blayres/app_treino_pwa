@@ -130,16 +130,29 @@ describe('createWorkoutForUser', () => {
 
 describe('replaceWorkoutItems', () => {
   it('inserts the new list before deleting the old rows (never leaves the day empty)', async () => {
-    supabaseMock.queue('workout_exercises.select', { data: [{ id: 1 }, { id: 2 }] });
+    supabaseMock.queue('workout_exercises.select', { data: [{ id: 1, order_index: 0 }, { id: 2, order_index: 1 }] });
 
     await replaceWorkoutItems(40, [{ exerciseId: 10, scheme: '3x12' }]);
 
     const order = supabaseMock.queries.map((q) => `${q.table}.${q.action}`);
     expect(order).toEqual(['workout_exercises.select', 'workout_exercises.insert', 'workout_exercises.delete']);
     expect(supabaseMock.calls('workout_exercises', 'insert')[0].payload).toEqual([
-      { workout_id: 40, exercise_id: 10, order_index: 0, scheme: '3x12', rest_seconds: null },
+      { workout_id: 40, exercise_id: 10, order_index: 2, scheme: '3x12', rest_seconds: null },
     ]);
     expect(filter(supabaseMock.calls('workout_exercises', 'delete')[0], 'in', 'id')).toEqual(['in', 'id', [1, 2]]);
+  });
+
+  it('numbers the new rows above the old ones (unique workout_id + order_index)', async () => {
+    supabaseMock.queue('workout_exercises.select', { data: [{ id: 1, order_index: 7 }, { id: 2, order_index: 3 }] });
+    await replaceWorkoutItems(40, [{ exerciseId: 10 }, { exerciseId: 11 }]);
+    const payload = supabaseMock.calls('workout_exercises', 'insert')[0].payload as any[];
+    expect(payload.map((row) => row.order_index)).toEqual([8, 9]);
+  });
+
+  it('starts at 0 when the workout has no exercises yet', async () => {
+    supabaseMock.queue('workout_exercises.select', { data: [] });
+    await replaceWorkoutItems(40, [{ exerciseId: 10 }]);
+    expect((supabaseMock.calls('workout_exercises', 'insert')[0].payload as any[])[0].order_index).toBe(0);
   });
 
   it('keeps the old rows when inserting the new ones fails', async () => {

@@ -259,23 +259,30 @@ export async function createWorkoutForUser(params: {
 /**
  * Replaces a workout's exercise list (order + per-workout overrides).
  * Inserts the new rows first and only then deletes the old ones, so a failure
- * never leaves the workout empty.
+ * never leaves the workout empty. The new rows take order_index values above
+ * the old ones: (workout_id, order_index) is unique in Supabase, so reusing
+ * 0..n-1 while the old rows still exist would violate it.
  */
+function nextOrderIndexBase(rows: { order_index?: number | null }[]): number {
+  return rows.reduce((max, row) => Math.max(max, Number(row.order_index ?? -1)), -1) + 1;
+}
+
 export async function replaceWorkoutItems(workoutId: number, items: WorkoutItemInput[]): Promise<void> {
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
     const { data: oldRows, error: oldError } = await supabase
       .from('workout_exercises')
-      .select('id')
+      .select('id, order_index')
       .eq('workout_id', workoutId);
     if (oldError) throw oldError;
+    const base = nextOrderIndexBase(oldRows ?? []);
 
     if (items.length > 0) {
       const { error: insertError } = await supabase.from('workout_exercises').insert(
         items.map((item, index) => ({
           workout_id: workoutId,
           exercise_id: item.exerciseId,
-          order_index: index,
+          order_index: base + index,
           scheme: item.scheme ?? null,
           rest_seconds: item.restSeconds ?? null,
           ...(item.notes ? { notes: item.notes } : {}),
@@ -291,10 +298,11 @@ export async function replaceWorkoutItems(workoutId: number, items: WorkoutItemI
     }
   } else {
     const db = await getLocalDb();
-    const oldRows = await db.getAllAsync<{ id: number }>(
-      `SELECT id FROM workout_exercises WHERE workout_id = ?;`,
+    const oldRows = await db.getAllAsync<{ id: number; order_index: number }>(
+      `SELECT id, order_index FROM workout_exercises WHERE workout_id = ?;`,
       workoutId,
     );
+    const base = nextOrderIndexBase(oldRows);
     for (let index = 0; index < items.length; index++) {
       const item = items[index];
       await db.runAsync(
@@ -302,7 +310,7 @@ export async function replaceWorkoutItems(workoutId: number, items: WorkoutItemI
          VALUES (?, ?, ?, ?, ?, ?);`,
         workoutId,
         item.exerciseId,
-        index,
+        base + index,
         item.scheme ?? null,
         item.restSeconds ?? null,
         item.notes ?? null,
