@@ -16,6 +16,7 @@ import { lazyScreen, preloadWhenIdle } from './src/navigation/lazyScreen';
 import {
   CoachFallback,
   CoachStudentFallback,
+  CoachVideosFallback,
   GenericFallback,
   MyWorkoutFallback,
   ProgressFallback,
@@ -23,6 +24,7 @@ import {
   WorkoutFallback,
 } from './src/navigation/screenFallbacks';
 import type { RootStackParamList } from './src/navigation/types';
+import { FEATURES } from './src/config/features';
 import { colors } from './src/theme/colors';
 import { useAppStore } from './src/store/useAppStore';
 import { isForgottenSession, restoreActiveSessionByUser } from './src/services/sessionService';
@@ -42,6 +44,7 @@ import { ForgottenWorkoutHost } from './src/components/ForgottenWorkoutHost';
 // (see preloadWhenIdle below); each has a static fallback instead of a blank page.
 const WorkoutScreen = lazyScreen(() => import('./src/screens/WorkoutScreen'), WorkoutFallback);
 const CoachScreen = lazyScreen(() => import('./src/screens/CoachScreen'), CoachFallback);
+const CoachVideosScreen = lazyScreen(() => import('./src/screens/CoachVideosScreen'), CoachVideosFallback);
 const CoachStudentScreen = lazyScreen(() => import('./src/screens/CoachStudentScreen'), CoachStudentFallback);
 const SignupScreen = lazyScreen(() => import('./src/screens/SignupScreen'), GenericFallback);
 const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'), GenericFallback);
@@ -305,6 +308,7 @@ export default function App() {
             Workout: 'workout/:workoutId',
             Coach: { path: 'personal', alias: ['admin'] },
             CoachStudent: 'personal/aluno/:studentId',
+            CoachVideos: 'personal/videos',
             CoachProgram: 'personal/aluno/:studentId/treino',
             StudentProgress: 'personal/aluno/:studentId/progresso',
             MyWorkout: 'my-workout',
@@ -352,6 +356,7 @@ export default function App() {
               />
               <Stack.Screen name="Coach" component={CoachScreen} />
               <Stack.Screen name="CoachStudent" component={CoachStudentScreen} />
+              {FEATURES.coachVideos && <Stack.Screen name="CoachVideos" component={CoachVideosScreen} />}
               <Stack.Screen name="CoachProgram" component={MyWorkoutScreen} />
               <Stack.Screen name="StudentProgress" component={ProgressScreen} />
               <Stack.Screen name="MyWorkout" component={MyWorkoutScreen} />

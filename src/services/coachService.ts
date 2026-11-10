@@ -7,6 +7,7 @@ import { backendMode } from './backendMode';
 import { createRequestCache } from './requestCache';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import { calendarDaysBetween } from '../utils/date';
+import { normalizeSearch } from '../utils/text';
 
 export type StudentSummary = {
   id: number;
@@ -51,9 +52,8 @@ export function countNeedingAttention(students: StudentSummary[], now: Date): nu
 
 /** Case- and accent-insensitive name search. */
 export function filterStudents(students: StudentSummary[], query: string): StudentSummary[] {
-  const key = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-  const q = key(query);
-  return q ? students.filter((s) => key(s.name).includes(q)) : students;
+  const q = normalizeSearch(query);
+  return q ? students.filter((s) => normalizeSearch(s.name).includes(q)) : students;
 }
 
 export function buildStudentSummaries(
