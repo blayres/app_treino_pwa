@@ -99,8 +99,9 @@ function toDraftDay(workout: WorkoutWithLastDone, rows: WorkoutExercise[]): Draf
   };
 }
 
-export async function loadProgramDraft(userId: number): Promise<DraftDay[]> {
-  const workouts = await getWorkoutsByUser(userId);
+/** `fresh`: also re-read the days (e.g. a coach viewing a program the student may have changed). */
+export async function loadProgramDraft(userId: number, options?: { fresh?: boolean }): Promise<DraftDay[]> {
+  const workouts = await getWorkoutsByUser(userId, options);
   const days = await Promise.all(
     workouts.map(async (workout) => {
       // Editing starts from fresh rows, never from a cached list.

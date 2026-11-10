@@ -62,13 +62,15 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 | Cartão com título | `SectionCard` |
 | Botão dentro de cartão (primário / contorno) | `ActionButton` |
 | Inicial do nome em círculo | `InitialAvatar` |
+| Trocar entre o treino do personal e a área do personal | `SwitchViewButton` (`MyTrainingButton` na área do personal; "Alunos" na Home) |
+| Botão/elemento à direita do "Voltar" | `ScreenHeader` / `ScreenShell` prop `action` |
 | Aluno na lista do personal | `StudentRow` (+ `studentStatus` em `services/coachService`) |
 | Dica/tutorial apontando algo na tela | `GuidedTour` + `useTourTarget('id')` no elemento + passo em `services/tours.ts` (`TOURS`); a tela chama `useTourStore().startIfNew(tour)` |
 | Carregamento | `Skeleton` só onde entra dado do banco, com o tamanho do elemento real (textos/títulos/rótulos fixos sempre visíveis); só no 1º carregamento — em recarga manter o conteúdo |
 | Cache de leitura | `createRequestCache` (`services/requestCache`): TTL, uma requisição por chave, `peek` síncrono para o 1º quadro, `invalidate` após escrita |
 | Tela nova code-split | `lazyScreen(import, Fallback)` em `App.tsx` + entrar em `AUTHENTICATED_SCREENS`/`GUEST_SCREENS` (pré-carga) + fallback em `navigation/screenFallbacks` (`ScreenShell`) |
 | Números/cargas | `utils/decimal`: `sanitizeDecimalInput`, `parseDecimal`, `formatDecimal`, `formatKg`, `formatKgDelta` |
-| Ícones | SVG inline no estilo dos existentes (`PencilIcon`, ícones do onboarding); sem libs de ícones |
+| Ícones | SVG inline sobre `StrokeIcon` (traço fino, 24×24): `PencilIcon`, `StudentsIcon`, `DumbbellIcon`; sem libs de ícones |
 | Cores/espaços/fontes | tokens de `src/theme` — nunca hex solto em tela nova |
 | Textos | `t.chave` de `useI18n()` — nunca string visível hardcoded |
 | Ligar/desligar recurso | `FEATURES` em `src/config/features.ts` |

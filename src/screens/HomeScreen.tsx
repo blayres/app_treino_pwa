@@ -16,6 +16,8 @@ import { LogoBar } from '../components/LogoBar';
 import { ProgramUpdateReminder } from '../components/ProgramUpdateReminder';
 import { ActionButton } from '../components/ActionButton';
 import { InitialAvatar } from '../components/InitialAvatar';
+import { StudentsIcon } from '../components/StudentsIcon';
+import { SwitchViewButton } from '../components/SwitchViewButton';
 import { getCachedCoachCode, getCoachCode } from '../services/coachService';
 import { Skeleton } from '../components/Skeleton';
 import { useTourStore, useTourTarget } from '../store/useTourStore';
@@ -47,7 +49,7 @@ export default function HomeScreen() {
     setRefreshKey(k => k + 1);
   }, []);
 
-  // Trainers get a shortcut to their students.
+  // Trainers get a shortcut to their students (header, next to the avatar).
   const userId = currentUser?.id;
   useEffect(() => {
     if (!userId) return;
@@ -121,6 +123,14 @@ export default function HomeScreen() {
               <View style={styles.greetingRow}>
                 <Text style={styles.greeting} numberOfLines={1} ellipsizeMode="tail">{t.greeting(currentUser.name)}</Text>
                 <View style={styles.actionsRow}>
+                  {isCoach && (
+                    <SwitchViewButton
+                      label={t.studentsShortcut}
+                      icon={<StudentsIcon size={16} color={colors.olive} />}
+                      onPress={() => navigation.navigate('Coach')}
+                      accessibilityLabel={t.coachArea}
+                    />
+                  )}
                   <Pressable
                     ref={settingsRef}
                     onPress={() => navigation.navigate('Settings')}
@@ -196,15 +206,6 @@ export default function HomeScreen() {
               <ActionButton label={t.customizeMyWorkout} onPress={() => navigation.navigate('MyWorkout')} />
             </View>
           </SectionCard>
-
-          {isCoach && (
-            <SectionCard title={t.myStudents}>
-              <Text style={styles.sectionDescription}>{t.homeCoachDesc}</Text>
-              <View style={styles.cardAction}>
-                <ActionButton label={t.viewStudents} onPress={() => navigation.navigate('Coach')} />
-              </View>
-            </SectionCard>
-          )}
         </View>
       </ScrollView>
     </SafeAreaView>

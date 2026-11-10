@@ -15,6 +15,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import { lazyScreen, preloadWhenIdle } from './src/navigation/lazyScreen';
 import {
   CoachFallback,
+  CoachStudentFallback,
   GenericFallback,
   MyWorkoutFallback,
   ProgressFallback,
@@ -41,7 +42,7 @@ import { ForgottenWorkoutHost } from './src/components/ForgottenWorkoutHost';
 // (see preloadWhenIdle below); each has a static fallback instead of a blank page.
 const WorkoutScreen = lazyScreen(() => import('./src/screens/WorkoutScreen'), WorkoutFallback);
 const CoachScreen = lazyScreen(() => import('./src/screens/CoachScreen'), CoachFallback);
-const CoachStudentScreen = lazyScreen(() => import('./src/screens/CoachStudentScreen'), GenericFallback);
+const CoachStudentScreen = lazyScreen(() => import('./src/screens/CoachStudentScreen'), CoachStudentFallback);
 const SignupScreen = lazyScreen(() => import('./src/screens/SignupScreen'), GenericFallback);
 const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'), GenericFallback);
 const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen'), MyWorkoutFallback);

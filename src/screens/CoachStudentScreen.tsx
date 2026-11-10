@@ -15,12 +15,11 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionCard } from '../components/SectionCard';
 import { ActionButton } from '../components/ActionButton';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { Skeleton } from '../components/Skeleton';
 import { InitialAvatar } from '../components/InitialAvatar';
+import { CoachStudentSkeleton, ProgramDaysSkeleton } from '../components/CoachStudentSkeleton';
 import { CalendarFrequency } from '../components/CalendarFrequency';
 import { getCachedStudent, getStudent, unlinkStudent, type StudentSummary } from '../services/coachService';
 import { loadProgramDraft, peekProgramDraft, visibleDays, type DraftDay } from '../services/programService';
-import { invalidateWorkoutsByUserCache } from '../services/workoutService';
 import { styles } from './Coach.styles';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'CoachStudent'>;
@@ -55,8 +54,11 @@ export default function CoachStudentScreen() {
     if (!coachId || !Number.isFinite(studentId)) return;
     try {
       // The program may have just been edited by the student or the coach.
-      invalidateWorkoutsByUserCache(studentId);
-      const [summary, draft] = await Promise.all([getStudent(coachId, studentId), loadProgramDraft(studentId)]);
+      // Re-read without dropping the cache, so "Editar treino" still opens at once.
+      const [summary, draft] = await Promise.all([
+        getStudent(coachId, studentId),
+        loadProgramDraft(studentId, { fresh: true }),
+      ]);
       setStudent(summary);
       setProgram(visibleDays(draft));
     } catch (err: any) {
@@ -101,7 +103,8 @@ export default function CoachStudentScreen() {
   const renderStat = (label: string, value: string) => (
     <View style={styles.stat} accessible accessibilityLabel={`${label}: ${value}`}>
       <Text style={styles.statLabel} numberOfLines={1}>{label}</Text>
-      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      {/* Two lines: "Há 70 dias" doesn't fit one line of a third of a phone. */}
+      <Text style={styles.statValue} numberOfLines={2}>{value}</Text>
     </View>
   );
 
@@ -123,15 +126,7 @@ export default function CoachStudentScreen() {
 
       <SectionCard title={t.studentProgram}>
         {program === null ? (
-          [0, 1, 2].map((i) => (
-            <View key={i} style={styles.dayRow}>
-              <Skeleton width={56} height={12} />
-              <View style={styles.dayBody}>
-                <Skeleton width="70%" height={15} />
-                <Skeleton width="35%" height={12} style={{ marginTop: 6 }} />
-              </View>
-            </View>
-          ))
+          <ProgramDaysSkeleton />
         ) : program.length === 0 ? (
           <Text style={styles.empty}>{t.studentNoProgram}</Text>
         ) : (
@@ -179,11 +174,7 @@ export default function CoachStudentScreen() {
       <ScrollView contentContainerStyle={layout.content}>
         <ScreenHeader onBack={goBack} />
         {student === undefined ? (
-          <View style={styles.skeletons}>
-            <Skeleton width="60%" height={52} />
-            <Skeleton width="100%" height={80} />
-            <Skeleton width="100%" height={240} />
-          </View>
+          <CoachStudentSkeleton />
         ) : student === null ? (
           <Text style={styles.empty}>{t.studentNotFound}</Text>
         ) : (

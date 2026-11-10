@@ -46,8 +46,9 @@ export async function getWorkoutTitle(workoutId: number): Promise<string> {
   return row?.title ?? '';
 }
 
-export function getWorkoutsByUser(userId: number): Promise<WorkoutWithLastDone[]> {
-  return workoutsByUserCache.get(userId, () => fetchWorkoutsByUser(userId));
+/** `fresh`: read again even if cached; the last list stays peekable meanwhile. */
+export function getWorkoutsByUser(userId: number, options?: { fresh?: boolean }): Promise<WorkoutWithLastDone[]> {
+  return workoutsByUserCache.get(userId, () => fetchWorkoutsByUser(userId), { force: options?.fresh });
 }
 
 async function fetchWorkoutsByUser(userId: number): Promise<WorkoutWithLastDone[]> {

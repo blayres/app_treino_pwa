@@ -13,6 +13,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionCard } from '../components/SectionCard';
 import { FooterButton } from '../components/FooterButton';
 import { ActionButton } from '../components/ActionButton';
+import { MyTrainingButton } from '../components/MyTrainingButton';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Skeleton } from '../components/Skeleton';
 import { StudentRow, StudentRowSkeleton } from '../components/StudentRow';
@@ -191,7 +192,13 @@ export default function CoachScreen() {
         contentContainerStyle={[layout.content, !code && !loading && layout.contentWithFooter]}
         keyboardShouldPersistTaps="handled"
       >
-        <ScreenHeader onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home'))} title={t.coachArea} subtitle={t.coachAreaSubtitle} />
+        <ScreenHeader
+          onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home'))}
+          title={t.coachArea}
+          subtitle={t.coachAreaSubtitle}
+          // The trainer's own training lives on Home (same account).
+          action={<MyTrainingButton onPress={() => navigation.navigate('Home')} />}
+        />
         {loading && code ? (
           // Known coach: the invite card is static; only the students load.
           <>

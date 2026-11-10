@@ -80,23 +80,6 @@ export const styles = StyleSheet.create({
   settingsButtonPressed: {
     backgroundColor: colors.olive + '24',
   },
-  toolsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  toolButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.borderSoftLight,
-    backgroundColor: colors.surfaceMutedLight,
-  },
-  toolButtonLabel: {
-    ...typography.caption,
-    color: colors.textPrimary,
-  },
   sectionDescription: {
     ...typography.body,
     marginBottom: spacing.md,
