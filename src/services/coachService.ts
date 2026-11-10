@@ -4,6 +4,7 @@
  * (migration_coach.sql): a coach only ever reads students linked to them.
  */
 import { backendMode } from './backendMode';
+import { createRequestCache } from './requestCache';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import { calendarDaysBetween } from '../utils/date';
 
@@ -96,7 +97,20 @@ function requireSupabase() {
 }
 
 /** The user's invite code, or null if they are not a coach yet. */
-export async function getCoachCode(userId: number): Promise<string | null> {
+// No TTL (always re-read): shares a boot request and keeps the last answer for
+// the first frame of Home and the coach area.
+const coachCodeCache = createRequestCache<number, string | null>(0);
+
+/** Last known invite code (undefined = never loaded, null = not a coach). */
+export function getCachedCoachCode(userId: number): string | null | undefined {
+  return coachCodeCache.peek(userId);
+}
+
+export function getCoachCode(userId: number): Promise<string | null> {
+  return coachCodeCache.get(userId, () => fetchCoachCode(userId));
+}
+
+async function fetchCoachCode(userId: number): Promise<string | null> {
   requireSupabase();
   const { data, error } = await supabase.from('profiles').select('coach_code').eq('id', userId).maybeSingle();
   if (error) return null;
@@ -131,7 +145,22 @@ export async function joinCoach(code: string): Promise<string> {
   return String(data);
 }
 
-export async function getMyCoach(): Promise<{ id: number; name: string } | null> {
+type MyCoach = { id: number; name: string } | null;
+// No TTL (always re-read); keeps the last answer per profile for the first frame.
+const myCoachCache = createRequestCache<number, MyCoach>(0);
+
+/** Last known coach of this profile (undefined = never loaded). */
+export function getCachedMyCoach(userId: number): MyCoach | undefined {
+  return myCoachCache.peek(userId);
+}
+
+/** The signed-in user's coach. `userId` (the profile) keys the cache. */
+export function getMyCoach(userId?: number): Promise<MyCoach> {
+  if (userId == null) return fetchMyCoach();
+  return myCoachCache.get(userId, fetchMyCoach);
+}
+
+async function fetchMyCoach(): Promise<MyCoach> {
   if (backendMode !== 'supabase') return null;
   ensureSupabaseEnabled();
   const { data, error } = await supabase.rpc('my_coach');
@@ -145,6 +174,9 @@ export async function unlinkStudent(studentId: number): Promise<void> {
   requireSupabase();
   const { error } = await supabase.from('coach_students').delete().eq('student_id', studentId);
   if (error) throw error;
+  lastStudents.forEach((list, coachId) =>
+    lastStudents.set(coachId, list.filter((student) => student.id !== studentId)),
+  );
 }
 
 async function summarize(links: { student_id: number; created_at: string; name: string }[]) {
@@ -179,6 +211,20 @@ const toLinks = (rows: any[]) =>
   }));
 
 /** The coach's students with activity, sorted by name. */
+// Students last loaded per coach, so the coach area and a student's page can
+// draw on their first frame while they refresh.
+const lastStudents = new Map<number, StudentSummary[]>();
+
+/** Last loaded students of a coach (undefined = never loaded). */
+export function getCachedStudents(coachId: number): StudentSummary[] | undefined {
+  return lastStudents.get(coachId);
+}
+
+/** One student from the last loaded list (undefined if unknown). */
+export function getCachedStudent(coachId: number, studentId: number): StudentSummary | undefined {
+  return lastStudents.get(coachId)?.find((student) => student.id === studentId);
+}
+
 export async function listStudents(coachId: number): Promise<StudentSummary[]> {
   requireSupabase();
   const { data, error } = await supabase
@@ -186,7 +232,9 @@ export async function listStudents(coachId: number): Promise<StudentSummary[]> {
     .select('student_id, created_at, student:student_id ( name )')
     .eq('coach_id', coachId);
   if (error) throw error;
-  return summarize(toLinks(data ?? []));
+  const students = await summarize(toLinks(data ?? []));
+  lastStudents.set(coachId, students);
+  return students;
 }
 
 /** One student of the coach, or null if not linked (anymore). */

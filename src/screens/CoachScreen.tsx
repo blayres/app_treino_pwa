@@ -15,11 +15,13 @@ import { FooterButton } from '../components/FooterButton';
 import { ActionButton } from '../components/ActionButton';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Skeleton } from '../components/Skeleton';
-import { StudentRow } from '../components/StudentRow';
+import { StudentRow, StudentRowSkeleton } from '../components/StudentRow';
 import {
   becomeCoach,
   countNeedingAttention,
   filterStudents,
+  getCachedCoachCode,
+  getCachedStudents,
   getCoachCode,
   inviteLink,
   listStudents,
@@ -45,25 +47,36 @@ export default function CoachScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
   const { t } = useI18n();
 
-  const [code, setCode] = useState<string | null>(null);
-  const [students, setStudents] = useState<StudentSummary[] | null>(null);
+  const userId = currentUser?.id;
+  // Invite code is usually known from Home (fetched at boot): undefined = not yet.
+  const [cachedCode] = useState(() => (userId ? getCachedCoachCode(userId) : undefined));
+  const [code, setCode] = useState<string | null>(cachedCode ?? null);
+  const [students, setStudents] = useState<StudentSummary[] | null>(() => {
+    if (!userId) return null;
+    // Last loaded list (reopening the area), or nothing to list for a non-coach.
+    return getCachedStudents(userId) ?? (cachedCode === null ? [] : null);
+  });
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [now] = useState(() => new Date());
-  const userId = currentUser?.id;
 
   const load = useCallback(async () => {
     if (!userId) return;
     try {
-      const myCode = await getCoachCode(userId);
+      // A known coach: code and students in parallel; otherwise the code decides.
+      const [myCode, list] = await Promise.all([
+        getCoachCode(userId),
+        cachedCode ? listStudents(userId) : Promise.resolve(null),
+      ]);
       setCode(myCode);
-      setStudents(myCode ? await listStudents(userId) : []);
+      const next = myCode ? list ?? (await listStudents(userId)) : [];
+      setStudents(next);
     } catch (err: any) {
       setStudents((prev) => prev ?? []);
       showAlert(t.saveError, err?.message ?? t.genericError);
     }
-  }, [userId, t]);
+  }, [userId, t, cachedCode]);
 
   // Reload when coming back from a student (program built, student removed).
   useFocusEffect(
@@ -179,7 +192,17 @@ export default function CoachScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <ScreenHeader onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home'))} title={t.coachArea} subtitle={t.coachAreaSubtitle} />
-        {loading ? (
+        {loading && code ? (
+          // Known coach: the invite card is static; only the students load.
+          <>
+            {renderInvite()}
+            <SectionCard title={t.myStudents}>
+              <StudentRowSkeleton />
+              <StudentRowSkeleton />
+              <StudentRowSkeleton />
+            </SectionCard>
+          </>
+        ) : loading ? (
           <View style={styles.skeletons}>
             <Skeleton width="100%" height={180} />
             <Skeleton width="100%" height={220} />

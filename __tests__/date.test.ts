@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { calendarDaysBetween, describeStartedDay, localDateKey, relativeDay , formatRest } from '../src/utils/date';
+import { buildMonthWeeks, calendarDaysBetween, describeStartedDay, localDateKey, relativeDay , formatRest } from '../src/utils/date';
 
 // Dates are built in the machine's local time zone, like the app does on the phone.
 const at = (y: number, m: number, d: number, h = 12, min = 0) => new Date(y, m - 1, d, h, min);
@@ -65,5 +65,22 @@ describe('describeStartedDay', () => {
     expect(day.time).toBe('18:40');
     expect(day.weekdayDate).toMatch(/^seg/);
     expect(describeStartedDay(at(2026, 11, 9, 18, 40), now, 'en-US').shortDate).toBe('11/9');
+  });
+});
+
+describe('buildMonthWeeks', () => {
+  it('lays out a month in Sunday-first weeks with padding cells', () => {
+    const weeks = buildMonthWeeks(2026, 10); // November 2026 starts on a Sunday
+    expect(weeks).toHaveLength(5);
+    expect(weeks.every((w) => w.length === 7)).toBe(true);
+    expect(weeks[0][0]).toEqual({ date: '2026-11-01', label: '1', isEmpty: false });
+    expect(weeks[4][1]).toEqual({ date: '2026-11-30', label: '30', isEmpty: false });
+    expect(weeks[4][2].isEmpty).toBe(true);
+  });
+
+  it('pads before the first day', () => {
+    const weeks = buildMonthWeeks(2026, 9); // October 2026 starts on a Thursday
+    expect(weeks[0].slice(0, 4).every((d) => d.isEmpty)).toBe(true);
+    expect(weeks[0][4].date).toBe('2026-10-01');
   });
 });

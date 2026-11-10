@@ -3,16 +3,17 @@
  * MyWorkoutScreen: load the current program, build one from pasted text, and
  * save a draft by applying only what changed.
  */
-import type { Exercise } from './types';
+import type { Exercise, WorkoutExercise, WorkoutWithLastDone } from './types';
 import {
   archiveWorkout,
   createCustomExercise,
   createWorkoutForUser,
   DEFAULT_CUSTOM_REST_SECONDS,
   DEFAULT_CUSTOM_SCHEME,
+  getCachedWorkoutExercises,
+  getCachedWorkoutsByUser,
   getWorkoutExercises,
   getWorkoutsByUser,
-  invalidateWorkoutExercisesCache,
   invalidateWorkoutsByUserCache,
   MoveNotSupportedError,
   moveWorkoutsToDays,
@@ -74,35 +75,54 @@ function baseOf(exercise: Exercise) {
 }
 
 /** Current active program as draft days (sorted by weekday). */
+function toDraftDay(workout: WorkoutWithLastDone, rows: WorkoutExercise[]): DraftDay {
+  return {
+    key: nextDraftKey(),
+    workoutId: workout.id,
+    dayOfWeek: workout.day_of_week,
+    title: workout.title,
+    items: rows.map((row) => {
+      baseValues.set(row.exercise_id, {
+        scheme: row.base_scheme ?? row.exercise.scheme,
+        restSeconds: row.base_rest_seconds ?? row.exercise.rest_seconds,
+      });
+      return {
+        key: nextDraftKey(),
+        exercise: row.exercise,
+        name: row.exercise.name,
+        scheme: row.exercise.scheme,
+        restSeconds: row.rest_seconds_override ?? null,
+        wrote: null,
+        notes: row.notes ?? null,
+      };
+    }),
+  };
+}
+
 export async function loadProgramDraft(userId: number): Promise<DraftDay[]> {
   const workouts = await getWorkoutsByUser(userId);
   const days = await Promise.all(
     workouts.map(async (workout) => {
-      invalidateWorkoutExercisesCache(workout.id);
-      const rows = await getWorkoutExercises(workout.id);
-      return {
-        key: nextDraftKey(),
-        workoutId: workout.id,
-        dayOfWeek: workout.day_of_week,
-        title: workout.title,
-        items: rows.map((row) => {
-          baseValues.set(row.exercise_id, {
-            scheme: row.base_scheme ?? row.exercise.scheme,
-            restSeconds: row.base_rest_seconds ?? row.exercise.rest_seconds,
-          });
-          return {
-            key: nextDraftKey(),
-            exercise: row.exercise,
-            name: row.exercise.name,
-            scheme: row.exercise.scheme,
-            restSeconds: row.rest_seconds_override ?? null,
-            wrote: null,
-            notes: row.notes ?? null,
-          };
-        }),
-      };
+      // Editing starts from fresh rows, never from a cached list.
+      return toDraftDay(workout, await getWorkoutExercises(workout.id, { fresh: true }));
     }),
   );
+  return days.sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+}
+
+/**
+ * The program as last loaded (Home warms it), to draw the editor on its first
+ * frame while loadProgramDraft fetches fresh rows. Null if anything is missing.
+ */
+export function peekProgramDraft(userId: number): DraftDay[] | null {
+  const workouts = getCachedWorkoutsByUser(userId);
+  if (!workouts) return null;
+  const days: DraftDay[] = [];
+  for (const workout of workouts) {
+    const rows = getCachedWorkoutExercises(workout.id);
+    if (!rows) return null;
+    days.push(toDraftDay(workout, rows));
+  }
   return days.sort((a, b) => a.dayOfWeek - b.dayOfWeek);
 }
 

@@ -18,8 +18,8 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { Skeleton } from '../components/Skeleton';
 import { InitialAvatar } from '../components/InitialAvatar';
 import { CalendarFrequency } from '../components/CalendarFrequency';
-import { getStudent, unlinkStudent, type StudentSummary } from '../services/coachService';
-import { loadProgramDraft, visibleDays, type DraftDay } from '../services/programService';
+import { getCachedStudent, getStudent, unlinkStudent, type StudentSummary } from '../services/coachService';
+import { loadProgramDraft, peekProgramDraft, visibleDays, type DraftDay } from '../services/programService';
 import { invalidateWorkoutsByUserCache } from '../services/workoutService';
 import { styles } from './Coach.styles';
 
@@ -38,8 +38,14 @@ export default function CoachStudentScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
   const { t, locale } = useI18n();
 
-  const [student, setStudent] = useState<StudentSummary | null | undefined>(undefined);
-  const [program, setProgram] = useState<DraftDay[]>([]);
+  // From the coach's list and the cached program: drawn at once, refreshed below.
+  const [student, setStudent] = useState<StudentSummary | null | undefined>(() =>
+    currentUser ? getCachedStudent(currentUser.id, studentId) : undefined,
+  );
+  const [program, setProgram] = useState<DraftDay[] | null>(() => {
+    const cached = peekProgramDraft(studentId);
+    return cached ? visibleDays(cached) : null;
+  });
   const [checkIns, setCheckIns] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [now] = useState(() => new Date());
@@ -116,7 +122,17 @@ export default function CoachStudentScreen() {
       </View>
 
       <SectionCard title={t.studentProgram}>
-        {program.length === 0 ? (
+        {program === null ? (
+          [0, 1, 2].map((i) => (
+            <View key={i} style={styles.dayRow}>
+              <Skeleton width={56} height={12} />
+              <View style={styles.dayBody}>
+                <Skeleton width="70%" height={15} />
+                <Skeleton width="35%" height={12} style={{ marginTop: 6 }} />
+              </View>
+            </View>
+          ))
+        ) : program.length === 0 ? (
           <Text style={styles.empty}>{t.studentNoProgram}</Text>
         ) : (
           program.map((day) => (
@@ -130,7 +146,7 @@ export default function CoachStudentScreen() {
           ))
         )}
         <View style={styles.cardAction}>
-          <ActionButton label={program.length === 0 ? t.buildProgram : t.editProgram} onPress={openProgram} />
+          <ActionButton label={program?.length === 0 ? t.buildProgram : t.editProgram} onPress={openProgram} />
         </View>
       </SectionCard>
 

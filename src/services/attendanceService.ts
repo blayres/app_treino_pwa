@@ -1,25 +1,36 @@
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import { localDateKey } from '../utils/date';
+import { createRequestCache } from './requestCache';
 
 async function getLocalDb() {
   const { getDb } = await import('../db');
   return getDb();
 }
 
-const ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — attendance changes at most once per workout
-const attendanceCache = new Map<string, { expiresAt: number; data: { dates: Set<string>; totalDays: number } }>();
+type MonthAttendance = { dates: Set<string>; totalDays: number };
 
-export async function getAttendanceDatesByMonth(params: {
-  userId: number;
-  year: number;
-  month: number;
-}): Promise<{ dates: Set<string>; totalDays: number }> {
-  const cacheKey = `${params.userId}:${params.year}:${params.month}`;
-  const cached = attendanceCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
+const ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — attendance changes at most once per workout
+const attendanceCache = createRequestCache<string, MonthAttendance>(ATTENDANCE_CACHE_TTL_MS);
+
+type MonthParams = { userId: number; year: number; month: number };
+
+// Month normalised like Date does (month -1 = December of the previous year).
+function monthKey({ userId, year, month }: MonthParams): string {
+  const first = new Date(year, month, 1);
+  return `${userId}:${first.getFullYear()}:${first.getMonth()}`;
+}
+
+/** Last known check-ins of a month, for the calendar's first frame. */
+export function getCachedAttendanceMonth(params: MonthParams): MonthAttendance | null {
+  return attendanceCache.peek(monthKey(params)) ?? null;
+}
+
+export function getAttendanceDatesByMonth(params: MonthParams): Promise<MonthAttendance> {
+  return attendanceCache.get(monthKey(params), () => fetchAttendanceMonth(params));
+}
+
+async function fetchAttendanceMonth(params: MonthParams): Promise<MonthAttendance> {
 
   const firstDay = new Date(params.year, params.month, 1);
   const lastDay = new Date(params.year, params.month + 1, 0);
@@ -46,10 +57,6 @@ export async function getAttendanceDatesByMonth(params: {
       })),
       totalDays: lastDay.getDate(),
     };
-    attendanceCache.set(cacheKey, {
-      expiresAt: Date.now() + ATTENDANCE_CACHE_TTL_MS,
-      data: response,
-    });
     return response;
   }
 
@@ -64,19 +71,11 @@ export async function getAttendanceDatesByMonth(params: {
     dates: new Set(rows.map((row) => row.date)),
     totalDays: lastDay.getDate(),
   };
-  attendanceCache.set(cacheKey, {
-    expiresAt: Date.now() + ATTENDANCE_CACHE_TTL_MS,
-    data: response,
-  });
   return response;
 }
 
 export function invalidateAttendanceCache(userId: number) {
-  for (const cacheKey of attendanceCache.keys()) {
-    if (cacheKey.startsWith(`${userId}:`)) {
-      attendanceCache.delete(cacheKey);
-    }
-  }
+  attendanceCache.invalidate((key) => key.startsWith(`${userId}:`));
 }
 
 export async function markAttendance(userId: number, date: Date) {
@@ -101,9 +100,5 @@ export async function markAttendance(userId: number, date: Date) {
     );
   }
 
-  for (const cacheKey of attendanceCache.keys()) {
-    if (cacheKey.startsWith(`${userId}:`)) {
-      attendanceCache.delete(cacheKey);
-    }
-  }
+  invalidateAttendanceCache(userId);
 }

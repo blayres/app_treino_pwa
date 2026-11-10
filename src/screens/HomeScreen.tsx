@@ -16,7 +16,8 @@ import { LogoBar } from '../components/LogoBar';
 import { ProgramUpdateReminder } from '../components/ProgramUpdateReminder';
 import { ActionButton } from '../components/ActionButton';
 import { InitialAvatar } from '../components/InitialAvatar';
-import { getCoachCode } from '../services/coachService';
+import { getCachedCoachCode, getCoachCode } from '../services/coachService';
+import { Skeleton } from '../components/Skeleton';
 import { useTourStore, useTourTarget } from '../store/useTourStore';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -29,7 +30,7 @@ export default function HomeScreen() {
   const [checkInLabel, setCheckInLabel] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [showWorkoutCompleted, setShowWorkoutCompleted] = useState(false);
-  const [isCoach, setIsCoach] = useState(false);
+  const [isCoach, setIsCoach] = useState(() => currentUser ? getCachedCoachCode(currentUser.id) != null : false);
   const toursLoaded = useTourStore((s) => s.seen !== null);
   const startTourIfNew = useTourStore((s) => s.startIfNew);
   const daysRef = useTourTarget('home.days');
@@ -167,7 +168,11 @@ export default function HomeScreen() {
           </View>
 
           <View ref={frequencyRef} collapsable={false}>
-            <SectionCard title={t.frequency} rightLabel={checkInLabel}>
+            <SectionCard
+              title={t.frequency}
+              rightLabel={checkInLabel}
+              rightElement={checkInLabel ? undefined : <Skeleton width={40} height={14} />}
+            >
               <CalendarFrequency
                 ref={calendarRef}
                 userId={currentUser.id}

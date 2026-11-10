@@ -12,13 +12,23 @@ import { StatusBar } from 'expo-status-bar';
 // Critical screens — loaded eagerly (on the initial render path)
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
-import { lazyScreen } from './src/navigation/lazyScreen';
+import { lazyScreen, preloadWhenIdle } from './src/navigation/lazyScreen';
+import {
+  CoachFallback,
+  GenericFallback,
+  MyWorkoutFallback,
+  ProgressFallback,
+  SettingsFallback,
+  WorkoutFallback,
+} from './src/navigation/screenFallbacks';
 import type { RootStackParamList } from './src/navigation/types';
 import { colors } from './src/theme/colors';
 import { useAppStore } from './src/store/useAppStore';
 import { isForgottenSession, restoreActiveSessionByUser } from './src/services/sessionService';
 import { getSessionUser, getOrCreateProfile, markOnboarded } from './src/services/authService';
 import { captureInviteFromUrl } from './src/services/coachInvite';
+import { forgetCachedProfiles, readCachedProfile, rememberProfile } from './src/services/profileCache';
+import { prefetchHomeData, waitAtMost } from './src/services/homePrefetch';
 import { PendingInviteHost } from './src/components/PendingInviteHost';
 import { GuidedTour } from './src/components/GuidedTour';
 import { useTourStore } from './src/store/useTourStore';
@@ -27,16 +37,24 @@ import { supabase } from './src/services/supabaseClient';
 import { AlertHost } from './src/components/AlertHost';
 import { ForgottenWorkoutHost } from './src/components/ForgottenWorkoutHost';
 
-// Non-critical screens — lazy loaded after first paint
-const WorkoutScreen = lazyScreen(() => import('./src/screens/WorkoutScreen'));
-const CoachScreen = lazyScreen(() => import('./src/screens/CoachScreen'));
-const CoachStudentScreen = lazyScreen(() => import('./src/screens/CoachStudentScreen'));
-const SignupScreen = lazyScreen(() => import('./src/screens/SignupScreen'));
-const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'));
-const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen'));
-const SettingsScreen = lazyScreen(() => import('./src/screens/SettingsScreen'));
-const ProgressScreen = lazyScreen(() => import('./src/screens/ProgressScreen'));
-const OnboardingScreen = lazyScreen(() => import('./src/screens/OnboardingScreen'));
+// Non-critical screens — code-split, preloaded right after the first paint
+// (see preloadWhenIdle below); each has a static fallback instead of a blank page.
+const WorkoutScreen = lazyScreen(() => import('./src/screens/WorkoutScreen'), WorkoutFallback);
+const CoachScreen = lazyScreen(() => import('./src/screens/CoachScreen'), CoachFallback);
+const CoachStudentScreen = lazyScreen(() => import('./src/screens/CoachStudentScreen'), GenericFallback);
+const SignupScreen = lazyScreen(() => import('./src/screens/SignupScreen'), GenericFallback);
+const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'), GenericFallback);
+const MyWorkoutScreen = lazyScreen(() => import('./src/screens/MyWorkoutScreen'), MyWorkoutFallback);
+const SettingsScreen = lazyScreen(() => import('./src/screens/SettingsScreen'), SettingsFallback);
+const ProgressScreen = lazyScreen(() => import('./src/screens/ProgressScreen'), ProgressFallback);
+const OnboardingScreen = lazyScreen(() => import('./src/screens/OnboardingScreen'), GenericFallback);
+
+// Longest the logo waits for Home's data once the user is known (then skeletons).
+const HOME_DATA_WAIT_MS = 300;
+
+// Most likely next screens first.
+const AUTHENTICATED_SCREENS = [WorkoutScreen, SettingsScreen, MyWorkoutScreen, ProgressScreen, CoachScreen, CoachStudentScreen, OnboardingScreen];
+const GUEST_SCREENS = [SignupScreen, ForgotPasswordScreen];
 
 export type { RootStackParamList } from './src/navigation/types';
 
@@ -115,22 +133,34 @@ export default function App() {
 
           lastAuthUserIdRef.current = session.user.id;
 
+          // Returning user: with the profile id from last time, look for an
+          // in-progress workout and warm Home's data while the profile loads
+          // (one round trip of waiting on the logo instead of two).
+          const cached = readCachedProfile(session.user.id);
+          const earlyRestore = cached ? restoreActiveSessionByUser(cached.id).catch(() => undefined) : null;
+          let homeData = cached ? prefetchHomeData(cached.id) : null;
+
           const user = await getOrCreateProfile(
             session.user.id,
             session.user.email,
             session.user.user_metadata ?? {},
           );
           if (user) {
+            rememberProfile(session.user.id, user);
+            if (!cached || cached.id !== user.id) homeData = prefetchHomeData(user.id);
             setCurrentUser({ id: user.id, name: user.name });
             setNeedsOnboarding(user.needsOnboarding);
             // Restore an in-progress workout before mounting the authenticated
             // navigator, so a PWA restart returns the user to that workout.
-            const activeSession = await restoreActiveSessionByUser(user.id);
+            const early = earlyRestore && cached?.id === user.id ? await earlyRestore : undefined;
+            const activeSession = early !== undefined ? early : await restoreActiveSessionByUser(user.id);
             if (activeSession) {
               setActiveSession(activeSession);
               // A forgotten workout is handled by ForgottenWorkoutHost instead.
               if (!isForgottenSession(activeSession.startedAt)) setRestoredWorkoutId(activeSession.workoutId);
             }
+            // A few more ms on the logo beats Home flashing skeletons for two frames.
+            if (homeData && !user.needsOnboarding) await waitAtMost(homeData, HOME_DATA_WAIT_MS);
             setAuthStatus('authenticated');
             return;
           }
@@ -138,6 +168,7 @@ export default function App() {
 
         if (event === 'SIGNED_OUT') {
           lastAuthUserIdRef.current = null;
+          forgetCachedProfiles();
           setCurrentUser(null);
           setNeedsOnboarding(false);
           didOnboardingRedirectRef.current = false;
@@ -222,6 +253,13 @@ export default function App() {
     navigationRef.resetRoot({ index: 0, routes: [{ name: 'Onboarding' }] });
     didOnboardingRedirectRef.current = true;
   }, [authStatus, navigationReady, needsOnboarding, navigationRef]);
+
+  // Download the other screens' code while the user looks at the first one,
+  // so opening them is instant.
+  useEffect(() => {
+    if (authStatus === 'loading') return;
+    return preloadWhenIdle(authStatus === 'authenticated' ? AUTHENTICATED_SCREENS : GUEST_SCREENS);
+  }, [authStatus]);
 
   // Which guided tours the signed-in user has already seen.
   useEffect(() => {

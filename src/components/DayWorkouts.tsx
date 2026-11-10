@@ -11,7 +11,9 @@ import {
   getWorkoutsByUser,
   getWorkoutExercises,
   getExerciseLoadsByUser,
+  getCachedWorkoutsByUser,
 } from '../services/workoutService';
+import { prefetchWhenIdle } from '../utils/idle';
 import { useI18n } from '../i18n';
 import { relativeDay } from '../utils/date';
 
@@ -49,8 +51,9 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
   const { t } = useI18n();
   const activeSession = useAppStore(state => state.activeSession);
   const runningWorkoutId = activeSession?.isRunning ? activeSession.workoutId : null;
-  const [workouts, setWorkouts] = useState<WorkoutWithLastDone[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Last known week (usually fetched during boot): drawn on the first frame.
+  const [workouts, setWorkouts] = useState<WorkoutWithLastDone[]>(() => getCachedWorkoutsByUser(userId) ?? []);
+  const [isLoading, setIsLoading] = useState(() => getCachedWorkoutsByUser(userId) === null);
 
   const formatRelativeDate = (dateStr: string): string => {
     const ago = relativeDay(new Date(dateStr), new Date());
@@ -62,49 +65,48 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
 
   // Keep previous content visible while refreshing (no skeleton → content
   // layout shift); only the very first load shows the skeleton.
-  const hasDataRef = useRef(false);
+  const hasDataRef = useRef(!isLoading);
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       if (!hasDataRef.current) setIsLoading(true);
       try {
         const workoutsWithLastDone = await getWorkoutsByUser(userId);
+        if (cancelled) return;
         setWorkouts(workoutsWithLastDone);
         hasDataRef.current = true;
+      } catch (err) {
+        console.warn('Falha ao carregar treinos:', err);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [userId, refreshKey]);
 
+  // Warm each workout's exercises and the loads in the background, so opening
+  // a workout shows its list at once instead of a skeleton.
+  const workoutIdsKey = workouts.map((w) => w.id).join(',');
+  useEffect(() => {
+    if (!workoutIdsKey) return;
+    return prefetchWhenIdle(async (isCancelled) => {
+      await getExerciseLoadsByUser(userId).catch(() => {});
+      for (const id of workoutIdsKey.split(',').map(Number)) {
+        if (isCancelled()) return;
+        await getWorkoutExercises(id).catch(() => {});
+      }
+    });
+  }, [userId, workoutIdsKey]);
+
   if (isLoading) {
-    return (
-      <View>
-        {[...Array(5)].map((_, i) => (
-          <View key={i} style={{ marginBottom: 8 }}>
-            <Skeleton width="100%" height={80} />
-          </View>
-        ))}
-      </View>
-    );
+    return <DayWorkoutsSkeleton />;
   }
 
-  const handleOpenWorkout = async (
-    workoutId: number,
-    workoutTitle: string,
-  ) => {
-    try {
-      await Promise.all([
-        getWorkoutExercises(workoutId),
-        getExerciseLoadsByUser(userId),
-      ]);
-    } catch {
-      // ignora erros, a tela busca novamente se necessário
-    }
-
-    navigation.navigate('Workout', {
-      workoutId,
-      workoutTitle,
-    });
+  const handleOpenWorkout = (workoutId: number, workoutTitle: string) => {
+    // Navigate at once: the workout screen shows cached data or its skeleton.
+    navigation.navigate('Workout', { workoutId, workoutTitle });
   };
 
   return (
@@ -153,3 +155,18 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
   );
 }
 
+
+/** Same cards as the real list (weekday + title), with skeleton text. */
+function DayWorkoutsSkeleton() {
+  return (
+    <View accessibilityLabel="…">
+      {[...Array(5)].map((_, i) => (
+        <View key={i} style={styles.item}>
+          <Skeleton width={70} height={12} style={{ marginVertical: 2 }} />
+          <Skeleton width="65%" height={16} style={{ marginTop: 8 }} />
+          <Skeleton width={90} height={12} style={{ marginTop: 6 }} />
+        </View>
+      ))}
+    </View>
+  );
+}

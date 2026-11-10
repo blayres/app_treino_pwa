@@ -2,37 +2,31 @@ import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import type { Exercise, ExerciseLoad, Workout, WorkoutExercise, WorkoutWithLastDone } from './types';
 import { recordLoadHistory } from './progressService';
+import { createRequestCache } from './requestCache';
 
 async function getLocalDb() {
   const { getDb } = await import('../db');
   return getDb();
 }
 
-const WORKOUTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — changes only when admin edits
-const workoutsByUserCache = new Map<number, { expiresAt: number; data: WorkoutWithLastDone[] }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes; writes invalidate explicitly
+const workoutsByUserCache = createRequestCache<number, WorkoutWithLastDone[]>(CACHE_TTL_MS);
+const workoutExercisesCache = createRequestCache<number, WorkoutExercise[]>(CACHE_TTL_MS);
+const exerciseLoadsCache = createRequestCache<number, ExerciseLoad[]>(CACHE_TTL_MS);
 
-const WORKOUT_EXERCISES_CACHE_TTL_MS = 5 * 60 * 1000;
-const workoutExercisesCache = new Map<number, { expiresAt: number; data: WorkoutExercise[] }>();
-
-const EXERCISE_LOADS_CACHE_TTL_MS = 5 * 60 * 1000;
-const exerciseLoadsCache = new Map<number, { expiresAt: number; data: ExerciseLoad[] }>();
-
+/** Last known exercises of a workout (shown at once, refreshed in background). */
 export function getCachedWorkoutExercises(workoutId: number): WorkoutExercise[] | null {
-  const cached = workoutExercisesCache.get(workoutId);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
-  return null;
+  return workoutExercisesCache.peek(workoutId) ?? null;
 }
 
+/** Last known loads of a user (shown at once, refreshed in background). */
 export function getCachedExerciseLoads(userId: number): ExerciseLoad[] | null {
-  const cached = exerciseLoadsCache.get(userId);
+  return exerciseLoadsCache.peek(userId) ?? null;
+}
 
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
-
-  return null;
+/** Last known week of workouts for Home's first frame. */
+export function getCachedWorkoutsByUser(userId: number): WorkoutWithLastDone[] | null {
+  return workoutsByUserCache.peek(userId) ?? null;
 }
 
 export async function getWorkoutTitle(workoutId: number): Promise<string> {
@@ -52,11 +46,11 @@ export async function getWorkoutTitle(workoutId: number): Promise<string> {
   return row?.title ?? '';
 }
 
-export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLastDone[]> {
-  const cached = workoutsByUserCache.get(userId);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
+export function getWorkoutsByUser(userId: number): Promise<WorkoutWithLastDone[]> {
+  return workoutsByUserCache.get(userId, () => fetchWorkoutsByUser(userId));
+}
+
+async function fetchWorkoutsByUser(userId: number): Promise<WorkoutWithLastDone[]> {
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
@@ -110,11 +104,6 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
       last_done: lastDoneMap[Number(workout.id)] ?? null,
     }));
 
-    workoutsByUserCache.set(userId, {
-      expiresAt: Date.now() + WORKOUTS_CACHE_TTL_MS,
-      data: response,
-    });
-
     return response;
   }
 
@@ -144,11 +133,6 @@ export async function getWorkoutsByUser(userId: number): Promise<WorkoutWithLast
     ...workout,
     last_done: lastDoneMap[workout.id] ?? null,
   }));
-
-  workoutsByUserCache.set(userId, {
-    expiresAt: Date.now() + WORKOUTS_CACHE_TTL_MS,
-    data: response,
-  });
 
   return response;
 }
@@ -389,27 +373,28 @@ export async function archiveWorkout(workoutId: number): Promise<void> {
 
 export function invalidateWorkoutsByUserCache(userId?: number) {
   if (typeof userId === 'number') {
-    workoutsByUserCache.delete(userId);
+    workoutsByUserCache.invalidate(userId);
     return;
   }
 
-  workoutsByUserCache.clear();
+  workoutsByUserCache.invalidate();
 }
 
 export function invalidateWorkoutExercisesCache(workoutId?: number) {
   if (typeof workoutId === 'number') {
-    workoutExercisesCache.delete(workoutId);
+    workoutExercisesCache.invalidate(workoutId);
     return;
   }
 
-  workoutExercisesCache.clear();
+  workoutExercisesCache.invalidate();
 }
 
-export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExercise[]> {
-  const cached = workoutExercisesCache.get(workoutId);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
+/** `fresh`: read from the database even if cached (e.g. before editing). */
+export function getWorkoutExercises(workoutId: number, options?: { fresh?: boolean }): Promise<WorkoutExercise[]> {
+  return workoutExercisesCache.get(workoutId, () => fetchWorkoutExercises(workoutId), { force: options?.fresh });
+}
+
+async function fetchWorkoutExercises(workoutId: number): Promise<WorkoutExercise[]> {
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
@@ -496,10 +481,6 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
         };
       });
 
-      workoutExercisesCache.set(workoutId, {
-        expiresAt: Date.now() + WORKOUT_EXERCISES_CACHE_TTL_MS,
-        data: response,
-      });
 
       return response;
     }
@@ -532,10 +513,6 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
       };
     });
 
-    workoutExercisesCache.set(workoutId, {
-      expiresAt: Date.now() + WORKOUT_EXERCISES_CACHE_TTL_MS,
-      data: response,
-    });
 
     return response;
   }
@@ -575,19 +552,15 @@ export async function getWorkoutExercises(workoutId: number): Promise<WorkoutExe
     },
   }));
 
-  workoutExercisesCache.set(workoutId, {
-    expiresAt: Date.now() + WORKOUT_EXERCISES_CACHE_TTL_MS,
-    data: response,
-  });
 
   return response;
 }
 
-export async function getExerciseLoadsByUser(userId: number): Promise<ExerciseLoad[]> {
-  const cached = exerciseLoadsCache.get(userId);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
+export function getExerciseLoadsByUser(userId: number): Promise<ExerciseLoad[]> {
+  return exerciseLoadsCache.get(userId, () => fetchExerciseLoadsByUser(userId));
+}
+
+async function fetchExerciseLoadsByUser(userId: number): Promise<ExerciseLoad[]> {
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
@@ -601,10 +574,6 @@ export async function getExerciseLoadsByUser(userId: number): Promise<ExerciseLo
 
     const response = (data ?? []) as ExerciseLoad[];
 
-    exerciseLoadsCache.set(userId, {
-      expiresAt: Date.now() + EXERCISE_LOADS_CACHE_TTL_MS,
-      data: response,
-    });
 
     return response;
   }
@@ -617,10 +586,6 @@ export async function getExerciseLoadsByUser(userId: number): Promise<ExerciseLo
     userId,
   );
 
-  exerciseLoadsCache.set(userId, {
-    expiresAt: Date.now() + EXERCISE_LOADS_CACHE_TTL_MS,
-    data: response,
-  });
 
   return response;
 }
@@ -636,7 +601,14 @@ export async function upsertExerciseLoad(params: {
   const now = new Date().toISOString();
   const recordHistory = params.recordHistory ?? true;
 
-  exerciseLoadsCache.delete(params.userId);
+  // Keep the cached loads in step with what was typed (screens re-open with it).
+  const cachedLoads = exerciseLoadsCache.peek(params.userId);
+  if (cachedLoads) {
+    exerciseLoadsCache.set(params.userId, [
+      ...cachedLoads.filter((row) => row.exercise_id !== params.exerciseId),
+      { exercise_id: params.exerciseId, load_kg: params.loadKg, progression_kg: params.progressionKg } as ExerciseLoad,
+    ]);
+  }
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
@@ -820,5 +792,5 @@ export async function deleteCustomExercise(userId: number, exerciseId: number): 
     await db.runAsync(`DELETE FROM exercise_load_history WHERE user_id = ? AND exercise_id = ?;`, userId, exerciseId);
     await db.runAsync(`DELETE FROM exercises WHERE id = ? AND owner_id = ?;`, exerciseId, userId);
   }
-  exerciseLoadsCache.delete(userId);
+  exerciseLoadsCache.invalidate(userId);
 }

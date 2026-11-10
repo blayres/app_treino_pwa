@@ -1,211 +1,117 @@
-import React, {
-  useEffect,
-  useState,
-  useImperativeHandle,
-  forwardRef,
-  useRef,
-} from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { styles } from './CalendarFrequency.styles';
 import { typography } from '../theme';
-import { getAttendanceDatesByMonth } from '../services/attendanceService';
-import { Skeleton } from './Skeleton';
+import { getAttendanceDatesByMonth, getCachedAttendanceMonth } from '../services/attendanceService';
 import { useI18n } from '../i18n';
-import { localDateKey } from '../utils/date';
+import { buildMonthWeeks } from '../utils/date';
 
 type Props = {
   userId: number;
+  /** Called with the month's check-ins once they are known. */
   onLoad?: (checkInCount: number, totalDays: number) => void;
 };
 
-type DayItem = {
-  date: string;
-  label: string;
-  dayOfWeek: number;
-  hasCheckIn: boolean;
-  isEmpty: boolean;
-};
+/**
+ * Month calendar with the days the user trained. The month name, weekday
+ * headers and day grid are drawn immediately (no network needed); only the
+ * check-ins come from the database, from cache first when available.
+ */
+export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(({ userId, onLoad }, ref) => {
+  const { t } = useI18n();
+  const [offset, setOffset] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
 
-type WeekRow = DayItem[];
+  const today = new Date();
+  const displayDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+  const year = displayDate.getFullYear();
+  const month = displayDate.getMonth();
 
-export const CalendarFrequency = forwardRef<{ refresh: () => void }, Props>(
-  ({ userId, onLoad }, ref) => {
-    const [weeks, setWeeks] = useState<WeekRow[]>([]);
-    const [offset, setOffset] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const { t } = useI18n();
+  const [checkIns, setCheckIns] = useState<{ key: string; dates: Set<string> } | null>(() => {
+    const cached = getCachedAttendanceMonth({ userId, year, month });
+    return cached ? { key: `${userId}:${year}:${month}`, dates: cached.dates } : null;
+  });
 
-    const cacheRef = useRef<Record<string, WeekRow[]>>({});
+  const onLoadRef = useRef(onLoad);
+  onLoadRef.current = onLoad;
 
-    const loadCalendar = async (monthOffset: number = offset, force = false) => {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth() + monthOffset;
+  // Cached month: applied before paint, so the count and checks show on the first frame.
+  useLayoutEffect(() => {
+    const cached = getCachedAttendanceMonth({ userId, year, month });
+    if (!cached) return;
+    setCheckIns({ key: `${userId}:${year}:${month}`, dates: cached.dates });
+    onLoadRef.current?.(cached.dates.size, cached.totalDays);
+  }, [userId, year, month]);
 
-      const cacheKey = `${userId}-${year}-${month}`;
-
-      if (!force && cacheRef.current[cacheKey]) {
-        const cachedWeeks = cacheRef.current[cacheKey];
-        setWeeks(cachedWeeks);
-        setIsLoading(false);
-        const allDays = cachedWeeks.flat();
-        const checkInCount = allDays.filter(d => d.hasCheckIn).length;
-        const totalDays = allDays.filter(d => !d.isEmpty).length;
-        onLoad?.(checkInCount, totalDays);
-        return;
-      }
-
-      // Only show skeleton on first load — keep existing content visible on refresh
-      if (weeks.length === 0) setIsLoading(true);
-
-      try {
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        const firstDayOfWeek = firstDay.getDay();
-
-        const tempDays: DayItem[] = [];
-
-        for (let i = 0; i < firstDayOfWeek; i++) {
-          tempDays.push({
-            date: '',
-            label: '',
-            dayOfWeek: i,
-            hasCheckIn: false,
-            isEmpty: true,
-          });
-        }
-
-        for (let i = 1; i <= lastDay.getDate(); i++) {
-          const d = new Date(year, month, i);
-          tempDays.push({
-            date: localDateKey(d),
-            label: i.toString(),
-            dayOfWeek: d.getDay(),
-            hasCheckIn: false,
-            isEmpty: false,
-          });
-        }
-
-        const lastDayOfWeek = lastDay.getDay();
-        for (let i = 0; i < 6 - lastDayOfWeek; i++) {
-          tempDays.push({
-            date: '',
-            label: '',
-            dayOfWeek: (lastDayOfWeek + 1 + i) % 7,
-            hasCheckIn: false,
-            isEmpty: true,
-          });
-        }
-
-        const attendance = await getAttendanceDatesByMonth({
-          userId,
-          year,
-          month,
-        });
-
-        const dates = attendance.dates;
-
-        const daysWithCheckIns = tempDays.map(d => ({
-          ...d,
-          hasCheckIn: d.date !== '' && dates.has(d.date),
-        }));
-
-        const weeksData: WeekRow[] = [];
-        for (let i = 0; i < daysWithCheckIns.length; i += 7) {
-          weeksData.push(daysWithCheckIns.slice(i, i + 7));
-        }
-
-        cacheRef.current[cacheKey] = weeksData;
-
-        setWeeks(weeksData);
-        onLoad?.(dates.size, attendance.totalDays);
-      } finally {
-        setIsLoading(false);
-      }
+  useEffect(() => {
+    let cancelled = false;
+    const key = `${userId}:${year}:${month}`;
+    getAttendanceDatesByMonth({ userId, year, month })
+      .then((result) => {
+        if (cancelled) return;
+        setCheckIns({ key, dates: result.dates });
+        onLoadRef.current?.(result.dates.size, result.totalDays);
+      })
+      .catch((err) => console.warn('Falha ao carregar frequência:', err));
+    return () => {
+      cancelled = true;
     };
+  }, [userId, year, month, reloadKey]);
 
-    // Latest loadCalendar (it reads current props/state) without re-running the
-    // effect on every render; reload when the month or the user changes.
-    const loadCalendarRef = useRef(loadCalendar);
-    loadCalendarRef.current = loadCalendar;
-    useEffect(() => {
-      loadCalendarRef.current(offset);
-    }, [offset, userId]);
+  useImperativeHandle(ref, () => ({ refresh: () => setReloadKey((k) => k + 1) }), []);
 
-    useImperativeHandle(ref, () => ({
-      refresh: () => loadCalendar(offset, true),
-    }));
+  const weeks = useMemo(() => buildMonthWeeks(year, month), [year, month]);
+  // Check-ins of another month (while switching) are not shown on this one.
+  const dates = checkIns?.key === `${userId}:${year}:${month}` ? checkIns.dates : null;
+  const isCurrentMonth = offset === 0;
 
-    const monthNames = t.months;
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Pressable onPress={() => setOffset((o) => o - 1)} accessibilityRole="button" accessibilityLabel="‹">
+          <Text style={{ fontSize: 25 }}>‹</Text>
+        </Pressable>
 
-    const today = new Date();
-    const displayDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
-    const currentMonthLabel = monthNames[displayDate.getMonth()];
-    const currentYearLabel = displayDate.getFullYear();
-    const isCurrentMonth = offset === 0;
+        <Text style={typography.caption}>
+          {t.months[month]}
+          {year !== today.getFullYear() ? ` ${year}` : ''}
+        </Text>
 
-    const dayHeaders = t.dayHeaders;
+        <Pressable
+          onPress={() => setOffset((o) => o + 1)}
+          disabled={isCurrentMonth}
+          accessibilityRole="button"
+          accessibilityLabel="›"
+        >
+          <Text style={{ fontSize: 25, opacity: isCurrentMonth ? 0.2 : 1 }}>›</Text>
+        </Pressable>
+      </View>
 
-    if (isLoading) {
-      return (
-        // Render month nav + skeleton grid at fixed height to prevent CLS.
-        // The structure matches the real calendar so no layout shift occurs.
-        <View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ width: 25, height: 25 }} />
-            <Skeleton width={80} height={14} />
-            <View style={{ width: 25, height: 25 }} />
-          </View>
-          <View style={{ height: 320 }}>
-            <Skeleton width="100%" height={320} />
-          </View>
-        </View>
-      );
-    }
-
-    return (
-      <View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Pressable onPress={() => setOffset(o => o - 1)}>
-            <Text style={{ fontSize: 25 }}>‹</Text>
-          </Pressable>
-
-          <Text style={typography.caption}>
-            {currentMonthLabel}
-            {currentYearLabel !== today.getFullYear() ? ` ${currentYearLabel}` : ''}
-          </Text>
-
-          <Pressable onPress={() => setOffset(o => o + 1)} disabled={isCurrentMonth}>
-            <Text style={{ fontSize: 25, opacity: isCurrentMonth ? 0.2 : 1 }}>›</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.calendarContainer}>
-          <View style={styles.weekRow}>
-            {dayHeaders.map((h, i) => (
-              <View key={i} style={styles.dayHeader}>
-                <Text style={styles.dayHeaderLabel}>{h}</Text>
-              </View>
-            ))}
-          </View>
-
-          {weeks.map((week, wi) => (
-            <View key={wi} style={styles.weekRow}>
-              {week.map((day, di) => (
-                <View key={di} style={styles.dayCell}>
-                  {!day.isEmpty && (
-                    <View style={[styles.day, day.hasCheckIn && styles.dayActive]}>
-                      <Text style={styles.dayLabel}>{day.label}</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
+      <View style={styles.calendarContainer}>
+        <View style={styles.weekRow}>
+          {t.dayHeaders.map((h, i) => (
+            <View key={i} style={styles.dayHeader}>
+              <Text style={styles.dayHeaderLabel}>{h}</Text>
             </View>
           ))}
         </View>
+
+        {weeks.map((week, wi) => (
+          <View key={wi} style={styles.weekRow}>
+            {week.map((day, di) => (
+              <View key={di} style={styles.dayCell}>
+                {!day.isEmpty && (
+                  <View style={[styles.day, dates?.has(day.date) && styles.dayActive]}>
+                    <Text style={styles.dayLabel}>{day.label}</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        ))}
       </View>
-    );
-  },
-);
+    </View>
+  );
+});
 
 CalendarFrequency.displayName = 'CalendarFrequency';

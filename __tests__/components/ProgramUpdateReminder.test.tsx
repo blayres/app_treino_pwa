@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 jest.mock('../../src/services/programReminder', () => ({
   getProgramReminder: jest.fn(),
+  getCachedProgramReminder: jest.fn(() => undefined),
   restartProgramCycle: jest.fn(async () => {}),
   snoozeProgramReminder: jest.fn(async () => {}),
 }));
@@ -19,6 +20,13 @@ beforeEach(() => {
 });
 
 describe('ProgramUpdateReminder', () => {
+  it('shows at once when the answer is already known (fetched at boot)', () => {
+    mocked.getCachedProgramReminder.mockReturnValueOnce(due);
+    mocked.getProgramReminder.mockResolvedValue(due);
+    render(<ProgramUpdateReminder userId={5} onUpdate={() => {}} />);
+    expect(screen.getByText('Atualizar treino')).toBeTruthy();
+  });
+
   it('stays hidden when the reminder is not due', async () => {
     mocked.getProgramReminder.mockResolvedValue({ ...due, due: false });
     render(<ProgramUpdateReminder userId={5} onUpdate={() => {}} />);

@@ -83,6 +83,10 @@ export async function getCurrentUserEmail(): Promise<string> {
   if (backendMode !== 'supabase') return '';
 
   ensureSupabaseEnabled();
+  // Display only: the session stored on the device answers without a request.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const sessionEmail = sessionData.session?.user?.email;
+  if (sessionEmail) return sessionEmail;
   const { data, error } = await supabase.auth.getUser();
   if (error) throw error;
   return data.user?.email ?? '';
