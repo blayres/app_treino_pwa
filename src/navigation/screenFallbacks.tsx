@@ -5,6 +5,8 @@ import { LogoBar } from '../components/LogoBar';
 import { ScreenShell } from '../components/ScreenShell';
 import { Skeleton } from '../components/Skeleton';
 import { WorkoutExercisesSkeleton } from '../components/WorkoutExercisesSkeleton';
+import { CoachStudentSkeleton } from '../components/CoachStudentSkeleton';
+import { MyTrainingButton } from '../components/MyTrainingButton';
 import { styles as workoutStyles } from '../screens/WorkoutScreen.styles';
 import { useI18n } from '../i18n';
 import { LiveTimer } from '../components/LiveTimer';
@@ -16,7 +18,10 @@ import { useAppStore } from '../store/useAppStore';
  * (normally it is preloaded right after the first paint). Static texts come
  * from i18n, so they are the real ones; only data areas are skeletons.
  */
-type FallbackProps = { navigation: { goBack: () => void; canGoBack?: () => boolean }; route?: { params?: any } };
+type FallbackProps = {
+  navigation: { goBack: () => void; canGoBack?: () => boolean; navigate?: (name: 'Home') => void };
+  route?: { params?: any };
+};
 
 const back = (navigation: FallbackProps['navigation']) => () => navigation.goBack();
 
@@ -53,7 +58,24 @@ export function MyWorkoutFallback({ navigation, route }: FallbackProps) {
 
 export function CoachFallback({ navigation }: FallbackProps) {
   const { t } = useI18n();
-  return <ScreenShell onBack={back(navigation)} title={t.coachArea} subtitle={t.coachAreaSubtitle} cards={[180, 220]} />;
+  return (
+    <ScreenShell
+      onBack={back(navigation)}
+      title={t.coachArea}
+      subtitle={t.coachAreaSubtitle}
+      action={<MyTrainingButton onPress={() => navigation.navigate?.('Home')} />}
+      cards={[180, 220]}
+    />
+  );
+}
+
+/** Student page (coach): real layout with skeletons for the student's data. */
+export function CoachStudentFallback({ navigation }: FallbackProps) {
+  return (
+    <ScreenShell onBack={back(navigation)}>
+      <CoachStudentSkeleton />
+    </ScreenShell>
+  );
 }
 
 export function GenericFallback({ navigation }: FallbackProps) {

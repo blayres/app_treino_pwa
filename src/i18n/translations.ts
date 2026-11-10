@@ -278,6 +278,8 @@ export const pt = {
   resetCodeTitle: 'Gerar novo código?',
   resetCodeMsg: 'O link atual para de funcionar. Quem já entrou continua na sua lista.',
   resetCodeConfirm: 'Gerar novo',
+  myTrainingShortcut: 'Meu treino',
+  studentsShortcut: 'Alunos',
   myStudents: 'Meus alunos',
   studentsCount: (n: number) => (n === 1 ? '1 aluno' : `${n} alunos`),
   studentsNeedAttention: (n: number) => (n === 1 ? '1 precisa de atenção' : `${n} precisam de atenção`),
@@ -323,8 +325,6 @@ export const pt = {
   joinCoachMsg: (name: string) => `${name} vai poder ver seus treinos e seu progresso e montar seu treino.`,
   joinCoachConfirm: 'Aceitar convite',
   openCoachAreaDesc: 'Para personal trainers: monte e acompanhe os treinos dos seus alunos.',
-  homeCoachDesc: 'Veja quem treinou e monte os treinos dos seus alunos.',
-  viewStudents: 'Ver meus alunos',
 
   // Progress screen
   progress: 'Progresso',
@@ -623,6 +623,8 @@ export const en: Translations = {
   resetCodeTitle: 'Generate a new code?',
   resetCodeMsg: 'The current link stops working. Clients who already joined stay in your list.',
   resetCodeConfirm: 'Generate',
+  myTrainingShortcut: 'My training',
+  studentsShortcut: 'Clients',
   myStudents: 'My clients',
   studentsCount: (n: number) => (n === 1 ? '1 client' : `${n} clients`),
   studentsNeedAttention: (n: number) => (n === 1 ? '1 needs attention' : `${n} need attention`),
@@ -668,8 +670,6 @@ export const en: Translations = {
   joinCoachMsg: (name: string) => `${name} will be able to see your workouts and progress and build your program.`,
   joinCoachConfirm: 'Accept invite',
   openCoachAreaDesc: 'For personal trainers: build and follow your clients\' workouts.',
-  homeCoachDesc: 'See who trained and build your clients\' programs.',
-  viewStudents: 'See my clients',
 
   // Progress screen
   progress: 'Progress',
@@ -968,6 +968,8 @@ export const es: Translations = {
   resetCodeTitle: '¿Generar código nuevo?',
   resetCodeMsg: 'El enlace actual deja de funcionar. Quien ya entró sigue en tu lista.',
   resetCodeConfirm: 'Generar',
+  myTrainingShortcut: 'Mi entreno',
+  studentsShortcut: 'Alumnos',
   myStudents: 'Mis alumnos',
   studentsCount: (n: number) => (n === 1 ? '1 alumno' : `${n} alumnos`),
   studentsNeedAttention: (n: number) => (n === 1 ? '1 necesita atención' : `${n} necesitan atención`),
@@ -1013,8 +1015,6 @@ export const es: Translations = {
   joinCoachMsg: (name: string) => `${name} podrá ver tus entrenos y tu progreso y crear tu rutina.`,
   joinCoachConfirm: 'Aceptar invitación',
   openCoachAreaDesc: 'Para entrenadores: crea y sigue los entrenos de tus alumnos.',
-  homeCoachDesc: 'Mira quién entrenó y crea las rutinas de tus alumnos.',
-  viewStudents: 'Ver mis alumnos',
 
   // Progress screen
   progress: 'Progreso',
@@ -1313,6 +1313,8 @@ export const fr: Translations = {
   resetCodeTitle: 'Générer un nouveau code ?',
   resetCodeMsg: 'Le lien actuel ne fonctionnera plus. Les élèves déjà inscrits restent dans votre liste.',
   resetCodeConfirm: 'Générer',
+  myTrainingShortcut: 'Mes séances',
+  studentsShortcut: 'Élèves',
   myStudents: 'Mes élèves',
   studentsCount: (n: number) => (n === 1 ? '1 élève' : `${n} élèves`),
   studentsNeedAttention: (n: number) => (n === 1 ? '1 demande votre attention' : `${n} demandent votre attention`),
@@ -1358,8 +1360,6 @@ export const fr: Translations = {
   joinCoachMsg: (name: string) => `${name} pourra voir vos séances et votre progression et créer votre programme.`,
   joinCoachConfirm: 'Accepter l\'invitation',
   openCoachAreaDesc: 'Pour les coachs : créez et suivez les séances de vos élèves.',
-  homeCoachDesc: 'Voyez qui s\'est entraîné et créez les programmes de vos élèves.',
-  viewStudents: 'Voir mes élèves',
 
   // Progress screen
   progress: 'Progrès',
