@@ -12,6 +12,9 @@ type ConfirmModalProps = {
   onConfirm: () => void;
   onCancel: () => void;
   confirmDanger?: boolean;
+  /** Optional discreet third choice under the buttons (e.g. "Continuar treinando"). */
+  dismissLabel?: string;
+  onDismiss?: () => void;
 };
 
 export function ConfirmModal({
@@ -23,9 +26,11 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
   confirmDanger = false,
+  dismissLabel,
+  onDismiss,
 }: ConfirmModalProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss ?? onCancel}>
       <View style={styles.overlay}>
         <View style={styles.container}>
           {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -49,6 +54,15 @@ export function ConfirmModal({
               <Text style={styles.buttonConfirmLabel}>{confirmLabel}</Text>
             </Pressable>
           </View>
+          {dismissLabel && onDismiss ? (
+            <Pressable
+              style={({ pressed }) => [styles.dismiss, pressed && styles.buttonPressed]}
+              onPress={onDismiss}
+              accessibilityRole="button"
+            >
+              <Text style={styles.dismissLabel}>{dismissLabel}</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Modal>

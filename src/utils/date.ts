@@ -47,3 +47,25 @@ export function formatRest(seconds: number, minuteShort: string, secondShort: st
   if (minutes > 0) return `${minutes}${minuteShort}`;
   return `${rest}${secondShort}`;
 }
+
+export type StartedDay = {
+  /** Calendar position of the start relative to now. */
+  when: 'today' | 'yesterday' | 'earlier';
+  /** "seg., 9/11" — weekday + day/month in the locale. */
+  weekdayDate: string;
+  /** "9/11" — day/month in the locale. */
+  shortDate: string;
+  /** "18:40" — hours and minutes in the locale. */
+  time: string;
+};
+
+/** Describes when something started, for "you started … at …" messages. */
+export function describeStartedDay(started: Date, now: Date, localeTagValue: string): StartedDay {
+  const days = calendarDaysBetween(started, now);
+  return {
+    when: days <= 0 ? 'today' : days === 1 ? 'yesterday' : 'earlier',
+    weekdayDate: new Intl.DateTimeFormat(localeTagValue, { weekday: 'short', day: 'numeric', month: 'numeric' }).format(started),
+    shortDate: new Intl.DateTimeFormat(localeTagValue, { day: 'numeric', month: 'numeric' }).format(started),
+    time: new Intl.DateTimeFormat(localeTagValue, { hour: '2-digit', minute: '2-digit' }).format(started),
+  };
+}

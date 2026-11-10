@@ -30,3 +30,16 @@ describe('ConfirmModal', () => {
     expect(screen.queryByText('Oculto')).toBeNull();
   });
 });
+
+describe('ConfirmModal third choice', () => {
+  it('shows the discreet dismiss option only when given, and calls its own handler', () => {
+    const onCancel = jest.fn();
+    const onDismiss = jest.fn();
+    render(
+      <ConfirmModal visible title="Esqueceu de finalizar?" message="" confirmLabel="Finalizar" cancelLabel="Descartar treino" onConfirm={() => {}} onCancel={onCancel} dismissLabel="Continuar treinando" onDismiss={onDismiss} />,
+    );
+    fireEvent.click(screen.getByText('Continuar treinando'));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+});

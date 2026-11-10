@@ -15,7 +15,6 @@ import { useAppStore } from '../store/useAppStore';
 import { LiveTimer } from '../components/LiveTimer';
 import { ConfirmModal } from '../components/ConfirmModal';
 import {
-  invalidateWorkoutsByUserCache,
   getExerciseLoadsByUser,
   getWorkoutExercises,
   getWorkoutTitle,
@@ -23,8 +22,9 @@ import {
   getCachedWorkoutExercises,
   getCachedExerciseLoads,
 } from '../services/workoutService';
-import { markAttendance, invalidateAttendanceCache } from '../services/attendanceService';
-import { startWorkoutSession, stopWorkoutSession } from '../services/sessionService';
+import { FORGOTTEN_SESSION_SECONDS, isForgottenSession, startWorkoutSession } from '../services/sessionService';
+import { clearSessionChecklist, persistSessionEnd } from '../services/sessionFinisher';
+import { forgottenSessionTexts } from '../utils/forgottenSession';
 import type { Exercise } from '../services/types';
 import { Skeleton } from '../components/Skeleton';
 import { ExerciseRow, type LoadField } from '../components/ExerciseRow';
@@ -33,8 +33,6 @@ import { useI18n } from '../i18n';
 import { LogoBar } from '../components/LogoBar';
 import { formatDecimal, parseDecimal, sanitizeDecimalInput } from '../utils/decimal';
 import { useTourStore, useTourTarget } from '../store/useTourStore';
-
-const STALE_THRESHOLD_SECONDS = 2 * 60 * 60; // 2 hours
 
 type WorkoutRoute = RouteProp<RootStackParamList, 'Workout'>;
 
@@ -188,10 +186,7 @@ export default function WorkoutScreen() {
   const handleStart = async () => {
     if (!currentUser || isSessionForThisWorkout) return;
     const session = await startWorkoutSession(currentUser.id, workoutId);
-    try {
-      localStorage.removeItem(`completedIds:${workoutId}`);
-      sessionStorage.removeItem(`completedIds:${workoutId}`);
-    } catch { }
+    clearSessionChecklist(workoutId);
     setCompletedIds(new Set());
     setActiveSession(session);
   };
@@ -202,10 +197,7 @@ export default function WorkoutScreen() {
     const userId = currentUser.id;
 
     // Clear local UI state immediately so the screen feels responsive.
-    try {
-      localStorage.removeItem(`completedIds:${workoutId}`);
-      sessionStorage.removeItem(`completedIds:${workoutId}`);
-    } catch { }
+    clearSessionChecklist(workoutId);
     setActiveSession(null);
 
     // Return to Home immediately. Persistence continues in the background,
@@ -217,54 +209,29 @@ export default function WorkoutScreen() {
     }
     navigation.goBack();
 
-    void (async () => {
-      try {
-        const result = await stopWorkoutSession({
-          userId,
-          sessionId: sessionToStop.sessionId,
-          startedAt: sessionToStop.startedAt,
-          cancelOnly,
-        });
-
-        if (result.completed) {
-          await markAttendance(userId, result.endedAt);
-        }
-
-        invalidateAttendanceCache(userId);
-        invalidateWorkoutsByUserCache(userId);
-        document.dispatchEvent(new Event('workoutSessionUpdated'));
-      } catch (err) {
-        console.error(err);
-      }
-    })();
+    void persistSessionEnd({ userId, session: sessionToStop, cancelOnly }).catch(err => console.error(err));
   };
 
   // Stale detection — recheck when user returns from background
   const [isStale, setIsStale] = useState(() => {
     if (!activeSession || activeSession.workoutId !== workoutId) return false;
-    return (Date.now() - new Date(activeSession.startedAt).getTime()) / 1000 > STALE_THRESHOLD_SECONDS;
+    return isForgottenSession(activeSession.startedAt);
   });
 
   useEffect(() => {
     const check = () => {
       if (!isSessionForThisWorkout) { setIsStale(false); return; }
-      const elapsed = (Date.now() - new Date(activeSession!.startedAt).getTime()) / 1000;
-      setIsStale(elapsed > STALE_THRESHOLD_SECONDS);
+      setIsStale(isForgottenSession(activeSession!.startedAt));
     };
     check();
     document.addEventListener('visibilitychange', check);
     return () => document.removeEventListener('visibilitychange', check);
   }, [isSessionForThisWorkout, activeSession]);
 
-  // Human-readable elapsed for stale banner
-  const staleElapsed = isSessionForThisWorkout
-    ? Math.floor((Date.now() - new Date(activeSession!.startedAt).getTime()) / 1000)
-    : 0;
-  const staleHours = Math.floor(staleElapsed / 3600);
-  const staleMinutes = Math.floor((staleElapsed % 3600) / 60);
-  const staleLabel = staleHours > 0
-    ? `${staleHours}h ${staleMinutes}min`
-    : `${staleMinutes}min`;
+  // Same texts as ForgottenWorkoutHost: when it started and which day gets the check.
+  const staleTexts = isStale && isSessionForThisWorkout
+    ? forgottenSessionTexts({ t, locale, startedAt: activeSession!.startedAt, workoutTitle })
+    : null;
 
   const handleStopWithConfirm = (cancelOnly: boolean) => {
     setIsCancelAction(cancelOnly);
@@ -383,7 +350,7 @@ export default function WorkoutScreen() {
           {isSessionForThisWorkout ? (
             <LiveTimer
               startedAt={activeSession!.startedAt}
-              capSeconds={STALE_THRESHOLD_SECONDS}
+              capSeconds={FORGOTTEN_SESSION_SECONDS}
             />
           ) : (
             <LiveTimer startedAt={new Date().toISOString()} capSeconds={0} />
@@ -393,20 +360,20 @@ export default function WorkoutScreen() {
             // ── Stale session banner ──────────────────────────────────────
             <View style={styles.staleBanner}>
               <Text style={styles.staleText}>
-                {t.staleBannerText(staleLabel)}
+                {t.forgottenWorkoutTitle} {staleTexts?.message}
               </Text>
               <View style={styles.staleActions}>
                 <Pressable
                   style={({ pressed }) => [styles.buttonSecondary, pressed && styles.buttonSecondaryPressed]}
                   onPress={() => handleStopWithConfirm(true)}
                 >
-                  <Text style={styles.buttonSecondaryLabel}>{t.cancelWorkout}</Text>
+                  <Text style={styles.buttonSecondaryLabel}>{t.discardWorkout}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
                   onPress={() => handleStopWithConfirm(false)}
                 >
-                  <Text style={styles.buttonPrimaryLabel}>{t.finish}</Text>
+                  <Text style={styles.buttonPrimaryLabel}>{staleTexts?.finishLabel ?? t.finish}</Text>
                 </Pressable>
               </View>
             </View>

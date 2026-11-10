@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { calendarDaysBetween, localDateKey, relativeDay , formatRest } from '../src/utils/date';
+import { calendarDaysBetween, describeStartedDay, localDateKey, relativeDay , formatRest } from '../src/utils/date';
 
 // Dates are built in the machine's local time zone, like the app does on the phone.
 const at = (y: number, m: number, d: number, h = 12, min = 0) => new Date(y, m - 1, d, h, min);
@@ -47,5 +47,23 @@ describe('formatRest', () => {
     [0, '0s'],
   ])('%s s → %s', (seconds, label) => {
     expect(formatRest(seconds as number, 'min', 's')).toBe(label);
+  });
+});
+
+describe('describeStartedDay', () => {
+  const now = at(2026, 11, 10, 6, 38);
+
+  it('says today / yesterday / earlier by calendar day, not 24h blocks', () => {
+    expect(describeStartedDay(at(2026, 11, 10, 0, 5), now, 'pt-BR').when).toBe('today');
+    expect(describeStartedDay(at(2026, 11, 9, 23, 50), now, 'pt-BR').when).toBe('yesterday');
+    expect(describeStartedDay(at(2026, 11, 7, 18, 0), now, 'pt-BR').when).toBe('earlier');
+  });
+
+  it('formats the date and time in the user language', () => {
+    const day = describeStartedDay(at(2026, 11, 9, 18, 40), now, 'pt-BR');
+    expect(day.shortDate).toBe('09/11');
+    expect(day.time).toBe('18:40');
+    expect(day.weekdayDate).toMatch(/^seg/);
+    expect(describeStartedDay(at(2026, 11, 9, 18, 40), now, 'en-US').shortDate).toBe('11/9');
   });
 });

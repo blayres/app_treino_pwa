@@ -5,7 +5,8 @@ jest.mock('../src/services/backendMode', () => ({ backendMode: 'supabase', hasSu
 
 import { filter, supabaseMock } from './helpers/supabaseMock';
 import {
-  closeStaleSessions,
+  FORGOTTEN_SESSION_SECONDS,
+  isForgottenSession,
   restoreActiveSessionByUser,
   startWorkoutSession,
   stopWorkoutSession,
@@ -50,6 +51,7 @@ describe('stopWorkoutSession', () => {
     const result = await stopWorkoutSession({ userId: 5, sessionId: 77, startedAt, cancelOnly: false });
 
     expect(result.completed).toBe(1);
+    expect(result.attendanceDate).toEqual(new Date(startedAt));
     const [current, others] = supabaseMock.calls('workout_sessions', 'update');
     expect(current.payload).toEqual({ ended_at: NOW.toISOString(), duration_seconds: 2700, completed: 1 });
     expect(filter(current, 'eq', 'id')).toEqual(['eq', 'id', 77]);
@@ -64,6 +66,27 @@ describe('stopWorkoutSession', () => {
     const result = await stopWorkoutSession({ userId: 5, sessionId: 77, startedAt, cancelOnly: true });
     expect(result.completed).toBe(0);
     expect(supabaseMock.calls('workout_sessions', 'update')[0].payload).toMatchObject({ completed: 0 });
+  });
+
+  it('a workout finished days later is recorded and checked on the day it started', async () => {
+    const startedYesterday = '2026-10-30T21:40:00Z'; // ~38h before NOW
+    const result = await stopWorkoutSession({ userId: 5, sessionId: 77, startedAt: startedYesterday, cancelOnly: false });
+
+    expect(result.completed).toBe(1);
+    expect(result.attendanceDate).toEqual(new Date(startedYesterday));
+    const [current, others] = supabaseMock.calls('workout_sessions', 'update');
+    // Real end unknown: ended on its start (so "feito há" shows that day), no duration.
+    expect(current.payload).toEqual({ ended_at: startedYesterday.replace('Z', '.000Z'), duration_seconds: null, completed: 1 });
+    // Other open sessions are still closed now.
+    expect(others.payload).toMatchObject({ ended_at: NOW.toISOString() });
+  });
+
+  it('a workout crossing midnight is checked on the day it started', async () => {
+    jest.setSystemTime(new Date(2026, 10, 2, 0, 30)); // 00:30 local
+    const startedAt = new Date(2026, 10, 1, 23, 30).toISOString(); // 23:30 the day before
+    const result = await stopWorkoutSession({ userId: 5, sessionId: 77, startedAt, cancelOnly: false });
+    expect(result.attendanceDate.getDate()).toBe(1);
+    expect(supabaseMock.calls('workout_sessions', 'update')[0].payload).toMatchObject({ duration_seconds: 3600 });
   });
 
   it('stops before closing other sessions if the first update fails', async () => {
@@ -98,18 +121,12 @@ describe('restoreActiveSessionByUser', () => {
   });
 });
 
-describe('closeStaleSessions', () => {
-  it('closes only sessions of that user started more than 4 hours ago', async () => {
-    await closeStaleSessions(5);
-    const [update] = supabaseMock.calls('workout_sessions', 'update');
-    const fourHoursAgo = new Date(NOW.getTime() - 4 * 60 * 60 * 1000).toISOString();
-    expect(update.payload).toEqual({ ended_at: fourHoursAgo, duration_seconds: 0, completed: 0 });
-    expect(filter(update, 'eq', 'user_id')).toEqual(['eq', 'user_id', 5]);
-    expect(filter(update, 'lt', 'started_at')).toEqual(['lt', 'started_at', fourHoursAgo]);
-  });
-
-  it('does nothing without a user', async () => {
-    await closeStaleSessions(undefined);
-    expect(supabaseMock.queries).toHaveLength(0);
+describe('isForgottenSession', () => {
+  it('is forgotten only after 3 hours open', () => {
+    expect(FORGOTTEN_SESSION_SECONDS).toBe(3 * 60 * 60);
+    const at = (minutesAgo: number) => new Date(NOW.getTime() - minutesAgo * 60 * 1000).toISOString();
+    expect(isForgottenSession(at(179), NOW.getTime())).toBe(false);
+    expect(isForgottenSession(at(181), NOW.getTime())).toBe(true);
+    expect(isForgottenSession(at(24 * 60))).toBe(true); // defaults to now
   });
 });

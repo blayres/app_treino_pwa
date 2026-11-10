@@ -50,32 +50,14 @@ export async function restoreActiveSessionByUser(userId: number): Promise<Active
   };
 }
 
-export async function closeStaleSessions(userId?: number) {
-  if (backendMode === 'supabase') {
-    if (!userId) return;
-    ensureSupabaseEnabled();
-    const staleIso = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
-    const { error } = await supabase
-      .from('workout_sessions')
-      .update({
-        ended_at: staleIso,
-        duration_seconds: 0,
-        completed: 0,
-      })
-      .eq('user_id', userId)
-      .is('ended_at', null)
-      .lt('started_at', staleIso);
-    if (error) throw error;
-    return;
-  }
+/**
+ * A session still open after this long was almost certainly forgotten: the app
+ * asks the user to finish it, and the check goes to the day it started.
+ */
+export const FORGOTTEN_SESSION_SECONDS = 3 * 60 * 60;
 
-  const db = await getLocalDb();
-  await db.runAsync(`
-    UPDATE workout_sessions
-    SET ended_at = started_at, duration_seconds = 0, completed = 0
-    WHERE ended_at IS NULL
-    AND datetime(started_at) < datetime('now', '-4 hours');
-  `);
+export function isForgottenSession(startedAt: string, now: number = Date.now()): boolean {
+  return (now - new Date(startedAt).getTime()) / 1000 > FORGOTTEN_SESSION_SECONDS;
 }
 
 export async function startWorkoutSession(userId: number, workoutId: number): Promise<ActiveSession> {
@@ -124,10 +106,16 @@ export async function stopWorkoutSession(params: {
   startedAt: string;
   cancelOnly: boolean;
 }) {
-  const endedAt = new Date();
-  const durationSeconds = Math.floor((endedAt.getTime() - new Date(params.startedAt).getTime()) / 1000);
+  const now = new Date();
+  const startedAt = new Date(params.startedAt);
+  // A forgotten session's real end is unknown: record it on its start (so
+  // "feito há" and the coach stats land on the right day), with no duration.
+  const forgotten = isForgottenSession(params.startedAt, now.getTime());
+  const endedAt = forgotten ? startedAt : now;
+  const durationSeconds = forgotten ? null : Math.floor((now.getTime() - startedAt.getTime()) / 1000);
   const completed = params.cancelOnly ? 0 : 1;
   const endedAtIso = endedAt.toISOString();
+  const nowIso = now.toISOString();
 
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
@@ -144,7 +132,7 @@ export async function stopWorkoutSession(params: {
     const closeOthers = await supabase
       .from('workout_sessions')
       .update({
-        ended_at: endedAtIso,
+        ended_at: nowIso,
         duration_seconds: 0,
         completed: 0,
       })
@@ -153,7 +141,8 @@ export async function stopWorkoutSession(params: {
       .neq('id', params.sessionId);
     if (closeOthers.error) throw closeOthers.error;
 
-    return { completed, endedAt };
+    // The check always goes to the day the workout started, even days later.
+    return { completed, attendanceDate: startedAt };
   }
 
   const db = await getLocalDb();
@@ -171,10 +160,11 @@ export async function stopWorkoutSession(params: {
     `UPDATE workout_sessions
       SET ended_at = ?, duration_seconds = 0, completed = 0
       WHERE user_id = ? AND ended_at IS NULL AND id != ?;`,
-    endedAtIso,
+    nowIso,
     params.userId,
     params.sessionId,
   );
 
-  return { completed, endedAt };
+  // The check always goes to the day the workout started, even days later.
+  return { completed, attendanceDate: startedAt };
 }

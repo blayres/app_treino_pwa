@@ -62,11 +62,27 @@ export default function HomeScreen() {
     }, [toursLoaded, startTourIfNew]),
   );
 
+  // Shows the "workout completed" toast once, if a finish asked for it.
+  const showCompletedToastIfPending = useCallback(() => {
+    try {
+      if (!sessionStorage.getItem('workoutCompletedToast')) return;
+      sessionStorage.removeItem('workoutCompletedToast');
+    } catch {
+      return;
+    }
+    setShowWorkoutCompleted(true);
+    setTimeout(() => setShowWorkoutCompleted(false), 3000);
+  }, []);
+
   useEffect(() => {
-    const handleWorkoutSessionUpdated = () => refreshHomeData();
+    // Also covers finishing a forgotten workout from the prompt while on Home.
+    const handleWorkoutSessionUpdated = () => {
+      refreshHomeData();
+      showCompletedToastIfPending();
+    };
     document.addEventListener('workoutSessionUpdated', handleWorkoutSessionUpdated);
     return () => document.removeEventListener('workoutSessionUpdated', handleWorkoutSessionUpdated);
-  }, [refreshHomeData]);
+  }, [refreshHomeData, showCompletedToastIfPending]);
 
   useFocusEffect(
     useCallback(() => {
@@ -76,17 +92,8 @@ export default function HomeScreen() {
       }
 
       refreshHomeData();
-
-      if (sessionStorage.getItem('workoutCompletedToast')) {
-        sessionStorage.removeItem('workoutCompletedToast');
-
-        setShowWorkoutCompleted(true);
-
-        setTimeout(() => {
-          setShowWorkoutCompleted(false);
-        }, 3000);
-      }
-    }, [refreshHomeData]),
+      showCompletedToastIfPending();
+    }, [refreshHomeData, showCompletedToastIfPending]),
   );
 
   // currentUser is guaranteed by authStatus === 'authenticated' in App.tsx

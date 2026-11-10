@@ -16,7 +16,7 @@ import { lazyScreen } from './src/navigation/lazyScreen';
 import type { RootStackParamList } from './src/navigation/types';
 import { colors } from './src/theme/colors';
 import { useAppStore } from './src/store/useAppStore';
-import { closeStaleSessions, restoreActiveSessionByUser } from './src/services/sessionService';
+import { isForgottenSession, restoreActiveSessionByUser } from './src/services/sessionService';
 import { getSessionUser, getOrCreateProfile, markOnboarded } from './src/services/authService';
 import { captureInviteFromUrl } from './src/services/coachInvite';
 import { PendingInviteHost } from './src/components/PendingInviteHost';
@@ -25,6 +25,7 @@ import { useTourStore } from './src/store/useTourStore';
 import { backendMode } from './src/services/backendMode';
 import { supabase } from './src/services/supabaseClient';
 import { AlertHost } from './src/components/AlertHost';
+import { ForgottenWorkoutHost } from './src/components/ForgottenWorkoutHost';
 
 // Non-critical screens — lazy loaded after first paint
 const WorkoutScreen = lazyScreen(() => import('./src/screens/WorkoutScreen'));
@@ -79,11 +80,11 @@ export default function App() {
           const user = await getSessionUser();
           if (user) {
             setCurrentUser(user);
-            await closeStaleSessions(user.id);
             const session = await restoreActiveSessionByUser(user.id);
             if (session) {
               setActiveSession(session);
-              setRestoredWorkoutId(session.workoutId);
+              // A forgotten workout is handled by ForgottenWorkoutHost instead.
+              if (!isForgottenSession(session.startedAt)) setRestoredWorkoutId(session.workoutId);
             }
             setAuthStatus('authenticated');
           } else {
@@ -127,15 +128,10 @@ export default function App() {
             const activeSession = await restoreActiveSessionByUser(user.id);
             if (activeSession) {
               setActiveSession(activeSession);
-              setRestoredWorkoutId(activeSession.workoutId);
+              // A forgotten workout is handled by ForgottenWorkoutHost instead.
+              if (!isForgottenSession(activeSession.startedAt)) setRestoredWorkoutId(activeSession.workoutId);
             }
             setAuthStatus('authenticated');
-
-            if (!booted) {
-              // Run non-critical boot work after first paint
-              closeStaleSessions(user.id)
-                .catch(err => console.warn('Boot cleanup error:', err));
-            }
             return;
           }
         }
@@ -336,6 +332,7 @@ export default function App() {
         enabled={authStatus === 'authenticated' && navigationReady}
         onJoined={handleJoinedCoach}
       />
+      <ForgottenWorkoutHost enabled={authStatus === 'authenticated' && navigationReady && !needsOnboarding} />
       {authStatus === 'authenticated' && <GuidedTour />}
       <AlertHost />
     </NavigationContainer>

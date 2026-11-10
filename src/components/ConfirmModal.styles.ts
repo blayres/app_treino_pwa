@@ -74,4 +74,16 @@ export const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.8,
   },
+  dismiss: {
+    marginTop: spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dismissLabel: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
 });
