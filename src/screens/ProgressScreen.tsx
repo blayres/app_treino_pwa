@@ -7,6 +7,7 @@ import { showAlert } from '../store/useDialogStore';
 import { useI18n } from '../i18n';
 import { colors, layout, spacing, typography } from '../theme';
 import { LogoBar } from '../components/LogoBar';
+import { Skeleton } from '../components/Skeleton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { formatShortDate, ProgressChart, Sparkline } from '../components/ProgressChart';
@@ -38,6 +39,9 @@ type Entry = ExerciseProgress['entries'][number];
  *
  * Also opened by a coach for a student (route StudentProgress): read only.
  */
+// Last loaded data per user: reopening the screen shows it at once while it refreshes.
+const lastLoaded = new Map<number, { history: LoadHistoryRow[]; sessionDates: string[] }>();
+
 export default function ProgressScreen() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -47,9 +51,10 @@ export default function ProgressScreen() {
   const studentId = params?.studentId != null ? Number(params.studentId) : null;
   const userId = studentId ?? currentUser?.id;
 
-  const [loadState, setLoadState] = useState<LoadState>('pending');
-  const [history, setHistory] = useState<LoadHistoryRow[]>([]);
-  const [sessionDates, setSessionDates] = useState<string[]>([]);
+  const [cached] = useState(() => (userId ? lastLoaded.get(userId) : undefined));
+  const [loadState, setLoadState] = useState<LoadState>(cached ? 'ready' : 'pending');
+  const [history, setHistory] = useState<LoadHistoryRow[]>(cached?.history ?? []);
+  const [sessionDates, setSessionDates] = useState<string[]>(cached?.sessionDates ?? []);
   const [period, setPeriod] = useState<PeriodKey>('3m');
   const [openId, setOpenId] = useState<number | null>(null);
   const [chartWidth, setChartWidth] = useState(0);
@@ -62,11 +67,13 @@ export default function ProgressScreen() {
         getLoadHistoryByUser(userId),
         getCompletedSessionDates(userId).catch(() => [] as string[]),
       ]);
+      lastLoaded.set(userId, { history: rows, sessionDates: sessions });
       setHistory(rows);
       setSessionDates(sessions);
       setLoadState('ready');
     } catch {
-      setLoadState('error');
+      // Keep showing what we had; only an empty screen turns into the error state.
+      setLoadState((state) => (state === 'ready' ? state : 'error'));
     }
   }, [userId]);
 
@@ -92,7 +99,11 @@ export default function ProgressScreen() {
     if (!entry || entry.ids.length === 0) return;
     try {
       await deleteLoadHistoryEntries(entry.ids);
-      setHistory((rows) => rows.filter((r) => r.id == null || !entry.ids.includes(r.id)));
+      setHistory((rows) => {
+        const next = rows.filter((r) => r.id == null || !entry.ids.includes(r.id));
+        if (userId) lastLoaded.set(userId, { history: next, sessionDates });
+        return next;
+      });
     } catch (err: any) {
       showAlert(t.saveError, err?.message ?? t.genericError);
     }
@@ -103,6 +114,42 @@ export default function ProgressScreen() {
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statCaption} numberOfLines={2}>{caption}</Text>
+    </View>
+  );
+
+  // Same layout as the loaded page: real labels and titles, skeleton only for the numbers and the list.
+  const renderSkeleton = () => (
+    <View accessibilityLabel="…">
+      <View style={styles.stats}>
+        {[t.statWorkouts, t.statImproving, ...(period !== 'all' ? [t.statRecords] : [])].map((label) => (
+          <View key={label} style={styles.stat}>
+            <Text style={styles.statLabel}>{label}</Text>
+            <Skeleton width={36} height={30} style={{ marginTop: 4 }} />
+            {/* The caption takes two lines. */}
+            <Skeleton width="85%" height={10} style={{ marginTop: 6 }} />
+            <Skeleton width="60%" height={10} style={{ marginTop: 4 }} />
+          </View>
+        ))}
+      </View>
+      <Text style={styles.sectionTitle}>{t.evolutionTitle}</Text>
+      <Text style={styles.sectionHint}>{t.evolutionHint}</Text>
+      <View style={styles.list}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={[styles.item, i === 3 && styles.itemLast]}>
+            <View style={styles.itemHeader}>
+              <View style={styles.itemInfo}>
+                <Skeleton width="60%" height={15} />
+                <Skeleton width="40%" height={11} style={{ marginTop: 6 }} />
+              </View>
+              <Skeleton width={64} height={24} />
+              <View style={styles.itemValues}>
+                <Skeleton width={56} height={17} />
+                <Skeleton width={40} height={11} style={{ marginTop: 4 }} />
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
     </View>
   );
 
@@ -177,7 +224,9 @@ export default function ProgressScreen() {
           ))}
         </View>
 
-        {loadState === 'pending' ? null : loadState === 'error' ? (
+        {loadState === 'pending' ? (
+          renderSkeleton()
+        ) : loadState === 'error' ? (
           <View style={styles.empty}>
             <Text style={styles.emptyText}>{t.progressError}</Text>
             <Pressable style={styles.retry} onPress={load}>

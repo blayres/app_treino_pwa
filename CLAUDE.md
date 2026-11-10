@@ -64,7 +64,9 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 | Inicial do nome em círculo | `InitialAvatar` |
 | Aluno na lista do personal | `StudentRow` (+ `studentStatus` em `services/coachService`) |
 | Dica/tutorial apontando algo na tela | `GuidedTour` + `useTourTarget('id')` no elemento + passo em `services/tours.ts` (`TOURS`); a tela chama `useTourStore().startIfNew(tour)` |
-| Carregamento | `Skeleton` (só no 1º carregamento; em recarga manter o conteúdo) |
+| Carregamento | `Skeleton` só onde entra dado do banco, com o tamanho do elemento real (textos/títulos/rótulos fixos sempre visíveis); só no 1º carregamento — em recarga manter o conteúdo |
+| Cache de leitura | `createRequestCache` (`services/requestCache`): TTL, uma requisição por chave, `peek` síncrono para o 1º quadro, `invalidate` após escrita |
+| Tela nova code-split | `lazyScreen(import, Fallback)` em `App.tsx` + entrar em `AUTHENTICATED_SCREENS`/`GUEST_SCREENS` (pré-carga) + fallback em `navigation/screenFallbacks` (`ScreenShell`) |
 | Números/cargas | `utils/decimal`: `sanitizeDecimalInput`, `parseDecimal`, `formatDecimal`, `formatKg`, `formatKgDelta` |
 | Ícones | SVG inline no estilo dos existentes (`PencilIcon`, ícones do onboarding); sem libs de ícones |
 | Cores/espaços/fontes | tokens de `src/theme` — nunca hex solto em tela nova |
@@ -102,7 +104,9 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Auditoria do banco: `supabase/audit_security.sql` (somente leitura) lista RLS, policies, grants, funções e admins.
 
 ## Performance
-- Telas não críticas com `lazyScreen` (code splitting). Home e Login carregam direto.
+- Telas não críticas com `lazyScreen` (code splitting), **pré-carregadas** logo após o 1º quadro (`preloadWhenIdle`); depois de carregadas renderizam sem suspender. Se abertas antes, mostram o fallback fixo da tela — **nunca página em branco**. Home e Login carregam direto.
+- Abertura: com o perfil lembrado (`profileCache`), perfil, treino em andamento e dados da Home (`prefetchHomeData`) saem em paralelo; o logo espera os dados da Home no máximo `HOME_DATA_WAIT_MS`.
+- 1º quadro com dados: telas inicializam o estado com `peek`/`getCached*` (useState com função) e atualizam em segundo plano; a Home aquece exercícios e cargas dos treinos em idle (`prefetchWhenIdle`). Tocar num treino navega na hora (não esperar a rede).
 - Caches em memória nos serviços (`getWorkoutsByUser`, `getWorkoutExercises`, catálogo do picker): **invalidar após escrita** (`invalidate*Cache`).
 - Mostrar cache imediatamente e atualizar em segundo plano; sem "flash" de skeleton em recarga.
 - Evitar N+1: buscar em lote / com join do PostgREST. Evitar refetch em cada foco quando o cache basta.
@@ -113,7 +117,7 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Buscas independentes em paralelo (`Promise.all`), nunca em sequência.
 - Imagens no tamanho em que aparecem (×2 para retina). Ícones web em `assets/icons/` (192/180/512); o `favicon.png` grande fica só para ícone nativo.
 - Cache: arquivos com hash no nome (`/_expo/static`, `/assets`) imutáveis; arquivos sem hash (`favicon.png`, `manifest.json`) com cache curto.
-- Medir antes/depois: `npx expo export --platform web --source-maps` + somar `sourcesContent` por pacote no `.map` do `index-*.js`. Referência atual: bundle principal ~1,09 MB (~290 KB gzip).
+- Medir antes/depois: `npx expo export --platform web --source-maps` + somar `sourcesContent` por pacote no `.map` do `index-*.js`. Referência atual: bundle principal ~1,15 MB (~307 KB gzip).
 
 ## Testes
 - Toda lógica nova em função pura com teste em `__tests__/` (padrão: `progressUtils`, `workoutTextParser`, `programService`, `decimal`).

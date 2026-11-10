@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '../i18n';
 import { cardSurface, colors, spacing, typography } from '../theme';
-import { getProgramReminder, restartProgramCycle, snoozeProgramReminder } from '../services/programReminder';
+import { getCachedProgramReminder, getProgramReminder, restartProgramCycle, snoozeProgramReminder } from '../services/programReminder';
 
 type Props = {
   userId: number;
@@ -18,7 +18,8 @@ type Props = {
  */
 export function ProgramUpdateReminder({ userId, refreshKey, onUpdate }: Props) {
   const { t } = useI18n();
-  const [due, setDue] = useState(false);
+  // Last known answer (usually fetched during boot), so the card is laid out on the first frame.
+  const [due, setDue] = useState(() => Boolean(getCachedProgramReminder(userId)?.due));
 
   useEffect(() => {
     let cancelled = false;

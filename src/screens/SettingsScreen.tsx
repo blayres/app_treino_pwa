@@ -13,7 +13,7 @@ import { styles } from './SettingsScreen.styles';
 import { showAlert } from '../store/useDialogStore';
 import { LogoBar } from '../components/LogoBar';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { getMyCoach, joinCoach, joinErrorKey } from '../services/coachService';
+import { getCachedMyCoach, getMyCoach, joinCoach, joinErrorKey } from '../services/coachService';
 import { useTourStore } from '../store/useTourStore';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
@@ -123,7 +123,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <CoachCard onOpenCoachArea={() => navigation.navigate('Coach')} />
+        <CoachCard userId={currentUser.id} onOpenCoachArea={() => navigation.navigate('Coach')} />
 
         <View style={styles.card}>
           <Pressable
@@ -226,18 +226,22 @@ export default function SettingsScreen() {
  * trainer area. Students who already have a coach don't see it (leaving is
  * agreed with the coach, who removes them).
  */
-function CoachCard({ onOpenCoachArea }: { onOpenCoachArea: () => void }) {
+function CoachCard({ userId, onOpenCoachArea }: { userId: number; onOpenCoachArea: () => void }) {
   const { t } = useI18n();
-  const [hasCoach, setHasCoach] = useState<boolean | undefined>(undefined);
+  // Usually known from boot (prefetched with Home), so the card doesn't pop in later.
+  const [hasCoach, setHasCoach] = useState<boolean | undefined>(() => {
+    const cached = getCachedMyCoach(userId);
+    return cached === undefined ? undefined : cached !== null;
+  });
   const [code, setCode] = useState('');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getMyCoach()
+    getMyCoach(userId)
       .then((coach) => setHasCoach(coach !== null))
       .catch(() => setHasCoach(false));
-  }, []);
+  }, [userId]);
 
   if (hasCoach !== false) return null;
 

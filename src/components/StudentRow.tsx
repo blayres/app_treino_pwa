@@ -5,6 +5,7 @@ import type { Translations } from '../i18n/translations';
 import { colors, spacing } from '../theme';
 import { calendarDaysBetween } from '../utils/date';
 import { studentStatus, type StudentStatus, type StudentSummary } from '../services/coachService';
+import { Skeleton } from './Skeleton';
 import { InitialAvatar } from './InitialAvatar';
 
 const DOT: Record<StudentStatus, string> = {
@@ -55,6 +56,19 @@ export const StudentRow = memo(function StudentRow({ student, now, onPress }: Pr
     </Pressable>
   );
 });
+
+/** Placeholder with the same size as a StudentRow (avatar, name, status). */
+export function StudentRowSkeleton() {
+  return (
+    <View style={styles.row}>
+      <Skeleton width={40} height={40} style={{ borderRadius: 20 }} />
+      <View style={styles.body}>
+        <Skeleton width="55%" height={16} />
+        <Skeleton width="75%" height={13} style={{ marginTop: 6 }} />
+      </View>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   row: {

@@ -69,3 +69,28 @@ export function describeStartedDay(started: Date, now: Date, localeTagValue: str
     time: new Intl.DateTimeFormat(localeTagValue, { hour: '2-digit', minute: '2-digit' }).format(started),
   };
 }
+
+export type CalendarDay = {
+  /** YYYY-MM-DD, '' for the padding cells before/after the month. */
+  date: string;
+  label: string;
+  isEmpty: boolean;
+};
+
+/**
+ * Weeks (Sunday first) of a month for the frequency calendar. Pure and
+ * synchronous: the grid never waits for the network, only the check-ins do.
+ */
+export function buildMonthWeeks(year: number, month: number): CalendarDay[][] {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const days: CalendarDay[] = [];
+  for (let i = 0; i < first.getDay(); i++) days.push({ date: '', label: '', isEmpty: true });
+  for (let d = 1; d <= last.getDate(); d++) {
+    days.push({ date: localDateKey(new Date(year, month, d)), label: String(d), isEmpty: false });
+  }
+  for (let i = last.getDay(); i < 6; i++) days.push({ date: '', label: '', isEmpty: true });
+  const weeks: CalendarDay[][] = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+  return weeks;
+}

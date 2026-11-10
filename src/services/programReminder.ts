@@ -10,6 +10,7 @@
  * already updated it.
  */
 import { backendMode } from './backendMode';
+import { createRequestCache } from './requestCache';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import { localDateKey } from '../utils/date';
 
@@ -53,8 +54,21 @@ export function evaluateProgramReminder(params: {
   };
 }
 
+// No TTL (always re-read): shares a request started at boot and keeps the last
+// answer so Home can lay the card out on its first frame.
+const reminderCache = createRequestCache<number, ReminderProgress | null>(0);
+
+/** Last known reminder state (undefined = never loaded). */
+export function getCachedProgramReminder(userId: number): ReminderProgress | null | undefined {
+  return reminderCache.peek(userId);
+}
+
 /** Reads the cycle and the trained days and tells whether to show the reminder. */
-export async function getProgramReminder(userId: number, now = new Date()): Promise<ReminderProgress | null> {
+export function getProgramReminder(userId: number, now = new Date()): Promise<ReminderProgress | null> {
+  return reminderCache.get(userId, () => fetchProgramReminder(userId, now));
+}
+
+async function fetchProgramReminder(userId: number, now: Date): Promise<ReminderProgress | null> {
   if (backendMode !== 'supabase') return null;
   ensureSupabaseEnabled();
 
@@ -96,6 +110,7 @@ async function updateProfile(userId: number, patch: Record<string, string | null
 
 /** Program updated (saved/replaced, or "Já atualizei"): start a new cycle. */
 export function restartProgramCycle(userId: number, now = new Date()): Promise<void> {
+  reminderCache.set(userId, null);
   return updateProfile(userId, {
     program_cycle_started_at: now.toISOString(),
     program_reminder_snoozed_until: null,
@@ -105,5 +120,6 @@ export function restartProgramCycle(userId: number, now = new Date()): Promise<v
 /** "Lembrar depois": hide the reminder for SNOOZE_DAYS. */
 export function snoozeProgramReminder(userId: number, now = new Date()): Promise<void> {
   const until = new Date(now.getTime() + SNOOZE_DAYS * 86_400_000);
+  reminderCache.set(userId, null);
   return updateProfile(userId, { program_reminder_snoozed_until: until.toISOString() });
 }

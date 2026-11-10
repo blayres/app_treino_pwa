@@ -22,6 +22,7 @@ import {
   draftFromText,
   isProgramDirty,
   loadProgramDraft,
+  peekProgramDraft,
   saveProgram,
   visibleDays,
   type DraftDay,
@@ -53,26 +54,36 @@ export default function MyWorkoutScreen() {
   const studentId = params?.studentId != null ? Number(params.studentId) : null;
 
   const [step, setStep] = useState<Step>('edit');
-  const [original, setOriginal] = useState<DraftDay[]>([]);
-  const [days, setDays] = useState<DraftDay[]>([]);
+  const userId = studentId ?? currentUser?.id;
+  // Program as last loaded (warmed from Home): drawn at once, then replaced by fresh rows.
+  const [initialDraft] = useState(() => (userId ? peekProgramDraft(userId) : null));
+  const [original, setOriginal] = useState<DraftDay[]>(() => initialDraft ?? []);
+  const [days, setDays] = useState<DraftDay[]>(() => initialDraft ?? []);
   const [imported, setImported] = useState<DraftDay[]>([]);
   const [pasted, setPasted] = useState('');
   const [appending, setAppending] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => initialDraft === null);
   const [isBusy, setIsBusy] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const isSavingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  const userId = studentId ?? currentUser?.id;
   const dayName = (day: number) => t.dayLabels[day];
   const dirty = isProgramDirty(original, days);
 
-  const load = useCallback(async () => {
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  const hasDraftRef = useRef(initialDraft !== null);
+
+  /** `afterSave`: the saved program replaces the draft even though it differed from the original. */
+  const load = useCallback(async (afterSave = false) => {
     if (!userId) return;
-    setIsLoading(true);
+    if (!hasDraftRef.current) setIsLoading(true);
     try {
       const draft = await loadProgramDraft(userId);
+      // Never throw away edits made while the fresh rows were on their way.
+      if (!afterSave && hasDraftRef.current && dirtyRef.current) return;
+      hasDraftRef.current = true;
       setOriginal(draft);
       setDays(draft);
     } catch (err: any) {
@@ -145,7 +156,7 @@ export default function MyWorkoutScreen() {
       () => saveProgram({ userId, draft: days, original, defaultTitle }),
       async () => {
         invalidateExerciseCatalogue();
-        await load();
+        await load(true);
         showAlert(t.savedSuccess, t.programSaved);
       },
     );

@@ -25,8 +25,10 @@ import {
 import { FORGOTTEN_SESSION_SECONDS, isForgottenSession, startWorkoutSession } from '../services/sessionService';
 import { clearSessionChecklist, persistSessionEnd } from '../services/sessionFinisher';
 import { forgottenSessionTexts } from '../utils/forgottenSession';
-import type { Exercise } from '../services/types';
+import type { Exercise, ExerciseLoad } from '../services/types';
+import type { Locale } from '../i18n';
 import { Skeleton } from '../components/Skeleton';
+import { WorkoutExercisesSkeleton } from '../components/WorkoutExercisesSkeleton';
 import { ExerciseRow, type LoadField } from '../components/ExerciseRow';
 import { SubstitutesSheet } from '../components/SubstitutesSheet';
 import { useI18n } from '../i18n';
@@ -35,6 +37,20 @@ import { formatDecimal, parseDecimal, sanitizeDecimalInput } from '../utils/deci
 import { useTourStore, useTourTarget } from '../store/useTourStore';
 
 type WorkoutRoute = RouteProp<RootStackParamList, 'Workout'>;
+
+type LoadInputs = Record<number, { normal: string; progression: string }>;
+
+/** Saved loads → text shown in the inputs (decimal separator of the language). */
+function loadsToInputs(rows: ExerciseLoad[], locale: Locale): LoadInputs {
+  const map: LoadInputs = {};
+  rows.forEach(row => {
+    map[row.exercise_id] = {
+      normal: row.load_kg != null ? formatDecimal(Number(row.load_kg), locale) : '',
+      progression: row.progression_kg != null ? formatDecimal(Number(row.progression_kg), locale) : '',
+    };
+  });
+  return map;
+}
 
 type WorkoutExercise = {
   id: number;
@@ -52,8 +68,13 @@ export default function WorkoutScreen() {
 
   const routeTitle = route.params?.workoutTitle;
   const [workoutTitle, setWorkoutTitle] = useState(routeTitle ?? '');
-  const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
-  const [loads, setLoads] = useState<Record<number, { normal: string; progression: string }>>({});
+  // Cached data (warmed from Home) is drawn on the first frame; fresh data follows.
+  const [exercises, setExercises] = useState<WorkoutExercise[]>(() =>
+    (getCachedWorkoutExercises(workoutId) ?? []).map(row => ({ id: row.id, exercise: row.exercise })),
+  );
+  const [loads, setLoads] = useState<Record<number, { normal: string; progression: string }>>(() =>
+    currentUser ? loadsToInputs(getCachedExerciseLoads(currentUser.id) ?? [], locale) : {},
+  );
   const [completedIds, setCompletedIds] = useState<Set<number>>(() => {
     // localStorage survives iOS discarding the PWA's web process while it is
     // backgrounded. sessionStorage is used only as a one-time fallback for
@@ -67,7 +88,7 @@ export default function WorkoutScreen() {
   });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isCancelAction, setIsCancelAction] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => getCachedWorkoutExercises(workoutId) === null);
   const flatListRef = useRef<FlatList>(null);
   const startTourRef = useTourTarget('workout.start');
   const toursLoaded = useTourStore((s) => s.seen !== null);
@@ -115,16 +136,7 @@ export default function WorkoutScreen() {
     let cancelled = false;
 
     const applyLoads = (loadRows: Awaited<ReturnType<typeof getExerciseLoadsByUser>>) => {
-      const map: Record<number, { normal: string; progression: string }> = {};
-
-      loadRows.forEach(row => {
-        map[row.exercise_id] = {
-          normal: row.load_kg != null ? formatDecimal(Number(row.load_kg), locale) : '',
-          progression: row.progression_kg != null ? formatDecimal(Number(row.progression_kg), locale) : '',
-        };
-      });
-
-      setLoads(map);
+      setLoads(loadsToInputs(loadRows, locale));
     };
 
     const cachedExercises = getCachedWorkoutExercises(workoutId);
@@ -409,32 +421,7 @@ export default function WorkoutScreen() {
         </View>
 
         {isLoading ? (
-          <View style={{ paddingHorizontal: 12 }}>
-            {[...Array(5)].map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginBottom: 35,
-                  marginTop: 30,
-                }}
-              >
-                <Skeleton width={22} height={22} />
-
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Skeleton width="70%" height={14} />
-                  <Skeleton width="50%" height={12} style={{ marginTop: 6 }} />
-                  <Skeleton width="40%" height={12} style={{ marginTop: 6 }} />
-                </View>
-
-                <View style={{ marginLeft: 12 }}>
-                  <Skeleton width={60} height={32} style={{ marginBottom: 6 }} />
-                  <Skeleton width={60} height={32} />
-                </View>
-              </View>
-            ))}
-          </View>
+          <WorkoutExercisesSkeleton />
         ) : (
           <FlatList
             ref={flatListRef}
