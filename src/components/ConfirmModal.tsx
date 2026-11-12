@@ -32,7 +32,8 @@ export function ConfirmModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss ?? onCancel}>
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        {/* Announced as a dialog named by its title; buttons announced as buttons. */}
+        <View style={styles.container} role="alertdialog" aria-modal aria-label={title || undefined}>
           {title ? <Text style={styles.title}>{title}</Text> : null}
           {message ? <Text style={styles.message}>{message}</Text> : null}
           <View style={styles.actions}>
@@ -40,6 +41,7 @@ export function ConfirmModal({
               <Pressable
                 style={({ pressed }) => [styles.buttonCancel, pressed && styles.buttonPressed]}
                 onPress={onCancel}
+                accessibilityRole="button"
               >
                 <Text style={styles.buttonCancelLabel}>{cancelLabel}</Text>
               </Pressable>
@@ -50,6 +52,7 @@ export function ConfirmModal({
                 pressed && styles.buttonPressed,
               ]}
               onPress={onConfirm}
+              accessibilityRole="button"
             >
               <Text style={styles.buttonConfirmLabel}>{confirmLabel}</Text>
             </Pressable>

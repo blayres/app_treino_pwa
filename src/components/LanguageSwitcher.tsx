@@ -4,6 +4,10 @@ import { useI18n, type Locale } from '../i18n';
 import { colors } from '../theme';
 import { MENU_WIDTH, styles } from './LanguageSwitcher.styles';
 
+// A menu option that is either chosen or not (ARIA menuitemradio + aria-checked).
+// React Native's Role type lacks it; react-native-web passes it to the DOM as is.
+const MENU_ITEM_RADIO = { role: 'menuitemradio' } as object;
+
 const OPTIONS: Locale[] = ['pt', 'en', 'es', 'fr'];
 const SCREEN_EDGE_GAP = 8;
 
@@ -93,6 +97,7 @@ export function LanguageSwitcher() {
           accessibilityRole="button"
           accessibilityLabel={`${t.language}: ${t.localeLabels[locale]}`}
           accessibilityState={{ expanded: open }}
+          aria-expanded={open}
           onLayout={() => {
             if (open) {
               updateMenuPosition();
@@ -115,8 +120,9 @@ export function LanguageSwitcher() {
                 return (
                   <Pressable
                     key={opt}
-                    accessibilityRole="menuitem"
+                    {...MENU_ITEM_RADIO}
                     accessibilityState={{ selected: isActive }}
+                    aria-checked={isActive}
                     onPress={() => handleSelect(opt)}
                     style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => [
                       styles.option,

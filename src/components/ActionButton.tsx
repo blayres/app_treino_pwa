@@ -24,6 +24,7 @@ export function ActionButton({ label, onPress, variant = 'primary', disabled = f
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: inactive, busy: loading }}
+      aria-busy={loading}
       style={({ pressed }) => [
         styles.button,
         primary ? styles.primary : styles.secondary,

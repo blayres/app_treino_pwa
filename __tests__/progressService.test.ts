@@ -46,7 +46,9 @@ describe('progressService', () => {
     await recordLoadHistory({ userId: 5, exerciseId: 3, loadKg: 0 });
     expect(supabaseMock.queries).toHaveLength(0);
 
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     supabaseMock.queue('exercise_load_history.insert', { error: { message: 'denied' } });
     await expect(recordLoadHistory({ userId: 5, exerciseId: 3, loadKg: 40 })).resolves.toBeUndefined();
+    warn.mockRestore();
   });
 });

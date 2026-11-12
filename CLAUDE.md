@@ -74,6 +74,7 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 | Cache de leitura | `createRequestCache` (`services/requestCache`): TTL, uma requisição por chave, `peek` síncrono para o 1º quadro, `invalidate` após escrita |
 | Tela nova code-split | `lazyScreen(import, Fallback)` em `App.tsx` + entrar em `AUTHENTICATED_SCREENS`/`GUEST_SCREENS` (pré-carga) + fallback em `navigation/screenFallbacks` (`ScreenShell`) |
 | Números/cargas | `utils/decimal`: `sanitizeDecimalInput`, `parseDecimal`, `formatDecimal`, `formatKg`, `formatKgDelta` |
+| Exercício por carga ou por tempo (prancha) | `utils/measure`: `schemeMeasure` (lê do esquema: "3x30s", "4x1min" = tempo), `switchSchemeMeasure`, `targetSeconds`, `formatSeconds`. Por tempo: campo "Tempo (s)" no lugar da carga (salvo em `exercise_loads.load_kg`, fora do histórico de cargas) + cronômetro `HoldTimer` |
 | Ícones | SVG inline sobre `StrokeIcon` (traço fino, 24×24): `PencilIcon`, `StudentsIcon`, `DumbbellIcon`; sem libs de ícones |
 | Cores/espaços/fontes | tokens de `src/theme` — nunca hex solto em tela nova |
 | Textos | `t.chave` de `useI18n()` — nunca string visível hardcoded |
@@ -84,7 +85,8 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Ações destrutivas ou irreversíveis (sair, excluir, substituir treino, apagar registro) **sempre** pedem confirmação.
 - **Não trocar o texto de botão durante loading** ("Salvando…"): desabilitar e/ou mostrar `ActivityIndicator`.
 - Mobile-first: conferir em ~400px de largura. Botões lado a lado: `flex: 1`, `minHeight: 44`, `justifyContent: 'center'`, texto `textAlign: 'center'` — o texto pode quebrar linha em fr/es sem desalinhar.
-- Área de toque ≥ 40px. `accessibilityRole`/`accessibilityLabel` em botões só com ícone.
+- Área de toque ≥ 40px (`minTouchSize` do tema). **`hitSlop` não funciona na web**: para controle pequeno, área invisível de 40px em volta com margem negativa (ver `PillButton`). Todo `Pressable` com `accessibilityRole`; botões só com ícone também com `accessibilityLabel`.
+- `accessibilityState` **não** chega ao DOM no react-native-web: usar também `aria-checked` / `aria-selected` / `aria-expanded` / `aria-busy`.
 - **4 idiomas**: toda chave nova em pt, en, es e fr (o tipo `Translations` obriga). Conferir textos longos em fr/es.
 - Números: mostrar com o separador do idioma (43,5 em pt). Entrada de carga aceita `,` ou `.`.
 - Gráficos: seguir a skill `dataviz` (cor validada `colors.chartLine`, grid sólido fino, sem eixo duplo, tooltip + tabela de valores).
@@ -131,6 +133,7 @@ Antes de criar algo, procurar (`grep`) se já existe. Se dois lugares precisam d
 - Testar o comportamento que importa ao usuário e à segurança: o que é gravado, com quais filtros (ex.: só linhas do usuário), o que acontece em erro (rollback, nada parcial).
 - Ao criar um teste, garantir que ele falha se o código quebrar (injetar o bug e ver o teste ficar vermelho).
 - **Componentes**: `__tests__/components/*.test.tsx` (projeto Jest `components`, jsdom + react-native-web, `@testing-library/react`). Consultar como o usuário vê: `getByText`, `getByRole('checkbox', { name })`, `getByLabelText` (accessibilityLabel). Componentes que acessam dados: substituir o filho que busca dados por um stub com `jest.mock` (ver `ProgramEditor.test.tsx`). Textos em pt (setup).
+- **Telas**: `__tests__/components/screens/*.test.tsx`. Navegação com `jest.mock('@react-navigation/native', () => require('../helpers/navigationMock'))` (`navigation`, `setRoute`, `resetNavigation`); usuário via `useAppStore.setState`; mockar todos os `src/services/*` que a tela importa. `react-native-safe-area-context` já é simulado (`__mocks__/safeAreaContext.js`). No jsdom o `Modal` não termina de fechar: testar que nada foi gravado, não que o modal sumiu.
 - Bug corrigido = teste que reproduz o bug. Casos reais vão para `__tests__/fixtures/`.
 - Verificar visualmente no navegador (Claude in Chrome) o que muda na UI, em ~400px; usar a conta de teste, **nunca** digitar/salvar dados numa conta real sem permissão.
 

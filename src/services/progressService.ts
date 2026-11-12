@@ -47,12 +47,14 @@ export async function recordLoadHistory(params: {
   try {
     if (backendMode === 'supabase') {
       ensureSupabaseEnabled();
-      await supabase.from('exercise_load_history').insert({
+      // Supabase returns errors (e.g. refused by RLS) instead of throwing.
+      const { error } = await supabase.from('exercise_load_history').insert({
         user_id: params.userId,
         exercise_id: params.exerciseId,
         load_kg: params.loadKg,
         recorded_at: now,
       });
+      if (error) throw error;
       return;
     }
 

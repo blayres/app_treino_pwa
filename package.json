@@ -13,7 +13,7 @@
     "link:gifs": "node --env-file=.env scripts/linkFreeExerciseGifs.ts",
     "prepare": "husky",
     "test": "jest --runInBand",
-    "test:coverage": "jest --coverage --collectCoverageFrom='src/{services,utils,store}/**/*.ts'",
+    "test:coverage": "jest --coverage --collectCoverageFrom='src/{services,utils,store}/**/*.ts' --collectCoverageFrom='src/{components,screens,hooks}/**/*.tsx'",
     "typecheck": "tsc --noEmit -p .",
     "lint": "eslint . --max-warnings=0"
   },

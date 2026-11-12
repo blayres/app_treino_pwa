@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, spacing } from '../theme';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, minTouchSize, spacing } from '../theme';
 
 type IconProps = { size?: number; color?: string };
 
@@ -23,23 +23,35 @@ export function PillButton({ label, onPress, accessibilityLabel, icon: Icon, act
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       aria-expanded={active}
-      hitSlop={6}
-      style={({ pressed }) => [styles.pill, active && styles.active, pressed && styles.pressed]}
+      style={styles.touchArea}
     >
-      {Icon ? <Icon size={15} color={color} /> : null}
-      <Text style={[styles.label, { color }]}>{label}</Text>
+      {({ pressed }) => (
+        <View style={[styles.pill, active && styles.active, pressed && styles.pressed]}>
+          {Icon ? <Icon size={15} color={color} /> : null}
+          <Text style={[styles.label, { color }]}>{label}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
 
+const PILL_HEIGHT = 30;
+const EXTRA = (minTouchSize - PILL_HEIGHT) / 2;
+
 const styles = StyleSheet.create({
-  pill: {
+  // Invisible 40px-high tap area; negative margins keep the 30px pill's layout.
+  touchArea: {
     alignSelf: 'flex-start',
+    minHeight: minTouchSize,
+    justifyContent: 'center',
+    marginTop: spacing.xs - EXTRA,
+    marginBottom: -EXTRA,
+  },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    minHeight: 30,
-    marginTop: spacing.xs,
+    minHeight: PILL_HEIGHT,
     paddingHorizontal: 11,
     borderRadius: 999,
     backgroundColor: colors.surfaceLight,

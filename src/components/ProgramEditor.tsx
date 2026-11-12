@@ -15,6 +15,8 @@ import {
 } from '../services/programService';
 import { ExercisePickerSheet } from './ExercisePickerSheet';
 import { styles } from './ProgramEditor.styles';
+import { schemeMeasure, switchSchemeMeasure } from '../utils/measure';
+import { MeasureToggle } from './MeasureToggle';
 
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
 
@@ -200,6 +202,7 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
               onPress={() => toggleDay(day)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: selected }}
+              aria-checked={selected}
               accessibilityLabel={dayName(day)}
               style={[styles.dayChip, selected && styles.dayChipSelected]}
             >
@@ -257,6 +260,16 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
                   <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
                   {!item.exercise && <Text style={styles.newTag}>{t.onboardingNewTag}</Text>}
                 </View>
+                {/* Load (kg) or time (plank…): switching rewrites the reps, keeping the sets. */}
+                <MeasureToggle
+                  value={schemeMeasure(item.scheme)}
+                  onChange={(measure) =>
+                    updateItem(day.key, item.key, {
+                      scheme: switchSchemeMeasure(item.scheme.trim() || DEFAULT_CUSTOM_SCHEME, measure),
+                    })
+                  }
+                  accessibilityPrefix={item.name}
+                />
                 {isLong(item) && renderScheme(day.key, item, true)}
                 {item.notes ? (
                   <Pressable onPress={() => toggleNotes(item.key)} accessibilityRole="button">
@@ -322,6 +335,7 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
               const taken = daySheet?.mode === 'copy' && selectedDays.has(day);
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={day}
                   disabled={taken}
                   onPress={() => {

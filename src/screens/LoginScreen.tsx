@@ -28,6 +28,9 @@ export default function LoginScreen() {
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
   const [googleLoading, setGoogleLoading] = React.useState(false);
+  // E-mail sign-in in flight: one request at a time (button and Enter key).
+  const [loading, setLoading] = React.useState(false);
+  const loadingRef = React.useRef(false);
 
   const passwordRef = React.useRef<TextInput>(null);
 
@@ -53,19 +56,16 @@ export default function LoginScreen() {
       setError(t.requiredFieldsMsg);
       return;
     }
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoading(true);
     try {
       await loginWithEmail(email.trim(), password);
     } catch (err: any) {
-      setError(
-        mapAuthError(err?.message, {
-          invalidCredentials: t.invalidCredentials,
-          emailNotConfirmed: t.emailNotConfirmed,
-          accountAlreadyExists: t.accountAlreadyExists,
-          passwordTooWeak: t.passwordTooWeak,
-          networkError: t.networkError,
-          genericError: t.genericError,
-        }),
-      );
+      setError(mapAuthError(err?.message, t));
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
     }
   };
 
@@ -77,16 +77,7 @@ export default function LoginScreen() {
       // OAuth opens the browser — the auth state change listener in App.tsx
       // handles the session once the user returns from the Google consent screen.
     } catch (err: any) {
-      setError(
-        mapAuthError(err?.message, {
-          invalidCredentials: t.invalidCredentials,
-          emailNotConfirmed: t.emailNotConfirmed,
-          accountAlreadyExists: t.accountAlreadyExists,
-          passwordTooWeak: t.passwordTooWeak,
-          networkError: t.networkError,
-          genericError: t.genericError,
-        }),
-      );
+      setError(mapAuthError(err?.message, t));
     } finally {
       setGoogleLoading(false);
     }
@@ -134,8 +125,10 @@ export default function LoginScreen() {
             ) : null}
 
             <Pressable
-              style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+              style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, loading && { opacity: 0.6 }]}
               onPress={handleSupabaseLogin}
+              disabled={loading}
+              aria-busy={loading}
               accessibilityRole="button"
               accessibilityLabel={t.accessButton}
             >
@@ -146,7 +139,7 @@ export default function LoginScreen() {
 
             <GoogleSignInButton
               onPress={handleGoogleSignIn}
-              disabled={googleLoading}
+              disabled={googleLoading || loading}
             />
 
             <Pressable

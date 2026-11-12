@@ -80,6 +80,24 @@ Elevação lateral 3x15`);
   });
 });
 
+describe('timed exercises', () => {
+  it('keeps the time unit in the scheme and still reads the rest', () => {
+    const [day] = parseWorkoutText(`
+Segunda - Core
+Prancha 3x30-45s descanso 45
+Prancha lateral 3 x 30 seg
+Parede 2x1min
+Remada 3x12 s/ pausa
+`);
+    expect(day.exercises).toEqual([
+      { name: 'Prancha', scheme: '3x30-45s', restSeconds: 45 },
+      { name: 'Prancha lateral', scheme: '3x30s', restSeconds: null },
+      { name: 'Parede', scheme: '2x1min', restSeconds: null },
+      { name: 'Remada s/ pausa', scheme: '3x12', restSeconds: null }, // "s/" is not seconds
+    ]);
+  });
+});
+
 describe('assignWeekdays', () => {
   it('fills missing weekdays with the next free day and titles untitled days', () => {
     const days = assignWeekdays(

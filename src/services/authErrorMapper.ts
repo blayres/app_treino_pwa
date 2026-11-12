@@ -4,12 +4,20 @@ export type AuthTranslator = {
   accountAlreadyExists: string;
   passwordTooWeak: string;
   networkError: string;
+  tooManyAttempts: string;
   genericError: string;
 };
+
+/**
+ * Supabase/auth error → message for the user in their language. Raw server
+ * messages (English, technical) are never shown. `fallback` replaces the
+ * generic message for unknown errors (e.g. "Could not delete your account").
+ */
 
 export function mapAuthError(
   rawMessage: string | undefined,
   t: AuthTranslator,
+  fallback: string = t.genericError,
 ): string {
   const message = (rawMessage ?? '').toLowerCase();
 
@@ -49,5 +57,13 @@ export function mapAuthError(
     return t.networkError;
   }
 
-  return t.genericError;
+  if (
+    message.includes('rate limit') ||
+    message.includes('too many requests') ||
+    message.includes('over_email_send_rate_limit')
+  ) {
+    return t.tooManyAttempts;
+  }
+
+  return fallback;
 }

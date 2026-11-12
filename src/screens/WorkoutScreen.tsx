@@ -30,6 +30,7 @@ import type { Locale } from '../i18n';
 import { Skeleton } from '../components/Skeleton';
 import { WorkoutExercisesSkeleton } from '../components/WorkoutExercisesSkeleton';
 import { ExerciseRow, type LoadField } from '../components/ExerciseRow';
+import { timedExerciseIds } from '../utils/measure';
 import { SubstitutesSheet } from '../components/SubstitutesSheet';
 import { useI18n } from '../i18n';
 import { LogoBar } from '../components/LogoBar';
@@ -268,6 +269,8 @@ export default function WorkoutScreen() {
   // value still has to go to the progress history (recorded on blur only, so
   // intermediate keystrokes like 4 → 43 → 43,5 never become history entries).
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const timedIdsRef = useRef<Set<number>>(new Set());
+  timedIdsRef.current = timedExerciseIds(exercises);
   const pendingHistoryRef = useRef<Set<number>>(new Set());
 
   // Handlers passed to the memoised ExerciseRow must be stable (useCallback +
@@ -319,7 +322,8 @@ export default function WorkoutScreen() {
       return next;
     });
 
-    if (field === 'normal') pendingHistoryRef.current.add(exerciseId);
+    // Timed exercises (plank…) keep their hold time but stay out of the load history.
+    if (field === 'normal' && !timedIdsRef.current.has(exerciseId)) pendingHistoryRef.current.add(exerciseId);
     clearTimeout(saveTimersRef.current[exerciseId]);
     saveTimersRef.current[exerciseId] = setTimeout(() => saveLoads(exerciseId, false), 700);
   }, [saveLoads]);
@@ -351,7 +355,7 @@ export default function WorkoutScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
+          <Pressable accessibilityRole="button" onPress={() => navigation.goBack()} hitSlop={16}>
             <Text style={styles.backLabel}>{t.back}</Text>
           </Pressable>
 
@@ -378,12 +382,14 @@ export default function WorkoutScreen() {
               </Text>
               <View style={styles.staleActions}>
                 <Pressable
+                  accessibilityRole="button"
                   style={({ pressed }) => [styles.buttonSecondary, pressed && styles.buttonSecondaryPressed]}
                   onPress={() => handleStopWithConfirm(true)}
                 >
                   <Text style={styles.buttonSecondaryLabel}>{t.discardWorkout}</Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
                   style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
                   onPress={() => handleStopWithConfirm(false)}
                 >
@@ -396,6 +402,7 @@ export default function WorkoutScreen() {
             <View style={styles.actions}>
               {!isSessionForThisWorkout ? (
                 <Pressable
+                  accessibilityRole="button"
                   ref={startTourRef}
                   style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
                   onPress={handleStart}
@@ -405,12 +412,14 @@ export default function WorkoutScreen() {
               ) : (
                 <>
                   <Pressable
+                    accessibilityRole="button"
                     style={({ pressed }) => [styles.buttonSecondary, pressed && styles.buttonSecondaryPressed]}
                     onPress={() => handleStopWithConfirm(true)}
                   >
                     <Text style={styles.buttonSecondaryLabel}>{t.discardWorkout}</Text>
                   </Pressable>
                   <Pressable
+                    accessibilityRole="button"
                     style={({ pressed }) => [styles.buttonPrimary, pressed && styles.buttonPrimaryPressed]}
                     onPress={() => handleStopWithConfirm(false)}
                   >

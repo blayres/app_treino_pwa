@@ -22,6 +22,8 @@ import { ConfirmModal } from './ConfirmModal';
 import { normalizeForMatch } from '../services/workoutTextParser';
 import { showAlert } from '../store/useDialogStore';
 import { styles } from './ExercisePickerSheet.styles';
+import { MeasureToggle } from './MeasureToggle';
+import { DEFAULT_TIME_REPS, type Measure } from '../utils/measure';
 
 // Catalogue shared by every picker instance; refreshed after creating an exercise.
 let catalogueCache: { userId: number; data: Exercise[] } | null = null;
@@ -63,6 +65,8 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  // A new exercise is logged by load (kg) or done for time (plank…).
+  const [createMeasure, setCreateMeasure] = useState<Measure>('load');
   const [toDelete, setToDelete] = useState<Exercise | null>(null);
   const [layout, setLayout] = useState(() => ({
     bottom: 0,
@@ -72,6 +76,7 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
   useEffect(() => {
     if (!visible) return;
     setSearch('');
+    setCreateMeasure('load');
     let cancelled = false;
     if (catalogueCache?.userId !== userId) setIsLoading(true);
     loadExerciseCatalogue(userId)
@@ -119,7 +124,11 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
     if (!canCreate || isCreating) return;
     setIsCreating(true);
     try {
-      const created = await createCustomExercise({ userId, name: query });
+      const created = await createCustomExercise({
+        userId,
+        name: query,
+        scheme: createMeasure === 'time' ? `3x${DEFAULT_TIME_REPS}` : undefined,
+      });
       const next = [...exercises.filter((e) => e.id !== created.id), created].sort((a, b) =>
         a.name.localeCompare(b.name),
       );
@@ -149,21 +158,32 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
   };
 
   const createRow = canCreate ? (
-    <Pressable
-      style={({ pressed }) => [styles.createItem, pressed && styles.exerciseItemPressed]}
-      onPress={handleCreate}
-      disabled={isCreating}
-      accessibilityRole="button"
-    >
-      <Text style={styles.createPlus}>+</Text>
-      <View style={styles.exerciseItemInfo}>
-        <Text style={styles.createLabel} numberOfLines={2}>
-          {t.createExerciseNamed(query)}
-        </Text>
-        <Text style={styles.createHint}>{t.createExerciseHint}</Text>
-      </View>
-      {isCreating && <ActivityIndicator color={colors.olive} />}
-    </Pressable>
+    <View style={styles.createItem}>
+      <Pressable
+        style={({ pressed }) => [styles.createMain, pressed && styles.exerciseItemPressed]}
+        onPress={handleCreate}
+        disabled={isCreating}
+        accessibilityRole="button"
+      >
+        <Text style={styles.createPlus}>+</Text>
+        <View style={styles.exerciseItemInfo}>
+          <Text style={styles.createLabel} numberOfLines={2}>
+            {t.createExerciseNamed(query)}
+          </Text>
+          <Text style={styles.createHint}>{t.createExerciseHint}</Text>
+        </View>
+      </Pressable>
+      {isCreating ? (
+        <ActivityIndicator color={colors.olive} />
+      ) : (
+        <MeasureToggle
+          value={createMeasure}
+          onChange={setCreateMeasure}
+          accessibilityPrefix={query}
+          style={styles.createMeasure}
+        />
+      )}
+    </View>
   ) : null;
 
   return (
@@ -211,6 +231,7 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
               const alreadyAdded = selectedIds.includes(item.id);
               return (
                 <Pressable
+                  accessibilityRole="button"
                   style={({ pressed }) => [
                     styles.exerciseItem,
                     alreadyAdded && styles.exerciseItemDisabled,

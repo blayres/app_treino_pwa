@@ -10,6 +10,9 @@ import { useTourTarget } from '../store/useTourStore';
 import type { Exercise } from '../services/types';
 import { useI18n } from '../i18n';
 import { formatRest } from '../utils/date';
+import { parseDecimal } from '../utils/decimal';
+import { schemeMeasure, targetSeconds } from '../utils/measure';
+import { HoldTimer } from './HoldTimer';
 
 export type LoadField = 'normal' | 'progression';
 
@@ -62,6 +65,11 @@ export const ExerciseRow = memo(function ExerciseRow({
   values.current = { normal: loadNormal, progression: loadProgression };
 
   const [mainScheme, progressionScheme] = exercise.scheme.split(' e ');
+  // Timed exercises (plank…): no load to log, a countdown of the target instead.
+  const isTimed = schemeMeasure(exercise.scheme) === 'time';
+  const targetTime = isTimed ? targetSeconds(exercise.scheme) ?? 30 : 0;
+  // The hold time the user typed (they can go longer than the target), else the target.
+  const holdSeconds = isTimed ? Math.round(parseDecimal(loadNormal) || 0) || targetTime : 0;
   const toggle = () => onToggle(exercise.id);
 
   const handleFocus = (field: LoadField) => {
@@ -86,20 +94,20 @@ export const ExerciseRow = memo(function ExerciseRow({
         inputs.current[field] = input;
       }}
       style={styles.loadInput}
-      keyboardType="decimal-pad"
+      keyboardType={isTimed ? 'number-pad' : 'decimal-pad'}
       value={value}
       onChangeText={(text) => onChangeLoad(exercise.id, text, field)}
       onFocus={() => handleFocus(field)}
       onBlur={handleBlur}
-      placeholder={focused === field ? '' : t.loadPlaceholder}
-      accessibilityLabel={`${exercise.name} · ${field === 'normal' ? t.loadKg : t.progression}`}
+      placeholder={focused === field ? '' : isTimed ? String(targetTime) : t.loadPlaceholder}
+      accessibilityLabel={`${exercise.name} · ${field === 'normal' ? (isTimed ? t.timeSeconds : t.loadKg) : t.progression}`}
     />
   );
 
   return (
     <View style={[styles.exerciseRow, isCompleted && styles.exerciseRowActive]}>
       {isSessionActive ? (
-        <CircularCheckbox checked={isCompleted} onToggle={toggle} />
+        <CircularCheckbox checked={isCompleted} onToggle={toggle} accessibilityLabel={exercise.name} />
       ) : (
         <View style={styles.checkboxPlaceholder} />
       )}
@@ -130,7 +138,15 @@ export const ExerciseRow = memo(function ExerciseRow({
         ) : null}
       </Pressable>
 
-      {!isCompleted ? (
+      {!isCompleted && isTimed ? (
+        <View style={styles.loadColumn}>
+          <Text style={styles.loadLabel}>{t.timeSeconds}</Text>
+          {loadInput('normal', loadNormal)}
+          <HoldTimer seconds={holdSeconds} exerciseName={exercise.name} />
+        </View>
+      ) : null}
+
+      {!isCompleted && !isTimed ? (
         <View ref={loadTourRef} collapsable={false} style={styles.loadColumn}>
           <Text style={styles.loadLabel}>{t.loadKg}</Text>
           {loadInput('normal', loadNormal)}
