@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Modal,
   Pressable,
   Text,
   TextInput,
@@ -18,6 +17,7 @@ import {
   ExerciseInUseError,
   listExercises,
 } from '../services/workoutService';
+import { BottomSheet } from './BottomSheet';
 import { ConfirmModal } from './ConfirmModal';
 import { normalizeForMatch } from '../services/workoutTextParser';
 import { showAlert } from '../store/useDialogStore';
@@ -167,86 +167,87 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
   ) : null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t.cancel} />
-        <View style={[styles.sheet, { marginBottom: layout.bottom, height: layout.height }]}>
-          <View style={styles.header}>
-            <Text style={styles.title}>{t.pickExerciseTitle}</Text>
-            <Pressable hitSlop={12} onPress={onClose} accessibilityRole="button" accessibilityLabel={t.cancel}>
-              <Text style={styles.close}>✕</Text>
-            </Pressable>
-          </View>
+    <>
+      <BottomSheet
+        visible={visible}
+        onClose={onClose}
+        sheetStyle={{ marginBottom: layout.bottom, height: layout.height }}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>{t.pickExerciseTitle}</Text>
+          <Pressable hitSlop={12} onPress={onClose} accessibilityRole="button" accessibilityLabel={t.cancel}>
+            <Text style={styles.close}>✕</Text>
+          </Pressable>
+        </View>
 
-          <TextInput
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder={t.searchOrCreateExercise}
-            clearButtonMode="while-editing"
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={() => {
-              if (filtered.length === 0 && canCreate) handleCreate();
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder={t.searchOrCreateExercise}
+          clearButtonMode="while-editing"
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={() => {
+            if (filtered.length === 0 && canCreate) handleCreate();
+          }}
+        />
+
+        {isLoading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={colors.olive} />
+          </View>
+        ) : (
+          <FlatList
+            style={styles.exerciseList}
+            data={filtered}
+            keyExtractor={(item) => String(item.id)}
+            keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={createRow}
+            ListEmptyComponent={
+              canCreate ? null : <Text style={styles.emptyText}>{t.noExercisesFound}</Text>
+            }
+            renderItem={({ item }) => {
+              const alreadyAdded = selectedIds.includes(item.id);
+              return (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.exerciseItem,
+                    alreadyAdded && styles.exerciseItemDisabled,
+                    pressed && !alreadyAdded && styles.exerciseItemPressed,
+                  ]}
+                  onPress={() => onPick(item)}
+                  disabled={alreadyAdded}
+                >
+                  <View style={styles.exerciseItemInfo}>
+                    <Text style={[styles.exerciseItemName, alreadyAdded && styles.exerciseItemNameDisabled]}>
+                      {item.name}
+                    </Text>
+                    {item.primary_muscle ? (
+                      <Text style={styles.exerciseItemMuscle}>{item.primary_muscle}</Text>
+                    ) : null}
+                  </View>
+                  {item.owner_id != null && !alreadyAdded && (
+                    <Text style={styles.customTag}>{t.customExerciseTag}</Text>
+                  )}
+                  {alreadyAdded && <Text style={styles.addedTag}>✓</Text>}
+                  {item.owner_id != null && (
+                    <Pressable
+                      onPress={() => setToDelete(item)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.deleteCustomExercise(item.name)}
+                      style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+                    >
+                      <TrashIcon />
+                    </Pressable>
+                  )}
+                </Pressable>
+              );
             }}
           />
-
-          {isLoading ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color={colors.olive} />
-            </View>
-          ) : (
-            <FlatList
-              style={styles.exerciseList}
-              data={filtered}
-              keyExtractor={(item) => String(item.id)}
-              keyboardShouldPersistTaps="handled"
-              ListHeaderComponent={createRow}
-              ListEmptyComponent={
-                canCreate ? null : <Text style={styles.emptyText}>{t.noExercisesFound}</Text>
-              }
-              renderItem={({ item }) => {
-                const alreadyAdded = selectedIds.includes(item.id);
-                return (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.exerciseItem,
-                      alreadyAdded && styles.exerciseItemDisabled,
-                      pressed && !alreadyAdded && styles.exerciseItemPressed,
-                    ]}
-                    onPress={() => onPick(item)}
-                    disabled={alreadyAdded}
-                  >
-                    <View style={styles.exerciseItemInfo}>
-                      <Text style={[styles.exerciseItemName, alreadyAdded && styles.exerciseItemNameDisabled]}>
-                        {item.name}
-                      </Text>
-                      {item.primary_muscle ? (
-                        <Text style={styles.exerciseItemMuscle}>{item.primary_muscle}</Text>
-                      ) : null}
-                    </View>
-                    {item.owner_id != null && !alreadyAdded && (
-                      <Text style={styles.customTag}>{t.customExerciseTag}</Text>
-                    )}
-                    {alreadyAdded && <Text style={styles.addedTag}>✓</Text>}
-                    {item.owner_id != null && (
-                      <Pressable
-                        onPress={() => setToDelete(item)}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={t.deleteCustomExercise(item.name)}
-                        style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
-                      >
-                        <TrashIcon />
-                      </Pressable>
-                    )}
-                  </Pressable>
-                );
-              }}
-            />
-          )}
-        </View>
-      </View>
+        )}
+      </BottomSheet>
 
       <ConfirmModal
         visible={toDelete !== null}
@@ -258,7 +259,7 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
         onCancel={() => setToDelete(null)}
         confirmDanger
       />
-    </Modal>
+    </>
   );
 }
 

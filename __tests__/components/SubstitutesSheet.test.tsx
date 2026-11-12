@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, jest } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 jest.mock('../../src/services/substituteService', () => ({ getExerciseSubstitutes: jest.fn() }));
 
@@ -18,18 +18,20 @@ describe('SubstitutesSheet', () => {
     ]);
     render(<SubstitutesSheet exercise={supino} userId={5} onClose={() => {}} />);
 
-    expect(screen.getByText('Substitutos de Supino na Máquina')).toBeTruthy();
+    expect(screen.getByText('Alternativas para Supino na Máquina')).toBeTruthy();
     expect(await screen.findByText('Supino reto com halteres')).toBeTruthy();
     expect(screen.getByText('Peito · 3x12-15')).toBeTruthy();
     expect(mocked.getExerciseSubstitutes).toHaveBeenCalledWith(supino, 5);
   });
 
-  it('explains when there are none, and renders nothing when closed', async () => {
+  it('explains when there are none, and removes the panel after closing', async () => {
     mocked.getExerciseSubstitutes.mockResolvedValue([]);
     const { rerender } = render(<SubstitutesSheet exercise={supino} userId={5} onClose={() => {}} />);
-    expect(await screen.findByText('Nenhum substituto encontrado para este exercício.')).toBeTruthy();
+    expect(await screen.findByText('Nenhuma alternativa encontrada para este exercício.')).toBeTruthy();
 
+    // Closing slides the panel away first, keeping its title, then removes it.
     rerender(<SubstitutesSheet exercise={null} userId={5} onClose={() => {}} />);
-    expect(screen.queryByText('Substitutos de Supino na Máquina')).toBeNull();
+    expect(screen.getByText('Alternativas para Supino na Máquina')).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText('Alternativas para Supino na Máquina')).toBeNull());
   });
 });

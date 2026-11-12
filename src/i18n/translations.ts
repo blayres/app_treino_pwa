@@ -113,12 +113,11 @@ export const pt = {
   workoutDuration: 'Duração do treino',
 
   // ExerciseLibraryCard
-  showAnimation: 'Ver animação',
-  hideAnimation: 'Ocultar animação',
-  showSubstitutes: 'Ver substitutos',
-  substitutesTitle: (name: string) => `Substitutos de ${name}`,
+  howTo: 'Como fazer',
+  alternatives: 'Alternativas',
+  substitutesTitle: (name: string) => `Alternativas para ${name}`,
   substitutesSubtitle: 'Mesmo músculo, outro aparelho. Use se o seu estiver ocupado.',
-  noSubstitutes: 'Nenhum substituto encontrado para este exercício.',
+  noSubstitutes: 'Nenhuma alternativa encontrada para este exercício.',
 
   // Calendar — month names
   months: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
@@ -258,7 +257,6 @@ export const pt = {
   tourReplayDesc: 'Mostra outra vez as dicas da tela inicial e do treino.',
 
   // Coach videos
-  showVideo: 'Ver vídeo',
   hideVideo: 'Fechar vídeo',
   coachVideoCaption: 'Vídeo do seu personal',
   videoLoadError: 'Não foi possível carregar o vídeo. Confira sua conexão.',
@@ -485,9 +483,8 @@ export const en: Translations = {
   ok: 'OK',
 
   workoutDuration: 'Workout duration',
-  showAnimation: 'View animation',
-  hideAnimation: 'Hide animation',
-  showSubstitutes: 'See alternatives',
+  howTo: 'How to',
+  alternatives: 'Alternatives',
   substitutesTitle: (name: string) => `Alternatives to ${name}`,
   substitutesSubtitle: 'Same muscle, different equipment. Use one if yours is busy.',
   noSubstitutes: 'No alternatives found for this exercise.',
@@ -626,7 +623,6 @@ export const en: Translations = {
   tourReplayDesc: 'Shows the home and workout tips once more.',
 
   // Coach videos
-  showVideo: 'Watch video',
   hideVideo: 'Close video',
   coachVideoCaption: 'Video from your trainer',
   videoLoadError: 'Could not load the video. Check your connection.',
@@ -853,12 +849,11 @@ export const es: Translations = {
   ok: 'OK',
 
   workoutDuration: 'Duración del entrenamiento',
-  showAnimation: 'Ver animación',
-  hideAnimation: 'Ocultar animación',
-  showSubstitutes: 'Ver sustitutos',
-  substitutesTitle: (name: string) => `Sustitutos de ${name}`,
+  howTo: 'Cómo hacerlo',
+  alternatives: 'Alternativas',
+  substitutesTitle: (name: string) => `Alternativas para ${name}`,
   substitutesSubtitle: 'Mismo músculo, otro aparato. Úsalo si el tuyo está ocupado.',
-  noSubstitutes: 'No se encontraron sustitutos para este ejercicio.',
+  noSubstitutes: 'No se encontraron alternativas para este ejercicio.',
 
   months: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
   dayHeaders: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
@@ -994,7 +989,6 @@ export const es: Translations = {
   tourReplayDesc: 'Muestra de nuevo los consejos del inicio y del entreno.',
 
   // Coach videos
-  showVideo: 'Ver video',
   hideVideo: 'Cerrar video',
   coachVideoCaption: 'Video de tu entrenador',
   videoLoadError: 'No se pudo cargar el video. Revisa tu conexión.',
@@ -1221,9 +1215,8 @@ export const fr: Translations = {
   ok: 'OK',
 
   workoutDuration: 'Durée de la séance',
-  showAnimation: 'Voir l\'animation',
-  hideAnimation: 'Masquer l\'animation',
-  showSubstitutes: 'Voir les alternatives',
+  howTo: 'Comment faire',
+  alternatives: 'Alternatives',
   substitutesTitle: (name: string) => `Alternatives à ${name}`,
   substitutesSubtitle: 'Même muscle, autre appareil. Utilisez-en une si le vôtre est occupé.',
   noSubstitutes: 'Aucune alternative trouvée pour cet exercice.',
@@ -1362,7 +1355,6 @@ export const fr: Translations = {
   tourReplayDesc: 'Affiche à nouveau les conseils de l\'accueil et de la séance.',
 
   // Coach videos
-  showVideo: 'Voir la vidéo',
   hideVideo: 'Fermer la vidéo',
   coachVideoCaption: 'Vidéo de votre coach',
   videoLoadError: 'Impossible de charger la vidéo. Vérifiez votre connexion.',

@@ -2,25 +2,6 @@ import { StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../theme';
 
 export const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  sheet: {
-    backgroundColor: colors.surfaceLight,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: spacing.xxl,
-    maxHeight: '80%',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

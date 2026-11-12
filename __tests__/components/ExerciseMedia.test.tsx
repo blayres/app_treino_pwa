@@ -11,19 +11,38 @@ const library = { id: 'l1', gif_url: 'https://x/a.gif' } as any;
 const video = { exerciseId: 1, coachId: 5, path: '5/1.mp4' };
 
 describe('ExerciseMedia', () => {
-  it('without a coach video shows the library animation', () => {
-    render(<ExerciseMedia library={library} />);
-    expect(screen.getByRole('button', { name: 'Ver animação' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Ver vídeo' })).toBeNull();
+  it('without a coach video, "Como fazer" opens and closes the library animation', () => {
+    const { container } = render(<ExerciseMedia library={library} />);
+    const button = screen.getByRole('button', { name: 'Como fazer' });
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('img')).toBeNull();
+
+    fireEvent.click(button);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Como fazer' })).toBe(button);
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('https://x/a.gif');
+
+    fireEvent.click(button);
+    expect(container.querySelector('img')).toBeNull();
   });
 
-  it('with a coach video loads nothing until "Ver vídeo" is tapped, then plays it with controls', async () => {
+  it('shows extra buttons on the same line, even without an animation', () => {
+    render(
+      <ExerciseMedia library={null}>
+        <button type="button">Alternativas</button>
+      </ExerciseMedia>,
+    );
+    expect(screen.queryByRole('button', { name: 'Como fazer' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Alternativas' })).toBeTruthy();
+  });
+
+  it('with a coach video loads nothing until "Como fazer" is tapped, then plays it with controls', async () => {
     const { container } = render(<ExerciseMedia library={library} video={video} />);
-    expect(screen.queryByRole('button', { name: 'Ver animação' })).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
     expect(getVideoUrl).not.toHaveBeenCalled();
     expect(container.querySelector('video')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver vídeo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Como fazer' }));
     await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
     const player = container.querySelector('video') as HTMLVideoElement;
     expect(getVideoUrl).toHaveBeenCalledWith('5/1.mp4');
@@ -32,7 +51,7 @@ describe('ExerciseMedia', () => {
     expect(player.hasAttribute('playsinline')).toBe(true);
     expect(screen.getByText('Vídeo do seu personal')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Fechar vídeo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Como fazer' }));
     expect(container.querySelector('video')).toBeNull();
   });
 });
