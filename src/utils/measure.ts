@@ -67,6 +67,12 @@ export function formatSeconds(totalSeconds: number, minuteShort = 'min', secondS
   return `${minutes} ${minuteShort} ${rest} ${secondShort}`;
 }
 
+/** Countdown clock: 27 → "0:27", 90 → "1:30". */
+export function formatClock(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
 /** Exercises timed in these workout rows (their effective, per-workout scheme). */
 export function timedExerciseIds(rows: readonly { exercise: { id: number; scheme: string } }[]): Set<number> {
   return new Set(rows.filter((row) => isTimeScheme(row.exercise.scheme)).map((row) => row.exercise.id));

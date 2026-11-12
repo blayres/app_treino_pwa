@@ -90,11 +90,11 @@ describe('ExerciseRow', () => {
       act(() => {
         jest.advanceTimersByTime(5000);
       });
-      expect(screen.getByText('40 s')).toBeTruthy();
+      expect(screen.getByText('0:40')).toBeTruthy();
       act(() => {
         jest.advanceTimersByTime(41000);
       });
-      expect(screen.getByText('Pronto!')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Pronto! · Prancha' })).toBeTruthy();
     } finally {
       jest.useRealTimers();
     }
@@ -104,7 +104,6 @@ describe('ExerciseRow', () => {
     setup({ exercise: { ...exercise, name: 'Prancha', scheme: '3x30s' }, loadNormal: '90' });
     expect((screen.getByLabelText('Prancha · Tempo (s)') as HTMLInputElement).value).toBe('90');
     expect(screen.getByRole('button', { name: 'Iniciar cronômetro de 1 min 30 s · Prancha' })).toBeTruthy();
-    expect(screen.getByText('Iniciar')).toBeTruthy();
   });
 
   it('load exercise keeps the inputs and has no timer', () => {

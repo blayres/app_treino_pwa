@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, Vibration } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
 import { StopwatchIcon } from './StopwatchIcon';
 import { useI18n } from '../i18n';
-import { colors, spacing } from '../theme';
-import { formatSeconds } from '../utils/measure';
+import { colors, minTouchSize, spacing } from '../theme';
+import { formatClock, formatSeconds } from '../utils/measure';
 
 type Props = {
   /** Hold time to count down, in seconds. */
@@ -73,36 +73,48 @@ export function HoldTimer({ seconds, exerciseName }: Props) {
     }
   };
 
-  // Idle: "Iniciar" (the time is in the input above); running: what's left.
-  const label = done ? t.timerDone : running ? formatSeconds(left, t.minuteShort, t.secondShort) : t.timerStartShort;
   const time = formatSeconds(seconds, t.minuteShort, t.secondShort);
-
   const active = running || done;
+  const accessibilityLabel = running
+    ? t.timerStop(exerciseName)
+    : done
+      ? `${t.timerDone} · ${exerciseName}`
+      : t.timerStart(exerciseName, time);
+
+  // Same size as the "Tempo (s)" input above it: only the stopwatch when idle,
+  // the time left ("0:27") while it runs. The tap area is 40px (hitSlop does
+  // nothing on the web).
   return (
-    <Pressable
-      onPress={toggle}
-      accessibilityRole="button"
-      accessibilityLabel={running ? t.timerStop(exerciseName) : t.timerStart(exerciseName, time)}
-      hitSlop={6}
-      style={({ pressed }) => [styles.timer, active && styles.timerActive, pressed && styles.pressed]}
-    >
-      <StopwatchIcon size={16} color={active ? colors.surfaceLight : colors.olive} />
-      <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
+    <Pressable onPress={toggle} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={styles.touchArea}>
+      {({ pressed }) => (
+        <View style={[styles.timer, active && styles.timerActive, pressed && styles.pressed]}>
+          {running ? (
+            <Text style={styles.label}>{formatClock(left)}</Text>
+          ) : (
+            <StopwatchIcon size={18} color={active ? colors.surfaceLight : colors.olive} />
+          )}
+        </View>
+      )}
     </Pressable>
   );
 }
 
+// Matches WorkoutScreen.styles loadInput (64 × 29px on the web, pill).
+const TIMER_HEIGHT = 29;
+const EXTRA = (minTouchSize - TIMER_HEIGHT) / 2;
+
 const styles = StyleSheet.create({
-  // Same pill as the load inputs it replaces (WorkoutScreen.styles loadInput).
+  touchArea: {
+    minHeight: minTouchSize,
+    justifyContent: 'center',
+    marginTop: spacing.xs - EXTRA,
+    marginBottom: -EXTRA,
+  },
   timer: {
-    marginTop: spacing.xs,
-    minWidth: 64,
-    minHeight: 40,
-    flexDirection: 'row',
+    width: 64,
+    height: TIMER_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingHorizontal: spacing.sm,
     borderRadius: 999,
     backgroundColor: colors.surfaceMutedLight,
     borderWidth: 1,
@@ -110,6 +122,5 @@ const styles = StyleSheet.create({
   },
   timerActive: { backgroundColor: colors.olive, borderColor: colors.olive },
   pressed: { opacity: 0.7 },
-  label: { fontSize: 16, fontWeight: '600', color: colors.olive, fontVariant: ['tabular-nums'] },
-  labelActive: { color: colors.surfaceLight },
+  label: { fontSize: 16, fontWeight: '600', color: colors.surfaceLight, fontVariant: ['tabular-nums'] },
 });
