@@ -10,6 +10,7 @@
     "build:web": "npx expo export --platform web && node scripts/inject-meta.js",
     "import:exercises": "ts-node --project tsconfig.json scripts/importExerciseDb.ts",
     "link:exercises": "ts-node --skip-project scripts/linkExercises.ts",
+    "link:gifs": "node --env-file=.env scripts/linkFreeExerciseGifs.ts",
     "prepare": "husky",
     "test": "jest --runInBand",
     "test:coverage": "jest --coverage --collectCoverageFrom='src/{services,utils,store}/**/*.ts'",
