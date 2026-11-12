@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  formatClock,
   formatSeconds,
   isTimeScheme,
   schemeMeasure,
@@ -49,6 +50,15 @@ describe('targetSeconds', () => {
 
   it('is null for load schemes', () => {
     expect(targetSeconds('3x10-12')).toBeNull();
+  });
+});
+
+describe('formatClock', () => {
+  it('shows m:ss for the countdown', () => {
+    expect(formatClock(27)).toBe('0:27');
+    expect(formatClock(90)).toBe('1:30');
+    expect(formatClock(5)).toBe('0:05');
+    expect(formatClock(-1)).toBe('0:00');
   });
 });
 
