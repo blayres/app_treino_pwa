@@ -69,7 +69,8 @@ const metaTags = `
     <link rel="icon" type="image/png" href="${appIcon}">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="preload" as="image" href="${appIcon}" fetchpriority="high">${logoPreloadTag}
-    <link rel="manifest" href="/manifest.json">${splashTags}`;
+    <link rel="manifest" href="/manifest.json">${splashTags}
+    <script src="/launch-offset.js"></script>`;
 
 const baseStyles = `
     <style>
@@ -94,6 +95,7 @@ const baseStyles = `
         height: 96px;
         object-fit: contain;
         display: block;
+        transform: translateY(calc(-1 * var(--launch-shift, 0px)));
       }
     </style>
 `;

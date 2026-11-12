@@ -86,11 +86,6 @@ export default function App() {
   const didRestoreWorkoutRouteRef = React.useRef(false);
   const didOnboardingRedirectRef = React.useRef(false);
 
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      document.getElementById('initial-splash')?.remove();
-    }
-  }, []);
 
   useEffect(() => {
     if (backendMode !== 'supabase') {
@@ -263,6 +258,14 @@ export default function App() {
   useEffect(() => {
     if (authStatus === 'loading') return;
     return preloadWhenIdle(authStatus === 'authenticated' ? AUTHENTICATED_SCREENS : GUEST_SCREENS);
+  }, [authStatus]);
+
+  // The HTML splash (inject-meta.js) stays until auth resolves: it is aligned with
+  // the iOS launch image, so swapping it for the loader below would make the logo jump.
+  useEffect(() => {
+    if (authStatus !== 'loading' && typeof document !== 'undefined') {
+      document.getElementById('initial-splash')?.remove();
+    }
   }, [authStatus]);
 
   // Which guided tours the signed-in user has already seen.
