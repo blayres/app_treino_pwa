@@ -29,6 +29,22 @@ for (const [source, target] of [
   console.log(`📦 ${target} (de assets/icons/${source})`);
 }
 
+// iOS launch images (scripts/generateSplash.swift). Without them iOS shows a
+// black screen before the page paints. iOS picks the one whose media query
+// matches the device exactly; the name carries the CSS size and pixel ratio.
+const splashDir = path.join(assetsDir, 'splash');
+fs.mkdirSync(path.join(distDir, 'splash'), { recursive: true });
+const splashTags = fs.readdirSync(splashDir)
+  .map(file => {
+    const match = file.match(/^splash-(\d+)x(\d+)@(\d)x\.png$/);
+    if (!match) return '';
+    const [, width, height, ratio] = match;
+    fs.copyFileSync(path.join(splashDir, file), path.join(distDir, 'splash', file));
+    return `\n    <link rel="apple-touch-startup-image" href="/splash/${file}" media="(device-width: ${width}px) and (device-height: ${height}px) and (-webkit-device-pixel-ratio: ${ratio}) and (orientation: portrait)">`;
+  })
+  .join('');
+console.log(`📦 splash/ (${splashTags.split('\n').length - 1} imagens de abertura iOS)`);
+
 // Injeta meta tags no index.html
 const distHtml = path.join(distDir, 'index.html');
 let html = fs.readFileSync(distHtml, 'utf8');
@@ -53,7 +69,7 @@ const metaTags = `
     <link rel="icon" type="image/png" href="${appIcon}">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="preload" as="image" href="${appIcon}" fetchpriority="high">${logoPreloadTag}
-    <link rel="manifest" href="/manifest.json">`;
+    <link rel="manifest" href="/manifest.json">${splashTags}`;
 
 const baseStyles = `
     <style>
