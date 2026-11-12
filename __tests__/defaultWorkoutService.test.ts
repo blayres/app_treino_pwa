@@ -9,7 +9,7 @@ jest.mock('../src/services/workoutService', () => ({
 }));
 
 import * as workoutService from '../src/services/workoutService';
-import { applyDefaultProgram, DEFAULT_PROGRAM } from '../src/services/defaultWorkoutService';
+import { applyDefaultProgram, DEFAULT_PROGRAM, estimateWorkoutMinutes } from '../src/services/defaultWorkoutService';
 
 const mocked = workoutService as jest.Mocked<typeof workoutService>;
 const exercise = (id: number, name: string, scheme = '4x10-12', rest = 90, owner_id: number | null = null) =>
@@ -33,9 +33,9 @@ describe('applyDefaultProgram', () => {
 
   it('creates the 5 days reusing catalogue exercises by name (accents/case-insensitive)', async () => {
     mocked.listExercises.mockResolvedValue([
-      exercise(1, 'cadeira extensora'),           // same name, different case
-      exercise(2, 'Leg Press 45°', '4x10-12', 120),
-      exercise(3, 'Puxada Alta na Maquina'),      // without accent
+      exercise(1, 'supino reto com halteres'),    // same name, different case
+      exercise(2, 'Puxada frente na polia', '3x8-12', 90),
+      exercise(3, 'Desenvolvimento na Maquina'),  // without accent
     ]);
 
     await applyDefaultProgram(7);
@@ -49,21 +49,36 @@ describe('applyDefaultProgram', () => {
   it('creates missing ones as private exercises (users cannot write the global catalogue)', async () => {
     mocked.listExercises.mockResolvedValue([]);
     await applyDefaultProgram(7);
-    // 10 distinct exercises in the program, each created once.
-    expect(mocked.createCustomExercise).toHaveBeenCalledTimes(10);
+    // Every distinct exercise in the program is created once.
+    const distinct = new Set(DEFAULT_PROGRAM.flatMap((day) => day.exercises));
+    expect(mocked.createCustomExercise).toHaveBeenCalledTimes(distinct.size);
     expect(mocked.createCustomExercise.mock.calls.every(([p]: any) => p.userId === 7)).toBe(true);
   });
 
   it("keeps the program's own scheme/rest as overrides when the catalogue differs", async () => {
-    mocked.listExercises.mockResolvedValue([exercise(1, 'Cadeira Extensora', '3x15', 60)]);
+    mocked.listExercises.mockResolvedValue([exercise(1, 'Supino reto com halteres', '3x15', 60)]);
     await applyDefaultProgram(7);
     const monday = mocked.createWorkoutForUser.mock.calls[0][0] as any;
-    expect(monday.items[0]).toEqual({ exerciseId: 1, scheme: '4x10-12', restSeconds: 90 });
+    expect(monday.items[0]).toEqual({ exerciseId: 1, scheme: '3x8-12', restSeconds: 90 });
   });
 
   it('prefers the global exercise over a private one with the same name', async () => {
-    mocked.listExercises.mockResolvedValue([exercise(50, 'Cadeira Extensora', '4x10-12', 90, 7), exercise(1, 'Cadeira Extensora')]);
+    mocked.listExercises.mockResolvedValue([exercise(50, 'Supino reto com halteres', '3x8-12', 90, 7), exercise(1, 'Supino reto com halteres')]);
     await applyDefaultProgram(7);
     expect((mocked.createWorkoutForUser.mock.calls[0][0] as any).items[0].exerciseId).toBe(1);
+  });
+});
+
+describe('DEFAULT_PROGRAM', () => {
+  it('has 5 to 6 exercises a day, each day fitting in 50 minutes', () => {
+    for (const day of DEFAULT_PROGRAM) {
+      expect(day.exercises.length).toBeGreaterThanOrEqual(5);
+      expect(day.exercises.length).toBeLessThanOrEqual(6);
+      expect(estimateWorkoutMinutes(day.exercises)).toBeLessThanOrEqual(50);
+    }
+  });
+
+  it('trains each weekday once, Monday to Friday', () => {
+    expect(DEFAULT_PROGRAM.map((day) => day.day_of_week)).toEqual([1, 2, 3, 4, 5]);
   });
 });

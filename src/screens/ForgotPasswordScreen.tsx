@@ -8,6 +8,7 @@ import { styles } from './LoginScreen.styles';
 import { feedbackStyles } from './FeedbackStyles';
 import { sendPasswordReset } from '../services/authService';
 import { useI18n } from '../i18n';
+import { mapAuthError } from '../services/authErrorMapper';
 import { LogoBar } from '../components/LogoBar';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
@@ -34,8 +35,7 @@ export default function ForgotPasswordScreen() {
       await sendPasswordReset(email.trim());
       setSuccess(t.resetSuccess);
     } catch (err: any) {
-      const raw = err?.message ?? t.resetDefaultError;
-      setError(t.resetError(raw));
+      setError(mapAuthError(err?.message, t, t.resetDefaultError));
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,9 @@ export default function ForgotPasswordScreen() {
           style={styles.input}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoComplete="email"
           placeholder={t.emailPlaceholder}
+          accessibilityLabel={t.emailPlaceholder}
           value={email}
           onChangeText={setEmail}
         />
@@ -73,11 +75,19 @@ export default function ForgotPasswordScreen() {
           style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, styles.mt, loading && { opacity: 0.6 }]}
           onPress={handleReset}
           disabled={loading}
+          aria-busy={loading}
+          accessibilityRole="button"
         >
-          <Text style={styles.buttonLabel}>{loading ? t.sending : t.sendLink}</Text>
+          {/* Same label while sending (CLAUDE.md): disabled + faded instead. */}
+          <Text style={styles.buttonLabel}>{t.sendLink}</Text>
         </Pressable>
 
-        <Pressable onPress={() => navigation.navigate('Login')} hitSlop={8} style={styles.linkWrap}>
+        <Pressable
+          onPress={() => navigation.navigate('Login')}
+          hitSlop={8}
+          style={styles.linkWrap}
+          accessibilityRole="link"
+        >
           <Text style={styles.linkLabel}>{t.backToLogin}</Text>
         </Pressable>
       </ScrollView>

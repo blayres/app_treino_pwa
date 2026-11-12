@@ -23,6 +23,7 @@ export function FooterButton({ label, onPress, disabled = false, loading = false
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled: inactive, busy: loading }}
+        aria-busy={loading}
         style={({ pressed }) => [styles.button, pressed && styles.pressed, inactive && styles.inactive]}
       >
         {loading ? <ActivityIndicator color={colors.textPrimaryDark} /> : <Text style={styles.label}>{label}</Text>}

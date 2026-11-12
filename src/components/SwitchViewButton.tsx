@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, spacing } from '../theme';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, minTouchSize, spacing } from '../theme';
 
 type Props = {
   label: string;
@@ -17,27 +17,31 @@ export function SwitchViewButton({ label, icon, onPress, accessibilityLabel }: P
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={6}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-        styles.pill,
-        hovered && styles.hovered,
-        pressed && styles.pressed,
-      ]}
+      style={styles.touchArea}
     >
-      {icon}
-      <Text style={styles.label}>{label}</Text>
+      {({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => (
+        <View style={[styles.pill, hovered && styles.hovered, pressed && styles.pressed]}>
+          {icon}
+          <Text style={styles.label}>{label}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
 
+const PILL_HEIGHT = 36;
+const EXTRA = Math.max(0, (minTouchSize - PILL_HEIGHT) / 2);
+
 const styles = StyleSheet.create({
+  // Invisible tap area of at least 40px; negative margins keep the pill's layout.
+  touchArea: { justifyContent: 'center', minHeight: minTouchSize, marginVertical: -EXTRA },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    height: 36,
+    height: PILL_HEIGHT,
     paddingHorizontal: spacing.md,
     borderRadius: 18,
     borderWidth: 1,

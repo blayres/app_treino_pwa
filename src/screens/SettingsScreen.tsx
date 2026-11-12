@@ -7,6 +7,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useI18n } from '../i18n';
+import { mapAuthError } from '../services/authErrorMapper';
 import { deleteCurrentAccount, getCurrentUserEmail, logout, updateCurrentUserName } from '../services/authService';
 import { useAppStore } from '../store/useAppStore';
 import { styles } from './SettingsScreen.styles';
@@ -50,7 +51,7 @@ export default function SettingsScreen() {
       await logout();
       returnToLogin();
     } catch (error: any) {
-      showAlert(t.errorLogout, error?.message ?? t.errorLogoutMsg);
+      showAlert(t.errorLogout, mapAuthError(error?.message, t, t.errorLogoutMsg));
     }
   };
 
@@ -63,7 +64,7 @@ export default function SettingsScreen() {
       setName(user.name);
       showAlert(t.savedSuccess, t.usernameUpdated);
     } catch (error: any) {
-      showAlert(t.saveError, error?.message ?? t.usernameUpdateError);
+      showAlert(t.saveError, mapAuthError(error?.message, t, t.usernameUpdateError));
     } finally {
       setSavingName(false);
     }
@@ -83,7 +84,7 @@ export default function SettingsScreen() {
       await deleteCurrentAccount();
       returnToLogin();
     } catch (error: any) {
-      setDeleteError(error?.message ?? t.deleteAccountError);
+      setDeleteError(mapAuthError(error?.message, t, t.deleteAccountError));
       setDeleting(false);
     }
   };
@@ -167,6 +168,8 @@ export default function SettingsScreen() {
             <Pressable
               onPress={handleSaveName}
               disabled={!name.trim() || savingName}
+              accessibilityRole="button"
+              aria-busy={savingName}
               style={({ pressed }) => [
                 styles.saveButton,
                 !name.trim() && styles.buttonDisabled,
@@ -178,7 +181,11 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
 
-          <Pressable onPress={() => setShowLogoutConfirm(true)} style={({ pressed }) => [styles.actionRow, pressed && styles.buttonPressed]}>
+          <Pressable
+            onPress={() => setShowLogoutConfirm(true)}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.actionRow, pressed && styles.buttonPressed]}
+          >
             <Text style={styles.actionLabel}>{t.logout}</Text>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -186,6 +193,8 @@ export default function SettingsScreen() {
           <Pressable
             onPress={handleDeleteAccount}
             disabled={deleting}
+            accessibilityRole="button"
+            aria-busy={deleting}
             style={({ pressed }) => [styles.actionRow, styles.dangerRow, deleting && styles.buttonDisabled, pressed && styles.buttonPressed]}
           >
             <Text style={styles.dangerLabel}>{t.deleteAccount}</Text>

@@ -101,16 +101,7 @@ export default function SignupScreen() {
         });
       }, 1800);
     } catch (err: any) {
-      setError(
-        mapAuthError(err?.message, {
-          invalidCredentials: t.invalidCredentials,
-          emailNotConfirmed: t.emailNotConfirmed,
-          accountAlreadyExists: t.accountAlreadyExists,
-          passwordTooWeak: t.passwordTooWeak,
-          networkError: t.networkError,
-          genericError: t.genericError,
-        }),
-      );
+      setError(mapAuthError(err?.message, t));
     } finally {
       setLoading(false);
     }
@@ -124,16 +115,7 @@ export default function SignupScreen() {
       await signInWithGoogle();
       // OAuth opens the browser — App.tsx handles the session on return.
     } catch (err: any) {
-      setError(
-        mapAuthError(err?.message, {
-          invalidCredentials: t.invalidCredentials,
-          emailNotConfirmed: t.emailNotConfirmed,
-          accountAlreadyExists: t.accountAlreadyExists,
-          passwordTooWeak: t.passwordTooWeak,
-          networkError: t.networkError,
-          genericError: t.genericError,
-        }),
-      );
+      setError(mapAuthError(err?.message, t));
     } finally {
       setGoogleLoading(false);
     }

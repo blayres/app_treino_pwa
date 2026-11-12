@@ -217,6 +217,7 @@ export default function ProgressScreen() {
               onPress={() => setPeriod(p)}
               accessibilityRole="tab"
               accessibilityState={{ selected: period === p }}
+              aria-selected={period === p}
               style={[styles.periodChip, period === p && styles.periodChipActive]}
             >
               <Text style={[styles.periodLabel, period === p && styles.periodLabelActive]}>{periodLabel(p)}</Text>
@@ -229,7 +230,7 @@ export default function ProgressScreen() {
         ) : loadState === 'error' ? (
           <View style={styles.empty}>
             <Text style={styles.emptyText}>{t.progressError}</Text>
-            <Pressable style={styles.retry} onPress={load}>
+            <Pressable style={styles.retry} onPress={load} accessibilityRole="button">
               <Text style={styles.retryLabel}>{t.tryAgain}</Text>
             </Pressable>
           </View>
@@ -270,6 +271,7 @@ export default function ProgressScreen() {
                           onPress={() => setOpenId(isOpen ? -1 : item.exercise_id)}
                           accessibilityRole="button"
                           accessibilityState={{ expanded: isOpen }}
+                          aria-expanded={isOpen}
                           style={({ pressed }) => [styles.itemHeader, pressed && styles.itemHeaderPressed]}
                         >
                           <View style={styles.itemInfo}>

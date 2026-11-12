@@ -43,3 +43,16 @@ describe('ConfirmModal third choice', () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 });
+
+describe('ConfirmModal accessibility', () => {
+  it('is a dialog named by its title, with real buttons', () => {
+    const onConfirm = jest.fn();
+    render(
+      <ConfirmModal visible title="Excluir conta?" message="" confirmLabel="Excluir" cancelLabel="Cancelar" onConfirm={onConfirm} onCancel={() => {}} />,
+    );
+    expect(screen.getByRole('alertdialog', { name: 'Excluir conta?' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+});

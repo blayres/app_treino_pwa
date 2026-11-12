@@ -127,4 +127,14 @@ describe('ProgramEditor', () => {
     fireEvent.click(toggle);
     expect(screen.getByText('Ocultar instruções')).toBeTruthy();
   });
+
+  it('Carga/Tempo switches the exercise to time and back, keeping the sets', () => {
+    render(<Harness />);
+    expect(screen.getByRole('radio', { name: 'Supino · Carga' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('radio', { name: 'Supino · Tempo' }));
+    expect(latest[0].items[0].scheme).toBe('4x30s');
+    expect(screen.getByRole('radio', { name: 'Supino · Tempo' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('radio', { name: 'Supino · Carga' }));
+    expect(latest[0].items[0].scheme).toBe('4x10-12');
+  });
 });

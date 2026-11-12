@@ -262,24 +262,38 @@ export async function replaceWorkoutItems(workoutId: number, items: WorkoutItemI
     if (oldError) throw oldError;
     const base = nextOrderIndexBase(oldRows ?? []);
 
+    // New rows first (above the old order), then the old ones go. If removing the
+    // old rows fails, the new ones are removed again so the workout never ends up
+    // with every exercise twice.
+    let newIds: number[] = [];
     if (items.length > 0) {
-      const { error: insertError } = await supabase.from('workout_exercises').insert(
-        items.map((item, index) => ({
-          workout_id: workoutId,
-          exercise_id: item.exerciseId,
-          order_index: base + index,
-          scheme: item.scheme ?? null,
-          rest_seconds: item.restSeconds ?? null,
-          ...(item.notes ? { notes: item.notes } : {}),
-        })),
-      );
+      const { data: inserted, error: insertError } = await supabase
+        .from('workout_exercises')
+        .insert(
+          items.map((item, index) => ({
+            workout_id: workoutId,
+            exercise_id: item.exerciseId,
+            order_index: base + index,
+            scheme: item.scheme ?? null,
+            rest_seconds: item.restSeconds ?? null,
+            ...(item.notes ? { notes: item.notes } : {}),
+          })),
+        )
+        .select('id');
       if (insertError) throw insertError;
+      newIds = (inserted ?? []).map((row: any) => Number(row.id));
     }
 
     const oldIds = (oldRows ?? []).map((row: any) => Number(row.id));
     if (oldIds.length > 0) {
       const { error: deleteError } = await supabase.from('workout_exercises').delete().in('id', oldIds);
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        if (newIds.length > 0) {
+          const { error: undoError } = await supabase.from('workout_exercises').delete().in('id', newIds);
+          if (undoError) console.warn('Falha ao desfazer exercícios inseridos:', undoError);
+        }
+        throw deleteError;
+      }
     }
   } else {
     const db = await getLocalDb();

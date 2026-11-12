@@ -98,7 +98,7 @@ export function WorkoutFallback({ navigation, route }: FallbackProps) {
     <SafeAreaView style={workoutStyles.safe} edges={['left', 'right', 'bottom']}>
       <LogoBar />
       <View style={workoutStyles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={16}>
+        <Pressable accessibilityRole="button" onPress={() => navigation.goBack()} hitSlop={16}>
           <Text style={workoutStyles.backLabel}>{t.back}</Text>
         </Pressable>
         <Text style={workoutStyles.title}>{title || <Skeleton width={250} height={22} />}</Text>

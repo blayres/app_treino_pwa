@@ -27,6 +27,7 @@ module.exports = {
       transform: { '^.+\\.(ts|tsx)$': tsJest('react-jsx') },
       moduleNameMapper: {
         '^react-native$': require.resolve('react-native-web'),
+        '^react-native-safe-area-context$': '<rootDir>/__mocks__/safeAreaContext.js',
         '^expo-.*': '<rootDir>/__mocks__/expo.js',
         '\\.(png|jpe?g|gif|svg)$': '<rootDir>/__mocks__/file.js',
       },

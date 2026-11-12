@@ -51,7 +51,8 @@ function fold(text: string): string {
 }
 
 // "4x10", "4 x 10-12", "3X12 a 15", "4×8/10", "3*12"
-const SCHEME_X = /(\d{1,2})\s*[x×*]\s*(\d{1,3}(?:\s*(?:-|–|a|\/|ou)\s*\d{1,3})?)(?:\s*(?:reps?|repeti[cç](?:ao|ão|oes|ões)|repeticiones|r[ée]p[ée]titions?))?/i;
+// Timed: "3x30s", "3x30-45 seg", "4x1min" (plank…) keep the unit in the scheme.
+const SCHEME_X = /(\d{1,2})\s*[x×*]\s*(\d{1,3}(?:\s*(?:-|–|a|\/|ou)\s*\d{1,3})?)(?:\s*(segundos?|segs?|seconds?|secs?|s|"|minutos?|minutes?|mins?)(?![a-zà-ÿ/])|\s*(?:reps?|repeti[cç](?:ao|ão|oes|ões)|repeticiones|r[ée]p[ée]titions?))?/i;
 // "3 séries de 10", "4 series of 8-10", "3 séries x 12"
 const SCHEME_SERIES = /(\d{1,2})\s*(?:s[ée]ries?|sets?)\s*(?:de|of|x|×|de\s+)?\s*(\d{1,3}(?:\s*(?:-|–|a|\/)\s*\d{1,3})?)(?:\s*(?:reps?|repeti[cç](?:ao|ão|oes|ões)))?/i;
 
@@ -73,12 +74,18 @@ function normaliseReps(reps: string): string {
     .replace(/(\d)ou(\d)/gi, '$1/$2');
 }
 
+/** "seg"/"segundos"/'"' → "s", "min"/"minutos" → "min", none → "". */
+function timeUnit(unit: string | undefined): string {
+  if (!unit) return '';
+  return /^m/i.test(unit) ? 'min' : 's';
+}
+
 function extractScheme(line: string): { scheme: string | null; rest: string } {
   for (const pattern of [SCHEME_X, SCHEME_SERIES]) {
     const match = line.match(pattern);
     if (match) {
       return {
-        scheme: `${match[1]}x${normaliseReps(match[2])}`,
+        scheme: `${match[1]}x${normaliseReps(match[2])}${timeUnit(match[3])}`,
         rest: line.replace(match[0], ' '),
       };
     }

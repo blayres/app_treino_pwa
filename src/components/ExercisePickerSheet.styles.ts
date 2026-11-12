@@ -88,6 +88,8 @@ export const styles = StyleSheet.create({
     borderBottomColor: colors.borderSoftLight,
     backgroundColor: colors.olive + '0D',
   },
+  createMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  createMeasure: { alignSelf: 'center', marginTop: 0 },
   createPlus: {
     width: 24,
     height: 24,
