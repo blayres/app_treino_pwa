@@ -3,6 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { styles } from '../screens/WorkoutScreen.styles';
 import { CircularCheckbox } from './CircularCheckbox';
 import { ExerciseMedia } from './ExerciseMedia';
+import { SwapIcon } from './SwapIcon';
 import type { ExerciseVideo } from '../services/videoService';
 import { PillButton } from './PillButton';
 import { useTourTarget } from '../store/useTourStore';
@@ -115,14 +116,16 @@ export const ExerciseRow = memo(function ExerciseRow({
               {t.restInterval(formatRest(exercise.rest_seconds, t.minuteShort, t.secondShort))}
             </Text>
             {exercise.tip ? <Text style={styles.tip}>{exercise.tip}</Text> : null}
-            <ExerciseMedia library={exercise.library} video={video} />
-            <View ref={substitutesTourRef} collapsable={false} style={styles.tourAnchor}>
-              <PillButton
-                label={t.showSubstitutes}
-                onPress={() => onShowSubstitutes(exercise)}
-                accessibilityLabel={t.substitutesTitle(exercise.name)}
-              />
-            </View>
+            <ExerciseMedia library={exercise.library} video={video}>
+              <View ref={substitutesTourRef} collapsable={false} style={styles.tourAnchor}>
+                <PillButton
+                  label={t.alternatives}
+                  icon={SwapIcon}
+                  onPress={() => onShowSubstitutes(exercise)}
+                  accessibilityLabel={t.substitutesTitle(exercise.name)}
+                />
+              </View>
+            </ExerciseMedia>
           </>
         ) : null}
       </Pressable>

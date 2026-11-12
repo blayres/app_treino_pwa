@@ -55,9 +55,10 @@ describe('ExerciseRow', () => {
     expect(props.onLoadBlur).toHaveBeenCalledWith(7);
   });
 
-  it('"Ver substitutos" asks the screen to show alternatives for this exercise', () => {
+  it('"Alternativas" asks the screen to show alternatives for this exercise', () => {
     const props = setup();
-    fireEvent.click(screen.getByLabelText('Substitutos de Supino Reto'));
+    expect(screen.getByText('Alternativas')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Alternativas para Supino Reto'));
     expect(props.onShowSubstitutes).toHaveBeenCalledWith(exercise);
   });
 
