@@ -5,10 +5,9 @@ import { DEFAULT_PROGRAM, normalizeExerciseName } from '../src/services/defaultW
 
 // The translations migration: one row per catalogue exercise, keyed by its Portuguese name.
 const sql = readFileSync(join(__dirname, '../supabase/migration_exercise_translations.sql'), 'utf8');
-const rows = [...sql.matchAll(/^\s+\('((?:[^']|'')+)', '((?:[^']|'')+)'::jsonb, (null|'((?:[^']|'')+)')::jsonb\)/gm)].map((m) => ({
+const rows = [...sql.matchAll(/^\s+\('((?:[^']|'')+)', '((?:[^']|'')+)'::jsonb\)/gm)].map((m) => ({
   name: m[1].replace(/''/g, "'"),
-  names: JSON.parse(m[2].replace(/''/g, "'")),
-  tips: m[4] ? JSON.parse(m[4].replace(/''/g, "'")) : null,
+  names: JSON.parse(m[2].replace(/''/g, "'")) as Record<string, string>,
 }));
 
 describe('migration_exercise_translations.sql', () => {
@@ -16,9 +15,11 @@ describe('migration_exercise_translations.sql', () => {
     expect(rows).toHaveLength(78);
     for (const row of rows) {
       for (const locale of ['en', 'es', 'fr']) expect(row.names[locale]?.trim()).toBeTruthy();
-      if (row.tips) for (const locale of ['en', 'es', 'fr']) expect(row.tips[locale]?.trim()).toBeTruthy();
     }
-    expect(rows.filter((row) => row.tips)).toHaveLength(27);
+  });
+
+  it('clears every catalogue tip, so only coach notes show under an exercise', () => {
+    expect(sql).toMatch(/update public\.exercises\s+set tip = null,\s+tip_i18n = null\s+where owner_id is null/);
   });
 
   it('covers every exercise of the ready-made program', () => {
@@ -31,11 +32,5 @@ describe('migration_exercise_translations.sql', () => {
     expect(sql).toContain('where e.owner_id is null');
     expect(sql).toContain('add column if not exists name_i18n jsonb');
     expect(sql).toContain('add column if not exists tip_i18n jsonb');
-  });
-
-  it('keeps catalogue tips impersonal (no "her favourite" notes)', () => {
-    const tips = rows.flatMap((row) => Object.values(row.tips ?? {}));
-    expect(tips.filter((tip) => /favou?rit|préféré/i.test(String(tip)))).toEqual([]);
-    expect(sql).toContain("set tip = 'Leg curl. Controle a descida em 3s.");
   });
 });
