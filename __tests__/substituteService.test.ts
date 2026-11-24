@@ -5,6 +5,7 @@ jest.mock('../src/services/backendMode', () => ({ backendMode: 'supabase', hasSu
 
 import { filter, supabaseMock } from './helpers/supabaseMock';
 import {
+  distinctSubstitutes,
   getExerciseSubstitutes,
   invalidateSubstitutesCache,
   substitutesByMuscle,
@@ -48,6 +49,30 @@ describe('substitutesByMuscle', () => {
   });
 });
 
+describe('distinctSubstitutes', () => {
+  const lunge = (id: number, name: string) =>
+    ({ ...ex(id, name, 'gluteos'), library: { id: 'lunges', gif_url: 'https://x/lunges.gif' } }) as any;
+
+  it('never shows the same movement twice: same animation or same name (bug: "Afundo" listed 3 lunges)', () => {
+    const afundo = lunge(4, 'Afundo');
+    const list = [
+      lunge(130, 'Afundo com halteres (step)'),
+      ex(17, 'Búlgaro', 'gluteos', null, true),
+      lunge(472, 'Passada com halteres'),
+      ex(900, 'afundo', 'gluteos'), // a user's copy of the catalogue exercise
+      ex(482, 'Agachamento goblet', 'quadriceps', null, true),
+      ex(483, 'Agachamento goblet', 'quadriceps'),
+    ];
+    // Rank order kept; the first lunge stays, the second lunge animation goes.
+    expect(distinctSubstitutes(afundo, list).map((e) => e.id)).toEqual([130, 17, 482]);
+  });
+
+  it('keeps exercises without animation (nothing to compare) and drops the exercise itself', () => {
+    const list = [ex(1, 'Supino na Máquina', 'peito'), ex(2, 'Flexão de braço', 'peito'), ex(3, 'Crossover', 'peito')];
+    expect(distinctSubstitutes(supinoMaquina, list).map((e) => e.id)).toEqual([2, 3]);
+  });
+});
+
 describe('getExerciseSubstitutes', () => {
   beforeEach(() => {
     supabaseMock.reset();
@@ -70,6 +95,18 @@ describe('getExerciseSubstitutes', () => {
     const [query] = supabaseMock.calls('exercise_substitutes', 'select');
     expect(filter(query, 'eq', 'exercise_id')).toEqual(['eq', 'exercise_id', 1]);
     expect(supabaseMock.calls('exercise_substitutes')).toHaveLength(1);
+  });
+
+  it('drops a curated substitute that repeats an animation already in the list', async () => {
+    const gif = { id: 'l', gif_url: 'same.gif' };
+    supabaseMock.queue('exercise_substitutes.select', {
+      data: [
+        { rank: 1, substitute: { ...ex(3, 'Supino reto com halteres', 'peito'), exercise_library: gif } },
+        { rank: 2, substitute: { ...ex(8, 'Supino no banco', 'peito'), exercise_library: gif } },
+        { rank: 3, substitute: ex(2, 'Flexão de braço', 'peito') },
+      ],
+    });
+    expect((await getExerciseSubstitutes(supinoMaquina, 5)).map((e) => e.id)).toEqual([3, 2]);
   });
 
   it('falls back to the same muscle when nothing is curated (e.g. a custom exercise)', async () => {
