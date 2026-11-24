@@ -38,7 +38,7 @@ with translations (name, name_i18n, tip_i18n) as (
     ('Panturrilha no Leg Press', '{"en": "Calf Press on Leg Press", "es": "Gemelos en prensa", "fr": "Mollets à la presse"}'::jsonb, '{"en": "Full range. 1 s pause at the top. Strong calves = more efficient running.", "es": "Amplitud completa. Pausa de 1 s arriba. Gemelos fuertes = carrera más eficiente.", "fr": "Amplitude complète. Pause de 1 s en haut. Mollets forts = course plus efficace."}'::jsonb),
     ('Stiff', '{"en": "Stiff-Leg Deadlift", "es": "Peso muerto con piernas rígidas", "fr": "Soulevé de terre jambes tendues"}'::jsonb, '{"en": "Knees slightly bent. Push your hips back, don''t round your spine. Maximum controlled range.", "es": "Rodillas semiflexionadas. Lleva la cadera hacia atrás, sin curvar la espalda. Amplitud máxima controlada.", "fr": "Genoux légèrement fléchis. Poussez les hanches vers l''arrière sans arrondir le dos. Amplitude maximale contrôlée."}'::jsonb),
     ('Búlgaro', '{"en": "Bulgarian Split Squat", "es": "Sentadilla búlgara", "fr": "Squat bulgare"}'::jsonb, null::jsonb),
-    ('Cadeira Flexora', '{"en": "Seated Leg Curl", "es": "Curl femoral sentado", "fr": "Leg curl assis"}'::jsonb, '{"en": "Her favourite leg curl. Control the descent over 3 s. High volume to build up a weak point.", "es": "Su curl femoral favorito. Controla la bajada en 3 s. Volumen alto para desarrollar el punto débil.", "fr": "Son leg curl préféré. Contrôlez la descente en 3 s. Volume élevé pour développer le point faible."}'::jsonb),
+    ('Cadeira Flexora', '{"en": "Seated Leg Curl", "es": "Curl femoral sentado", "fr": "Leg curl assis"}'::jsonb, '{"en": "Leg curl. Control the descent over 3 s. High volume to build up a weak point.", "es": "Curl femoral. Controla la bajada en 3 s. Volumen alto para desarrollar el punto débil.", "fr": "Leg curl. Contrôlez la descente en 3 s. Volume élevé pour développer le point faible."}'::jsonb),
     ('Supino na Máquina', '{"en": "Seated Machine Chest Press", "es": "Press de pecho en máquina", "fr": "Développé pectoral assis (machine)"}'::jsonb, '{"en": "Safe, controlled movement. Don''t arch your lower back.", "es": "Control seguro. No arquees la zona lumbar.", "fr": "Mouvement contrôlé. Ne cambrez pas le bas du dos."}'::jsonb),
     ('Leg Press 45°', '{"en": "45° Leg Press", "es": "Prensa de piernas 45°", "fr": "Presse à cuisses 45°"}'::jsonb, '{"en": "Feet hip-width apart. Lower to 90°, push through your heels.", "es": "Pies a la anchura de la cadera. Baja hasta 90°, empuja con los talones.", "fr": "Pieds écartés largeur de hanches. Descendez jusqu''à 90°, poussez avec les talons."}'::jsonb),
     ('Puxada Alta na Máquina', '{"en": "Machine Lat Pulldown", "es": "Jalón al pecho en máquina", "fr": "Tirage vertical à la machine"}'::jsonb, null::jsonb),
@@ -106,6 +106,13 @@ set name_i18n = t.name_i18n,
 from translations t
 where e.owner_id is null
   and lower(btrim(e.name)) = lower(btrim(t.name));
+
+-- The leg curl tip carried a personal note ("favorito dela"): keep only the exercise name.
+update public.exercises
+set tip = 'Leg curl. Controle a descida em 3s. Volume alto para desenvolver o ponto fraco.'
+where owner_id is null
+  and lower(btrim(name)) = 'cadeira flexora'
+  and tip like 'Leg curl favorito dela%';
 
 commit;
 

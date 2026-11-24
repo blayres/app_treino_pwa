@@ -32,4 +32,10 @@ describe('migration_exercise_translations.sql', () => {
     expect(sql).toContain('add column if not exists name_i18n jsonb');
     expect(sql).toContain('add column if not exists tip_i18n jsonb');
   });
+
+  it('keeps catalogue tips impersonal (no "her favourite" notes)', () => {
+    const tips = rows.flatMap((row) => Object.values(row.tips ?? {}));
+    expect(tips.filter((tip) => /favou?rit|préféré/i.test(String(tip)))).toEqual([]);
+    expect(sql).toContain("set tip = 'Leg curl. Controle a descida em 3s.");
+  });
 });
