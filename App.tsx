@@ -263,9 +263,16 @@ export default function App() {
   // The HTML splash (inject-meta.js) stays until auth resolves: it is aligned with
   // the iOS launch image, so swapping it for the loader below would make the logo jump.
   useEffect(() => {
-    if (authStatus !== 'loading' && typeof document !== 'undefined') {
-      document.getElementById('initial-splash')?.remove();
-    }
+    if (authStatus === 'loading' || typeof document === 'undefined') return;
+    const splash = document.getElementById('initial-splash');
+    if (!splash) return;
+    // Fade out (CSS .is-done, 180 ms) over the screen already rendered below.
+    splash.classList.add('is-done');
+    const timer = setTimeout(() => splash.remove(), 200);
+    return () => {
+      clearTimeout(timer);
+      splash.remove();
+    };
   }, [authStatus]);
 
   // Which guided tours the signed-in user has already seen.
