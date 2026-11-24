@@ -1,3 +1,5 @@
+import type { I18nText } from '../utils/exerciseText';
+
 export type User = {
   id: number;
   name: string;
@@ -10,7 +12,11 @@ export type ExerciseLibrary = {
 
 export type Exercise = {
   id: number;
+  /** Portuguese (catalogue) or as the user typed it; show with utils/exerciseText. */
   name: string;
+  /** Translations of name/tip for the catalogue: { en, es, fr } (migration_exercise_translations.sql). */
+  name_i18n?: I18nText;
+  tip_i18n?: I18nText;
   primary_muscle: string | null;
   secondary_muscle: string | null;
   rest_seconds: number;

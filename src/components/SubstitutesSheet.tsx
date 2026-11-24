@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '../i18n';
+import { exerciseName, muscleLabel } from '../utils/exerciseText';
 import { colors, spacing, typography } from '../theme';
 import type { Exercise } from '../services/types';
 import { getExerciseSubstitutes } from '../services/substituteService';
@@ -17,11 +18,9 @@ type Props = {
   onClose: () => void;
 };
 
-const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-
 /** Bottom sheet with alternatives for a busy machine (same muscle, other equipment). */
 export function SubstitutesSheet({ exercise, userId, onClose }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [items, setItems] = useState<Exercise[] | null>(null);
   const videos = useExerciseVideos(userId);
   // Keep showing the last exercise while the panel slides away.
@@ -44,7 +43,7 @@ export function SubstitutesSheet({ exercise, userId, onClose }: Props) {
     <BottomSheet visible={exercise !== null} onClose={onClose} sheetStyle={styles.sheet}>
       <View style={sheet.header}>
         <Text style={[sheet.title, styles.title]} numberOfLines={2}>
-          {shownExercise ? t.substitutesTitle(shownExercise.name) : ''}
+          {shownExercise ? t.substitutesTitle(exerciseName(shownExercise, locale)) : ''}
         </Text>
         <Pressable hitSlop={12} onPress={onClose} accessibilityRole="button" accessibilityLabel={t.cancel}>
           <Text style={sheet.close}>✕</Text>
@@ -68,9 +67,9 @@ export function SubstitutesSheet({ exercise, userId, onClose }: Props) {
         <ScrollView contentContainerStyle={styles.list}>
           {items.map((item) => (
             <View key={item.id} style={styles.item}>
-              <Text style={styles.name}>{item.name}</Text>
+              <Text style={styles.name}>{exerciseName(item, locale)}</Text>
               <Text style={styles.meta}>
-                {[item.primary_muscle && capitalize(item.primary_muscle), item.scheme].filter(Boolean).join(' · ')}
+                {[muscleLabel(item.primary_muscle, t.muscles), item.scheme].filter(Boolean).join(' · ')}
               </Text>
               <ExerciseMedia library={item.library} video={videos.get(item.id)} />
             </View>

@@ -24,6 +24,7 @@ import { showAlert } from '../store/useDialogStore';
 import { styles } from './ExercisePickerSheet.styles';
 import { MeasureToggle } from './MeasureToggle';
 import { DEFAULT_TIME_REPS, type Measure } from '../utils/measure';
+import { exerciseName, exerciseNames, muscleLabel } from '../utils/exerciseText';
 
 // Catalogue shared by every picker instance; refreshed after creating an exercise.
 let catalogueCache: { userId: number; data: Exercise[] } | null = null;
@@ -58,7 +59,7 @@ type Props = {
  * (visible only to this user) in one tap.
  */
 export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onClose }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [exercises, setExercises] = useState<Exercise[]>(
     catalogueCache?.userId === userId ? catalogueCache.data : [],
   );
@@ -109,14 +110,28 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
   const query = search.trim();
   const queryKey = searchKey(query);
 
-  const filtered = useMemo(() => {
-    if (!queryKey) return exercises;
-    return exercises.filter((exercise) => searchKey(exercise.name).includes(queryKey));
-  }, [exercises, queryKey]);
+  // Shown in the user's language, sorted by that name; the search matches the
+  // name in any language (a French user typing "squat" or "agachamento").
+  const listed = useMemo(
+    () =>
+      exercises
+        .map((exercise) => ({
+          exercise,
+          label: exerciseName(exercise, locale),
+          keys: exerciseNames(exercise).map(searchKey),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, locale)),
+    [exercises, locale],
+  );
+
+  const filtered = useMemo(
+    () => (queryKey ? listed.filter((item) => item.keys.some((key) => key.includes(queryKey))) : listed),
+    [listed, queryKey],
+  );
 
   const hasExactMatch = useMemo(
-    () => !!queryKey && exercises.some((exercise) => searchKey(exercise.name) === queryKey),
-    [exercises, queryKey],
+    () => !!queryKey && listed.some((item) => item.keys.includes(queryKey)),
+    [listed, queryKey],
   );
   const canCreate = !!queryKey && !hasExactMatch && !isLoading;
 
@@ -221,49 +236,51 @@ export function ExercisePickerSheet({ visible, userId, selectedIds, onPick, onCl
           <FlatList
             style={styles.exerciseList}
             data={filtered}
-            keyExtractor={(item) => String(item.id)}
+            keyExtractor={(item) => String(item.exercise.id)}
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={createRow}
             ListEmptyComponent={
               canCreate ? null : <Text style={styles.emptyText}>{t.noExercisesFound}</Text>
             }
-            renderItem={({ item }) => {
+            renderItem={({ item: { exercise: item, label } }) => {
               const alreadyAdded = selectedIds.includes(item.id);
               return (
-                <Pressable
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.exerciseItem,
-                    alreadyAdded && styles.exerciseItemDisabled,
-                    pressed && !alreadyAdded && styles.exerciseItemPressed,
-                  ]}
-                  onPress={() => onPick(item)}
-                  disabled={alreadyAdded}
-                >
-                  <View style={styles.exerciseItemInfo}>
-                    <Text style={[styles.exerciseItemName, alreadyAdded && styles.exerciseItemNameDisabled]}>
-                      {item.name}
-                    </Text>
-                    {item.primary_muscle ? (
-                      <Text style={styles.exerciseItemMuscle}>{item.primary_muscle}</Text>
-                    ) : null}
+                // Pick and delete are sibling buttons (a button can't contain another one).
+                <View style={[styles.exerciseRow, alreadyAdded && styles.exerciseItemDisabled]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.exerciseItem,
+                      item.owner_id != null && styles.exerciseItemWithDelete,
+                      pressed && !alreadyAdded && styles.exerciseItemPressed,
+                    ]}
+                    onPress={() => onPick(item)}
+                    disabled={alreadyAdded}
+                  >
+                    <View style={styles.exerciseItemInfo}>
+                      <Text style={[styles.exerciseItemName, alreadyAdded && styles.exerciseItemNameDisabled]}>
+                        {label}
+                      </Text>
+                      {item.primary_muscle ? (
+                        <Text style={styles.exerciseItemMuscle}>{muscleLabel(item.primary_muscle, t.muscles)}</Text>
+                      ) : null}
                   </View>
                   {item.owner_id != null && !alreadyAdded && (
                     <Text style={styles.customTag}>{t.customExerciseTag}</Text>
                   )}
                   {alreadyAdded && <Text style={styles.addedTag}>✓</Text>}
-                  {item.owner_id != null && (
-                    <Pressable
-                      onPress={() => setToDelete(item)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel={t.deleteCustomExercise(item.name)}
-                      style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
-                    >
-                      <TrashIcon />
-                    </Pressable>
-                  )}
                 </Pressable>
+                {item.owner_id != null && (
+                  <Pressable
+                    onPress={() => setToDelete(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.deleteCustomExercise(item.name)}
+                    style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+                  >
+                    <TrashIcon />
+                  </Pressable>
+                )}
+                </View>
               );
             }}
           />

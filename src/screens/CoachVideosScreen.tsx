@@ -26,6 +26,7 @@ import {
 import type { Exercise } from '../services/types';
 import { pickFile } from '../utils/pickFile';
 import { normalizeSearch } from '../utils/text';
+import { exerciseName, exerciseNames } from '../utils/exerciseText';
 import { styles } from './CoachVideos.styles';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'CoachVideos'>;
@@ -37,7 +38,8 @@ type Navigation = NativeStackNavigationProp<RootStackParamList, 'CoachVideos'>;
 export default function CoachVideosScreen() {
   const navigation = useNavigation<Navigation>();
   const currentUser = useAppStore((s) => s.currentUser);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const nameOf = useCallback((exercise: Exercise) => exerciseName(exercise, locale), [locale]);
   const coachId = currentUser?.id;
 
   const [exercises, setExercises] = useState<Exercise[] | null>(null);
@@ -64,9 +66,9 @@ export default function CoachVideosScreen() {
   const list = useMemo(() => {
     const q = normalizeSearch(query);
     return (exercises ?? [])
-      .filter((e) => !q || normalizeSearch(e.name).includes(q))
-      .sort((a, b) => Number(videos.has(b.id)) - Number(videos.has(a.id)) || a.name.localeCompare(b.name));
-  }, [exercises, query, videos]);
+      .filter((e) => !q || exerciseNames(e).some((name) => normalizeSearch(name).includes(q)))
+      .sort((a, b) => Number(videos.has(b.id)) - Number(videos.has(a.id)) || nameOf(a).localeCompare(nameOf(b), locale));
+  }, [exercises, query, videos, nameOf, locale]);
 
   const handleUpload = useCallback(
     async (exercise: Exercise) => {
@@ -83,14 +85,14 @@ export default function CoachVideosScreen() {
         await uploadExerciseVideo(coachId, exercise.id, file);
         setReloadKey((k) => k + 1);
         setWatchingId(null);
-        showAlert(t.savedSuccess, t.videoUploaded(exercise.name));
+        showAlert(t.savedSuccess, t.videoUploaded(nameOf(exercise)));
       } catch (err: any) {
         showAlert(t.saveError, err?.message ?? t.genericError);
       } finally {
         setUploadingId(null);
       }
     },
-    [coachId, uploadingId, t],
+    [coachId, uploadingId, t, nameOf],
   );
 
   const handleRemove = async () => {
@@ -115,7 +117,7 @@ export default function CoachVideosScreen() {
       <View style={styles.row}>
         <View style={styles.rowHeader}>
           <View style={styles.rowText}>
-            <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
+            <Text style={styles.name} numberOfLines={2}>{nameOf(item)}</Text>
             <View style={styles.statusRow}>
               <View style={[styles.dot, { backgroundColor: video ? colors.success : colors.borderSoftLight }]} />
               <Text style={styles.status}>{video ? t.withVideo : t.withoutVideo}</Text>
@@ -182,7 +184,7 @@ export default function CoachVideosScreen() {
 
       <ConfirmModal
         visible={toRemove !== null}
-        title={toRemove ? t.removeVideoTitle(toRemove.exercise.name) : ''}
+        title={toRemove ? t.removeVideoTitle(nameOf(toRemove.exercise)) : ''}
         message={t.removeVideoMsg}
         confirmLabel={t.removeVideo}
         cancelLabel={t.cancel}

@@ -416,7 +416,8 @@ async function fetchWorkoutExercises(workoutId: number): Promise<WorkoutExercise
 
     // workout_exercises.scheme/rest_seconds are per-workout overrides added by
     // migration_onboarding.sql; retry without them if the migration isn't applied.
-    // level 2: overrides + notes, 1: overrides only, 0: neither.
+    // level 3: + translations (migration_exercise_translations.sql), 2: overrides
+    // + notes, 1: overrides only, 0: neither.
     const fullSelect = (level: number) => `
         id,
         workout_id,
@@ -429,7 +430,7 @@ async function fetchWorkoutExercises(workoutId: number): Promise<WorkoutExercise
           secondary_muscle,
           rest_seconds,
           scheme,
-          tip,
+          tip,${level >= 3 ? '\n          name_i18n,\n          tip_i18n,' : ''}
           exercise_library_id,
           exercise_library:exercise_library_id (
             id,
@@ -444,7 +445,8 @@ async function fetchWorkoutExercises(workoutId: number): Promise<WorkoutExercise
         .eq('workout_id', workoutId)
         .order('order_index', { ascending: true });
 
-    let { data, error } = await runFull(2);
+    let { data, error } = await runFull(3);
+    if (error) ({ data, error } = await runFull(2));
     if (error) ({ data, error } = await runFull(1));
     if (error) ({ data, error } = await runFull(0));
 
@@ -520,8 +522,11 @@ async function fetchWorkoutExercises(workoutId: number): Promise<WorkoutExercise
           secondary_muscle: ex.secondary_muscle ?? null,
           rest_seconds: Number(row.rest_seconds ?? ex.rest_seconds),
           scheme: String(row.scheme ?? ex.scheme),
-          // Per-workout coach notes replace the generic catalogue tip.
+          name_i18n: ex.name_i18n ?? null,
+          // Per-workout coach notes replace the generic catalogue tip (and are
+          // shown as written, so the tip's translations don't apply to them).
           tip: row.notes ?? ex.tip ?? null,
+          tip_i18n: row.notes ? null : ex.tip_i18n ?? null,
           exercise_library_id: ex.exercise_library_id ?? null,
           library: ex.exercise_library ?? null,
         },

@@ -5,11 +5,15 @@
  * __tests__/progressUtils.test.ts).
  */
 
+import type { I18nText } from '../utils/exerciseText';
+
 export type LoadHistoryRow = {
   /** Row id in exercise_load_history (absent in older callers/tests). */
   id?: number;
   exercise_id: number;
   exercise_name: string;
+  /** Translations of the name (catalogue exercises), see utils/exerciseText. */
+  exercise_name_i18n?: I18nText;
   load_kg: number;
   recorded_at: string; // ISO timestamp
 };
@@ -43,6 +47,7 @@ export function dateFrom(now: Date, daysAgo: number): string {
 export type ExerciseProgress = {
   exercise_id: number;
   exercise_name: string;
+  exercise_name_i18n?: I18nText;
   /** Best load per training day inside the period, oldest first. */
   points: ProgressDataPoint[];
   /**
@@ -124,6 +129,7 @@ export function buildExerciseProgress(
     result.push({
       exercise_id: exerciseId,
       exercise_name: exerciseRows[exerciseRows.length - 1].exercise_name,
+      exercise_name_i18n: exerciseRows[exerciseRows.length - 1].exercise_name_i18n ?? null,
       points,
       entries: [...points].reverse().map((p) => ({
         date: p.date,

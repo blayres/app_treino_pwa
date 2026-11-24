@@ -7,6 +7,8 @@ import {
   listExercises,
 } from './workoutService';
 import { targetSeconds } from '../utils/measure';
+import { locales, type Locale, type Translations } from '../i18n/translations';
+import { exerciseName } from '../utils/exerciseText';
 
 /**
  * Default program offered in onboarding ("Usar treino pronto"): an upper/lower
@@ -33,9 +35,10 @@ type ExerciseSeed = {
   scheme: string;
 };
 
-type WorkoutSeed = {
+export type WorkoutSeed = {
   day_of_week: number; // 1=Mon … 7=Sun
-  title: string;
+  /** Title in each language: translations `defaultProgramTitles` (see defaultProgramTitle). */
+  titleKey: keyof Translations['defaultProgramTitles'];
   exercises: string[]; // exercise names in order
 };
 
@@ -79,27 +82,27 @@ const DEFAULT_EXERCISES: ExerciseSeed[] = [
 export const DEFAULT_PROGRAM: WorkoutSeed[] = [
   {
     day_of_week: 1,
-    title: 'Superior A – Peito, Costas e Ombros',
+    titleKey: 'upperA',
     exercises: ['Supino reto com halteres', 'Puxada frente na polia', 'Desenvolvimento na Máquina', 'Remada baixa na polia', 'Elevação lateral', 'Tríceps na Polia'],
   },
   {
     day_of_week: 2,
-    title: 'Inferior A – Quadríceps e Panturrilha',
+    titleKey: 'lowerA',
     exercises: ['Agachamento na Máquina', 'Leg Press 45°', 'Cadeira Extensora', 'Cadeira Flexora', 'Cadeira Adutora', 'Panturrilha em pé'],
   },
   {
     day_of_week: 3,
-    title: 'Core – Abdômen, Lombar e Glúteos',
+    titleKey: 'core',
     exercises: ['Prancha', 'Abdominal Crunch', 'Elevação de Pernas', 'Hiperextensão no banco', 'Elevação Pélvica chão'],
   },
   {
     day_of_week: 4,
-    title: 'Superior B – Costas, Peito e Braços',
+    titleKey: 'upperB',
     exercises: ['Remada unilateral com halter', 'Supino na Máquina', 'Puxada Alta na Máquina', 'Desenvolvimento com halteres', 'Fly Inverso', 'Rosca alternada com halteres'],
   },
   {
     day_of_week: 5,
-    title: 'Inferior B – Posterior e Glúteos',
+    titleKey: 'lowerB',
     exercises: ['Stiff com halteres', 'Hip thrust com barra', 'Passada com halteres', 'Mesa Flexora', 'Cadeira Abdutora', 'Panturrilha sentado'],
   },
 ];
@@ -136,21 +139,37 @@ export function normalizeExerciseName(name: string): string {
     .trim();
 }
 
-/**
- * Resolves each default exercise to an existing catalogue row (by name).
- * Exercises missing from the catalogue are created as the user's private
- * exercises — regular users can't write to the global catalogue (RLS).
- */
-async function resolveDefaultExercises(userId: number): Promise<Record<string, Exercise>> {
-  const catalogue = await listExercises(userId);
+/** Catalogue by normalised Portuguese name, preferring global rows over private ones. */
+function indexByName(catalogue: Exercise[]): Map<string, Exercise> {
   const byName = new Map<string, Exercise>();
-  // Prefer global rows over private ones with the same name.
   [...catalogue]
     .sort((a, b) => Number(a.owner_id != null) - Number(b.owner_id != null))
     .forEach((exercise) => {
       const key = normalizeExerciseName(exercise.name);
       if (!byName.has(key)) byName.set(key, exercise);
     });
+  return byName;
+}
+
+/**
+ * Names of a ready-made day as the user will see them: the catalogue row's
+ * translation when the catalogue is loaded, else the Portuguese name.
+ */
+export function defaultDayExerciseNames(day: WorkoutSeed, catalogue: Exercise[], locale: Locale): string[] {
+  const byName = indexByName(catalogue);
+  return day.exercises.map((name) => {
+    const row = byName.get(normalizeExerciseName(name));
+    return row ? exerciseName(row, locale) : name;
+  });
+}
+
+/**
+ * Resolves each default exercise to an existing catalogue row (by name).
+ * Exercises missing from the catalogue are created as the user's private
+ * exercises — regular users can't write to the global catalogue (RLS).
+ */
+async function resolveDefaultExercises(userId: number): Promise<Record<string, Exercise>> {
+  const byName = indexByName(await listExercises(userId));
 
   const resolved: Record<string, Exercise> = {};
   for (const seed of DEFAULT_EXERCISES) {
@@ -171,7 +190,16 @@ async function resolveDefaultExercises(userId: number): Promise<Record<string, E
  * Creates the default upper/lower program for the user. Skips if the user already has
  * active workouts, so it is safe to call more than once.
  */
-export async function applyDefaultProgram(userId: number): Promise<void> {
+/** Title of a ready-made day in the given language ("Superior A – …" / "Haut du corps A – …"). */
+export function defaultProgramTitle(day: WorkoutSeed, locale: Locale): string {
+  return locales[locale].defaultProgramTitles[day.titleKey];
+}
+
+/**
+ * `locale`: language of the day titles saved in the user's workouts (the
+ * exercises are catalogue rows, shown in each viewer's language anyway).
+ */
+export async function applyDefaultProgram(userId: number, locale: Locale = 'pt'): Promise<void> {
   const existing = await getWorkoutsByUser(userId);
   if (existing.length > 0) return;
 
@@ -182,7 +210,7 @@ export async function applyDefaultProgram(userId: number): Promise<void> {
     await createWorkoutForUser({
       userId,
       dayOfWeek: workout.day_of_week,
-      title: workout.title,
+      title: defaultProgramTitle(workout, locale),
       items: workout.exercises
         .filter((name) => exercises[name])
         .map((name) => {
