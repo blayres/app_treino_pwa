@@ -1315,7 +1315,7 @@ export const fr: Translations = {
   ok: 'OK',
 
   workoutDuration: 'Durée de la séance',
-  howTo: 'Comment faire',
+  howTo: 'Démo',
   alternatives: 'Alternatives',
   substitutesTitle: (name: string) => `Alternatives à ${name}`,
   substitutesSubtitle: 'Même muscle, autre appareil. Utilisez-en une si le vôtre est occupé.',
