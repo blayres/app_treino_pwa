@@ -21,6 +21,8 @@ import { SwitchViewButton } from '../components/SwitchViewButton';
 import { getCachedCoachCode, getCoachCode } from '../services/coachService';
 import { Skeleton } from '../components/Skeleton';
 import { useTourStore, useTourTarget } from '../store/useTourStore';
+import { getCachedWorkoutsByUser } from '../services/workoutService';
+import { scheduleOf, type Schedule } from '../utils/schedule';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -32,6 +34,10 @@ export default function HomeScreen() {
   const [checkInLabel, setCheckInLabel] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [showWorkoutCompleted, setShowWorkoutCompleted] = useState(false);
+  // "Treinos da semana" or "Seus treinos" (sequence): known from the cached list at once.
+  const [schedule, setSchedule] = useState<Schedule>(() =>
+    currentUser ? scheduleOf(getCachedWorkoutsByUser(currentUser.id) ?? []) : 'week',
+  );
   const [isCoach, setIsCoach] = useState(() => currentUser ? getCachedCoachCode(currentUser.id) != null : false);
   const toursLoaded = useTourStore((s) => s.seen !== null);
   const startTourIfNew = useTourStore((s) => s.startIfNew);
@@ -159,7 +165,7 @@ export default function HomeScreen() {
 
           <View ref={daysRef} collapsable={false}>
             <SectionCard
-              title={t.workoutsThisWeek}
+              title={schedule === 'sequence' ? t.workoutsSequence : t.workoutsThisWeek}
               rightElement={
                 <Pressable
                   ref={editRef}
@@ -173,7 +179,7 @@ export default function HomeScreen() {
                 </Pressable>
               }
             >
-              <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} />
+              <DayWorkouts userId={currentUser.id} refreshKey={refreshKey} onSchedule={setSchedule} />
             </SectionCard>
           </View>
 

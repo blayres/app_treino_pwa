@@ -1,3 +1,4 @@
+import type { Schedule } from '../utils/schedule';
 import type { I18nText } from '../utils/exerciseText';
 
 export type User = {
@@ -31,9 +32,12 @@ export type Exercise = {
 export type Workout = {
   id: number;
   user_id: number;
+  /** Weekday (1 Mon … 7 Sun), or position in a sequence (see `schedule`). */
   day_of_week: number;
   title: string;
   archived_at?: string | null;
+  /** 'week' (fixed weekdays, default) or 'sequence' (migration_workout_schedule.sql). */
+  schedule?: Schedule | null;
 };
 
 export type WorkoutWithLastDone = Workout & {

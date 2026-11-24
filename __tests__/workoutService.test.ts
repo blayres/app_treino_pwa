@@ -10,6 +10,7 @@ import {
   getWorkoutsByUser,
   invalidateWorkoutsByUserCache,
   createWorkoutForUser,
+  updateWorkoutsSchedule,
   deleteCustomExercise,
   ExerciseInUseError,
   MoveNotSupportedError,
@@ -119,6 +120,17 @@ describe('createWorkoutForUser', () => {
     ).rejects.toEqual({ message: 'fk violation' });
     const [del] = supabaseMock.calls('workouts', 'delete');
     expect(filter(del, 'eq', 'id')).toEqual(['eq', 'id', 40]);
+  });
+
+  it('marks workouts of a sequence (weekly ones send no schedule, so they work before the migration)', async () => {
+    supabaseMock.queue('workouts.insert', { data: { id: 41 } });
+    await createWorkoutForUser({ userId: 1, dayOfWeek: 1, title: 'Treino 1', items: [], schedule: 'sequence' });
+    expect(supabaseMock.calls('workouts', 'insert')[0].payload).toEqual({
+      user_id: 1,
+      day_of_week: 1,
+      title: 'Treino 1',
+      schedule: 'sequence',
+    });
   });
 
   it('surfaces the one-workout-per-weekday conflict', async () => {
@@ -297,5 +309,21 @@ describe('moveWorkoutsToDays', () => {
 
     supabaseMock.queue('rpc.move_workouts', { error: { code: 'P0001', message: 'WORKOUT_NOT_FOUND 1' } });
     await expect(moveWorkoutsToDays([{ workoutId: 1, dayOfWeek: 2 }])).rejects.toMatchObject({ code: 'P0001' });
+  });
+});
+
+describe('updateWorkoutsSchedule', () => {
+  it('switches the given workouts and fails when RLS hides one of them', async () => {
+    await updateWorkoutsSchedule([], 'sequence');
+    expect(supabaseMock.calls('workouts', 'update')).toHaveLength(0);
+
+    supabaseMock.queue('workouts.update', { data: [{ id: 1 }, { id: 2 }] });
+    await updateWorkoutsSchedule([1, 2], 'sequence');
+    const [update] = supabaseMock.calls('workouts', 'update');
+    expect(update.payload).toEqual({ schedule: 'sequence' });
+    expect(filter(update, 'in', 'id')).toEqual(['in', 'id', [1, 2]]);
+
+    supabaseMock.queue('workouts.update', { data: [{ id: 1 }] });
+    await expect(updateWorkoutsSchedule([1, 2], 'week')).rejects.toThrow('sem permissão');
   });
 });

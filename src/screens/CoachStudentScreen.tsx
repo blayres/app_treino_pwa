@@ -19,7 +19,8 @@ import { InitialAvatar } from '../components/InitialAvatar';
 import { CoachStudentSkeleton, ProgramDaysSkeleton } from '../components/CoachStudentSkeleton';
 import { CalendarFrequency } from '../components/CalendarFrequency';
 import { getCachedStudent, getStudent, unlinkStudent, type StudentSummary } from '../services/coachService';
-import { loadProgramDraft, peekProgramDraft, visibleDays, type DraftDay } from '../services/programService';
+import { draftSchedule, loadProgramDraft, peekProgramDraft, visibleDays, type DraftDay } from '../services/programService';
+import { slotLabel } from '../utils/schedule';
 import { styles } from './Coach.styles';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'CoachStudent'>;
@@ -108,6 +109,8 @@ export default function CoachStudentScreen() {
     </View>
   );
 
+  const schedule = draftSchedule(program ?? []);
+
   const renderContent = (s: StudentSummary) => (
     <>
       <View style={styles.profileRow}>
@@ -124,7 +127,7 @@ export default function CoachStudentScreen() {
         {renderStat(t.statLastWorkout, lastWorkout())}
       </View>
 
-      <SectionCard title={t.studentProgram}>
+      <SectionCard title={schedule === 'sequence' ? t.studentProgramSequence : t.studentProgram}>
         {program === null ? (
           <ProgramDaysSkeleton />
         ) : program.length === 0 ? (
@@ -132,7 +135,7 @@ export default function CoachStudentScreen() {
         ) : (
           program.map((day) => (
             <View key={day.key} style={styles.dayRow}>
-              <Text style={styles.dayName}>{t.dayLabels[day.dayOfWeek]}</Text>
+              <Text style={styles.dayName}>{slotLabel(t, schedule, day.dayOfWeek)}</Text>
               <View style={styles.dayBody}>
                 <Text style={styles.dayTitle} numberOfLines={1}>{day.title}</Text>
                 <Text style={styles.dayMeta}>{t.exercisesCount(day.items.length)}</Text>

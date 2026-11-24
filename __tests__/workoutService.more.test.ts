@@ -376,7 +376,7 @@ describe('local mode writes', () => {
     mockDb.runAsync.mockResolvedValueOnce({ lastInsertRowId: 50 });
     expect(await createWorkoutForUser({ userId: 2, dayOfWeek: 3, title: 'A', exerciseIds: [7, 8] })).toBe(50);
     const calls = mockDb.runAsync.mock.calls;
-    expect(calls[0].slice(1)).toEqual([2, 3, 'A']);
+    expect(calls[0].slice(1)).toEqual([2, 3, 'A', 'week']);
     expect(calls[1].slice(1)).toEqual([50, 7, 0, null, null, null]);
     expect(calls[2].slice(1)).toEqual([50, 8, 1, null, null, null]);
   });

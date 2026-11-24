@@ -112,4 +112,39 @@ describe('DayWorkouts', () => {
     expect(getExerciseLoadsByUser).toHaveBeenCalledWith(5);
     expect((getWorkoutExercises as jest.Mock).mock.calls.map((c) => c[0])).toEqual([1, 2, 3]);
   });
+
+  describe('in sequence', () => {
+    const sequence = [
+      { id: 11, user_id: 5, day_of_week: 1, title: 'Superiores', last_done: daysAgo(4), schedule: 'sequence' },
+      { id: 12, user_id: 5, day_of_week: 2, title: 'Inferiores', last_done: daysAgo(2), schedule: 'sequence' },
+      { id: 13, user_id: 5, day_of_week: 3, title: 'Core', last_done: null, schedule: 'sequence' },
+    ] as any[];
+
+    it('labels workouts by position and suggests the one after the last done', async () => {
+      byUser.mockResolvedValue(sequence);
+      const onSchedule = jest.fn();
+      await renderList({ onSchedule });
+      expect(screen.getByText('Treino 1')).toBeTruthy();
+      expect(screen.queryByText('Segunda')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Treino 3, Core, Próximo' })).toBeTruthy();
+      expect(screen.getAllByText('Próximo')).toHaveLength(1);
+      expect(onSchedule).toHaveBeenLastCalledWith('sequence');
+    });
+
+    it('no suggestion while a workout is running', async () => {
+      byUser.mockResolvedValue(sequence);
+      useAppStore.setState({ activeSession: { sessionId: 9, workoutId: 11, startedAt: daysAgo(0), isRunning: true } });
+      await renderList();
+      expect(screen.queryByText('Próximo')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Treino 1, Superiores, Em andamento' })).toBeTruthy();
+    });
+
+    it('a weekly program shows no suggestion', async () => {
+      const onSchedule = jest.fn();
+      await renderList({ onSchedule });
+      expect(screen.queryByText('Próximo')).toBeNull();
+      expect(onSchedule).toHaveBeenLastCalledWith('week');
+    });
+  });
 });
+

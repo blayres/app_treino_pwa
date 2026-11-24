@@ -22,7 +22,8 @@ import {
 } from '../services/defaultWorkoutService';
 import type { Exercise } from '../services/types';
 import { invalidateWorkoutsByUserCache } from '../services/workoutService';
-import { draftFromText, saveProgram, visibleDays, type DraftDay } from '../services/programService';
+import { draftFromText, saveProgram, textSchedule, visibleDays, type DraftDay } from '../services/programService';
+import { slotLabel, type Schedule } from '../utils/schedule';
 import { markOnboarded } from '../services/authService';
 import { FEATURES } from '../config/features';
 import { styles } from './OnboardingScreen.styles';
@@ -58,6 +59,8 @@ export default function OnboardingScreen() {
   // Pasting a second sheet: append its days instead of replacing the draft.
   const [appending, setAppending] = useState(false);
   const [days, setDays] = useState<DraftDay[]>([]);
+  // Fixed weekdays or workouts in sequence ("Treino 1, 2, 3" on any day).
+  const [schedule, setSchedule] = useState<Schedule>('week');
   const [isBusy, setIsBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   // Already-onboarded users are redirected Home by App.tsx; never let them
@@ -77,7 +80,7 @@ export default function OnboardingScreen() {
 
   if (!currentUser || !needsOnboarding) return null;
   const userId = currentUser.id;
-  const dayName = (day: number) => t.dayLabels[day];
+  const dayName = (day: number) => slotLabel(t, schedule, day);
   const shownDays = visibleDays(days);
 
   const finish = async () => {
@@ -115,6 +118,8 @@ export default function OnboardingScreen() {
         return;
       }
       setDays(appending ? [...days.filter((d) => !d.hidden), ...draft].sort((a, b) => a.dayOfWeek - b.dayOfWeek) : draft);
+      // A sheet without weekdays ("Treino A, B, C") is done in sequence.
+      if (!appending) setSchedule(textSchedule(pasted));
       if (appending) setPasted('');
       setAppending(false);
       setMode('import');
@@ -128,6 +133,7 @@ export default function OnboardingScreen() {
 
   const startManual = () => {
     setDays([]);
+    setSchedule('week');
     setMode('manual');
     setStep('editor');
   };
@@ -139,7 +145,8 @@ export default function OnboardingScreen() {
     }
     const emptyDay = shownDays.find((d) => d.items.length === 0);
     if (emptyDay) {
-      showAlert('', t.onboardingEmptyDay(dayName(emptyDay.dayOfWeek)));
+      const label = dayName(emptyDay.dayOfWeek);
+      showAlert('', schedule === 'sequence' ? t.onboardingEmptyWorkout(label) : t.onboardingEmptyDay(label));
       return;
     }
     runSaving(async () => {
@@ -147,8 +154,10 @@ export default function OnboardingScreen() {
         userId,
         draft: days,
         original: [],
-        defaultTitle: (day) => t.onboardingDefaultDayTitle(dayName(day)),
+        // A sequence slot is a name already ("Treino 2"); a weekday gets "Treino de Segunda".
+        defaultTitle: (day) => (schedule === 'sequence' ? dayName(day) : t.onboardingDefaultDayTitle(dayName(day))),
         createdDays: createdDaysRef.current,
+        schedule,
       });
       invalidateExerciseCatalogue();
     });
@@ -211,9 +220,15 @@ export default function OnboardingScreen() {
       <ScreenHeader
         onBack={() => setStep(mode === 'import' ? 'import' : 'choose')}
         title={mode === 'import' ? t.onboardingReviewTitle : t.onboardingManualEditorTitle}
-        subtitle={mode === 'import' ? t.onboardingReviewSubtitle : t.onboardingManualEditorSubtitle}
+        subtitle={
+          mode === 'import'
+            ? t.onboardingReviewSubtitle
+            : schedule === 'sequence'
+              ? t.onboardingManualEditorSubtitleSequence
+              : t.onboardingManualEditorSubtitle
+        }
       />
-      <ProgramEditor userId={userId} days={days} onChange={setDays} />
+      <ProgramEditor userId={userId} days={days} onChange={setDays} schedule={schedule} onScheduleChange={setSchedule} />
       {mode === 'import' && (
         <AddAnotherSheetButton
           onPress={() => {
@@ -245,7 +260,7 @@ export default function OnboardingScreen() {
         )}
         {step === 'editor' && (
           <FooterButton
-            label={t.onboardingSave(shownDays.length)}
+            label={schedule === 'sequence' ? t.onboardingSaveSequence(shownDays.length) : t.onboardingSave(shownDays.length)}
             onPress={handleSave}
             disabled={shownDays.length === 0}
             loading={isBusy}

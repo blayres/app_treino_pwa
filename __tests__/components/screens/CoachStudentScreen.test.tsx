@@ -13,6 +13,7 @@ jest.mock('../../../src/services/programService', () => ({
   loadProgramDraft: jest.fn(),
   peekProgramDraft: jest.fn(() => null),
   visibleDays: (days: { hidden?: boolean }[]) => days.filter((day) => !day.hidden),
+  draftSchedule: (days: { schedule?: string }[]) => (days.some((day) => day.schedule === 'sequence') ? 'sequence' : 'week'),
 }));
 // Attendance calendar of the student (child component).
 jest.mock('../../../src/services/attendanceService', () => ({

@@ -24,8 +24,9 @@ jest.mock('../../../src/components/ExercisePickerSheet', () => ({
 jest.mock('../../../src/components/ProgramEditor', () => {
   const supino = { key: 'i1', exercise: { id: 1, name: 'Supino' }, name: 'Supino', scheme: '3x10', restSeconds: null, wrote: null, notes: null };
   return {
-    ProgramEditor: ({ days, onChange }: any) => (
+    ProgramEditor: ({ days, onChange, onScheduleChange }: any) => (
       <div>
+        <button onClick={() => onScheduleChange('sequence')}>stub-sequence</button>
         <button onClick={() => onChange([...days, { key: 'mon', dayOfWeek: 1, title: '', items: [supino] }])}>stub-add-monday</button>
         <button onClick={() => onChange([...days, { key: 'wed', dayOfWeek: 3, title: '', items: [] }])}>stub-add-empty-wednesday</button>
       </div>
@@ -124,6 +125,18 @@ describe('OnboardingScreen', () => {
     expect(options.draft.map((d) => d.dayOfWeek)).toEqual([1]);
     expect(options.defaultTitle(1)).toBe('Treino de Segunda');
     expect(auth.markOnboarded).toHaveBeenCalledWith(5);
+  });
+
+  it('"Em sequência": saved as a sequence, with "Treino N" names and counts', async () => {
+    render(<OnboardingScreen />);
+    fireEvent.click(screen.getByText('Montar do zero'));
+    fireEvent.click(screen.getByText('stub-sequence'));
+    fireEvent.click(screen.getByText('stub-add-monday'));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar treino' }));
+    await waitFor(() => expect(navigation.reset).toHaveBeenCalledWith(goHome));
+    const options = program.saveProgram.mock.calls[0][0];
+    expect(options.schedule).toBe('sequence');
+    expect(options.defaultTitle(1)).toBe('Treino 1');
   });
 
   it('does not save a day without exercises', () => {

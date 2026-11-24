@@ -28,6 +28,9 @@ jest.mock('../src/services/workoutService', () => ({
   getWorkoutsByUser: jest.fn(),
   getWorkoutExercises: jest.fn(),
   MoveNotSupportedError: class MoveNotSupportedError extends Error {},
+  updateWorkoutsSchedule: jest.fn(async (ids: number[], schedule: string) => {
+    if (ids.length > 0) calls.push(`schedule:${ids.join(',')}:${schedule}`);
+  }),
   moveWorkoutsToDays: jest.fn(async (moves: any[]) => {
     if (moves.length) calls.push(`move:${moves.map((m) => `${m.workoutId}->${m.dayOfWeek}`).join(',')}`);
   }),
@@ -35,8 +38,14 @@ jest.mock('../src/services/workoutService', () => ({
 
 import * as workoutService from '../src/services/workoutService';
 import {
+  appendSequenceDay,
+  compactSlots,
   copyDayTo,
   draftFromText,
+  draftSchedule,
+  duplicateSequenceDay,
+  removeSequenceDay,
+  textSchedule,
   swapDays,
   isProgramDirty,
   loadProgramDraft,
@@ -211,5 +220,74 @@ describe('swapDays', () => {
   it('is a no-op for the same or an unknown card', () => {
     expect(swapDays(original, original[0].key, original[0].key)).toBe(original);
     expect(swapDays(original, original[0].key, 'nope')).toBe(original);
+  });
+});
+
+describe('programs in sequence (no fixed weekdays)', () => {
+  const seq = (d: DraftDay): DraftDay => ({ ...d, schedule: 'sequence' });
+
+  it('compactSlots keeps the order and closes the gaps (Mon, Wed, Fri → 1, 2, 3)', () => {
+    const days = [day(1, 5, 'C', []), day(2, 1, 'A', []), { ...day(3, 2, 'X', []), hidden: true }, day(4, 3, 'B', [])];
+    expect(compactSlots(days).map((d) => [d.title, d.dayOfWeek])).toEqual([
+      ['A', 1],
+      ['B', 2],
+      ['C', 3],
+    ]);
+  });
+
+  it('adds, duplicates and removes workouts, renumbering the following ones', () => {
+    let days = [day(1, 1, 'A', [item(10)]), day(2, 2, 'B', [item(20)])];
+    days = appendSequenceDay(days);
+    expect(days.map((d) => [d.title, d.dayOfWeek])).toEqual([['A', 1], ['B', 2], ['', 3]]);
+    days = duplicateSequenceDay(days, days[0].key);
+    expect(days.map((d) => [d.title, d.dayOfWeek])).toEqual([['A', 1], ['B', 2], ['', 3], ['A', 4]]);
+    expect(days[3].items.map((i) => i.exercise?.id)).toEqual([10]);
+    expect(days[3].workoutId).toBeUndefined();
+    days = removeSequenceDay(days, days[1].key);
+    expect(days.map((d) => [d.title, d.dayOfWeek])).toEqual([['A', 1], ['', 2], ['A', 3]]);
+  });
+
+  it('never goes beyond 7 workouts', () => {
+    let days: DraftDay[] = [];
+    for (let i = 0; i < 9; i++) days = appendSequenceDay(days);
+    expect(days.map((d) => d.dayOfWeek)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(duplicateSequenceDay(days, days[0].key)).toHaveLength(7);
+  });
+
+  it('draftSchedule reads the mode of the loaded workouts', () => {
+    expect(draftSchedule([])).toBe('week');
+    expect(draftSchedule(original)).toBe('week');
+    expect(draftSchedule(original.map(seq))).toBe('sequence');
+  });
+
+  it('textSchedule: a sheet naming weekdays is weekly, "Treino A / B" is a sequence', () => {
+    expect(textSchedule('Segunda - Peito\nSupino 4x10\n\nQuarta - Costas\nRemada 3x12')).toBe('week');
+    expect(textSchedule('Treino A\nSupino 4x10\n\nTreino B\nRemada 3x12')).toBe('sequence');
+  });
+
+  it('switching a weekly program to a sequence updates the mode and moves the days in place', async () => {
+    // Mon (1) and Wed (3) become workouts 1 and 2: same rows, history kept.
+    const draft = compactSlots(original);
+    await saveProgram({ userId: 1, draft, original, defaultTitle, schedule: 'sequence' });
+    expect(calls).toEqual(['move:2->2', 'schedule:1,2:sequence']);
+  });
+
+  it('new workouts of a sequence are created as such', async () => {
+    const create = workoutService.createWorkoutForUser as jest.MockedFunction<typeof workoutService.createWorkoutForUser>;
+    create.mockClear();
+    await saveProgram({ userId: 1, draft: [day(undefined, 1, 'A', [item(10)])], original: [], defaultTitle, schedule: 'sequence' });
+    expect(create.mock.calls[0][0]).toMatchObject({ dayOfWeek: 1, title: 'A', schedule: 'sequence' });
+  });
+
+  it('a sequence saved as is changes nothing', async () => {
+    const loaded = original.map(seq);
+    await saveProgram({ userId: 1, draft: loaded, original: loaded, defaultTitle, schedule: 'sequence' });
+    expect(calls).toEqual([]);
+  });
+
+  it('isProgramDirty notices a mode switch', () => {
+    expect(isProgramDirty(original, original, 'week')).toBe(false);
+    expect(isProgramDirty(original, original, 'sequence')).toBe(true);
+    expect(isProgramDirty(original.map(seq), original.map(seq), 'sequence')).toBe(false);
   });
 });
