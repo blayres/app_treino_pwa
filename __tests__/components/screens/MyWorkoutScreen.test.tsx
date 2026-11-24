@@ -23,8 +23,10 @@ jest.mock('../../../src/components/ExercisePickerSheet', () => ({
 }));
 // The real editor is covered by ProgramEditor.test.tsx; this stub lists the days and edits them.
 jest.mock('../../../src/components/ProgramEditor', () => ({
-  ProgramEditor: ({ days, onChange }: any) => (
+  ProgramEditor: ({ days, onChange, schedule, onScheduleChange }: any) => (
     <div>
+      <span>{`schedule:${schedule}`}</span>
+      <button onClick={() => onScheduleChange('sequence')}>stub-sequence</button>
       {days.filter((d: any) => !d.hidden).map((d: any) => <span key={d.key}>{`day:${d.title}`}</span>)}
       <button onClick={() => onChange(days.map((d: any) => ({ ...d, title: `${d.title} v2` })))}>stub-rename</button>
       <button onClick={() => onChange(days.map((d: any, i: number) => (i === 0 ? { ...d, hidden: true } : d)))}>
@@ -187,4 +189,30 @@ describe('MyWorkoutScreen', () => {
     expect(program.saveProgram.mock.calls[0][0].userId).toBe(7);
     expect(reminder.restartProgramCycle).not.toHaveBeenCalled();
   });
+
+  it('switching to "Em sequência" is a change, saved with the sequence mode and slot names', async () => {
+    await renderScreen();
+    expect(screen.getByText('schedule:week')).toBeTruthy();
+    fireEvent.click(screen.getByText('stub-sequence'));
+    expect(screen.getByText('schedule:sequence')).toBeTruthy();
+    fireEvent.click(saveButton()!);
+    await waitFor(() => expect(program.saveProgram).toHaveBeenCalledTimes(1));
+    const options = program.saveProgram.mock.calls[0][0];
+    expect(options.schedule).toBe('sequence');
+    expect(options.defaultTitle(2)).toBe('Treino 2');
+  });
+
+  it('a program in sequence opens in that mode and names empty workouts by position', async () => {
+    program.loadProgramDraft.mockResolvedValue(draft.map((d) => ({ ...d, schedule: 'sequence' as const })));
+    await renderScreen();
+    expect(screen.getByText('schedule:sequence')).toBeTruthy();
+    expect(saveButton()).toBeNull();
+    fireEvent.click(screen.getByText('stub-empty-first'));
+    fireEvent.click(saveButton()!);
+    expect(useDialogStore.getState().alert).toEqual({
+      title: '',
+      message: 'Treino 1: adicione pelo menos um exercício ou remova esse treino.',
+    });
+  });
 });
+

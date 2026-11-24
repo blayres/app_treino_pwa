@@ -18,10 +18,12 @@ import {
   MoveNotSupportedError,
   moveWorkoutsToDays,
   replaceWorkoutItems,
+  updateWorkoutsSchedule,
   updateWorkoutTitle,
   type WorkoutItemInput,
 } from './workoutService';
 import { assignWeekdays, matchExercise, parseWorkoutText } from './workoutTextParser';
+import { MAX_SLOTS, scheduleOf, type Schedule } from '../utils/schedule';
 
 export type DraftItem = {
   key: string;
@@ -42,7 +44,10 @@ export type DraftDay = {
   key: string;
   /** Existing workout this card edits; undefined for a new day. */
   workoutId?: number;
+  /** Slot: weekday 1–7, or position 1–7 in a sequence (see utils/schedule). */
   dayOfWeek: number;
+  /** Mode of the workout as loaded (to detect a switch on save). */
+  schedule?: Schedule;
   title: string;
   items: DraftItem[];
   /** Unselected in the editor but kept so re-selecting restores it. */
@@ -80,6 +85,7 @@ function toDraftDay(workout: WorkoutWithLastDone, rows: WorkoutExercise[]): Draf
     key: nextDraftKey(),
     workoutId: workout.id,
     dayOfWeek: workout.day_of_week,
+    schedule: workout.schedule === 'sequence' ? 'sequence' : 'week',
     title: workout.title,
     items: rows.map((row) => {
       baseValues.set(row.exercise_id, {
@@ -125,6 +131,47 @@ export function peekProgramDraft(userId: number): DraftDay[] | null {
     days.push(toDraftDay(workout, rows));
   }
   return days.sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+}
+
+/** Mode of a loaded program: sequence as soon as one of its workouts is. */
+export function draftSchedule(days: DraftDay[]): Schedule {
+  return scheduleOf(visibleDays(days));
+}
+
+/** Does pasted text name weekdays ("Segunda…")? If not ("Treino A, B…"), it's a sequence. */
+export function textSchedule(text: string): Schedule {
+  return parseWorkoutText(text).some((day) => day.dayOfWeek != null) ? 'week' : 'sequence';
+}
+
+/**
+ * Slots 1…n in the current order, hidden cards dropped: used when switching
+ * mode (Mon, Wed, Fri → workouts 1, 2, 3 and back to Mon, Tue, Wed) and after
+ * removing a workout from a sequence, so it never has gaps.
+ */
+export function compactSlots(days: DraftDay[]): DraftDay[] {
+  return visibleDays(days)
+    .slice()
+    .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+    .map((day, index) => ({ ...day, dayOfWeek: index + 1 }));
+}
+
+/** New empty workout at the end of a sequence (no-op when full). */
+export function appendSequenceDay(days: DraftDay[]): DraftDay[] {
+  const shown = compactSlots(days);
+  if (shown.length >= MAX_SLOTS) return shown;
+  return [...shown, { key: nextDraftKey(), dayOfWeek: shown.length + 1, title: '', items: [] }];
+}
+
+/** Removes a workout from a sequence; the following ones move up. */
+export function removeSequenceDay(days: DraftDay[], dayKey: string): DraftDay[] {
+  return compactSlots(days.filter((d) => d.key !== dayKey));
+}
+
+/** Copy of a workout (with its exercises) at the end of a sequence. */
+export function duplicateSequenceDay(days: DraftDay[], dayKey: string): DraftDay[] {
+  const shown = compactSlots(days);
+  if (shown.length >= MAX_SLOTS) return shown;
+  return copyDayTo(shown, dayKey, shown.length + 1);
 }
 
 /** Pasted text → draft days matched against the catalogue. Empty if nothing found. */
@@ -206,6 +253,8 @@ export type SaveProgramOptions = {
   defaultTitle: (dayOfWeek: number) => string;
   /** Weekdays already created by an earlier failed attempt (skipped on retry). */
   createdDays?: Set<number>;
+  /** Fixed weekdays (default) or a sequence; every saved workout gets it. */
+  schedule?: Schedule;
 };
 
 /**
@@ -215,6 +264,7 @@ export type SaveProgramOptions = {
  */
 export async function saveProgram(options: SaveProgramOptions): Promise<void> {
   const { userId, original, replaceAll, defaultTitle } = options;
+  const schedule = options.schedule ?? 'week';
   const createdDays = options.createdDays ?? new Set<number>();
   const draft = visibleDays(options.draft);
   const created = await resolveNewExercises(userId, draft);
@@ -250,7 +300,12 @@ export async function saveProgram(options: SaveProgramOptions): Promise<void> {
     }
   }
 
-  // 3. Update kept/moved days whose title or exercises changed.
+  // 3. Update kept/moved days whose mode, title or exercises changed.
+  const switched = draft
+    .filter((day) => day.workoutId && keptIds.has(day.workoutId))
+    .filter((day) => (originalById.get(day.workoutId!)!.schedule ?? 'week') !== schedule)
+    .map((day) => day.workoutId!);
+  await updateWorkoutsSchedule(switched, schedule);
   for (const day of draft) {
     if (!day.workoutId || !keptIds.has(day.workoutId)) continue;
     const before = originalById.get(day.workoutId)!;
@@ -269,6 +324,7 @@ export async function saveProgram(options: SaveProgramOptions): Promise<void> {
       dayOfWeek: day.dayOfWeek,
       title: titleOf(day),
       items: toWorkoutItems(day.items, created),
+      schedule,
     });
     createdDays.add(day.dayOfWeek);
   }
@@ -276,8 +332,13 @@ export async function saveProgram(options: SaveProgramOptions): Promise<void> {
   invalidateWorkoutsByUserCache(userId);
 }
 
-/** Has the draft changed compared to what was loaded? */
-export function isProgramDirty(original: DraftDay[], draft: DraftDay[]): boolean {
+/** Has the draft (or its mode) changed compared to what was loaded? */
+export function isProgramDirty(
+  original: DraftDay[],
+  draft: DraftDay[],
+  schedule: Schedule = draftSchedule(original),
+): boolean {
+  if (schedule !== draftSchedule(original) && visibleDays(draft).length > 0) return true;
   const summarize = (days: DraftDay[]) =>
     visibleDays(days)
       .map((d) => `${d.workoutId ?? 'new'}@${d.dayOfWeek}:${d.title.trim()}:${itemsSignature(d.items)}`)

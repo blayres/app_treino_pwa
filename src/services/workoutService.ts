@@ -1,6 +1,7 @@
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
 import type { Exercise, ExerciseLoad, Workout, WorkoutExercise, WorkoutWithLastDone } from './types';
+import type { Schedule } from '../utils/schedule';
 import { recordLoadHistory } from './progressService';
 import { createRequestCache } from './requestCache';
 
@@ -162,6 +163,20 @@ export async function updateWorkoutTitle(workoutId: number, title: string): Prom
   );
 }
 
+/** Switches existing workouts between fixed weekdays and a sequence. */
+export async function updateWorkoutsSchedule(workoutIds: number[], schedule: Schedule): Promise<void> {
+  if (workoutIds.length === 0) return;
+  if (backendMode === 'supabase') {
+    ensureSupabaseEnabled();
+    const { data, error } = await supabase.from('workouts').update({ schedule }).in('id', workoutIds).select('id');
+    if (error) throw error;
+    if ((data ?? []).length !== workoutIds.length) throw new Error('Treino não encontrado ou sem permissão para editá-lo.');
+    return;
+  }
+  const db = await getLocalDb();
+  for (const id of workoutIds) await db.runAsync(`UPDATE workouts SET schedule = ? WHERE id = ?;`, schedule, id);
+}
+
 export type WorkoutItemInput = {
   exerciseId: number;
   /** Per-workout override; null/undefined keeps the exercise's own value. */
@@ -177,8 +192,11 @@ export async function createWorkoutForUser(params: {
   title: string;
   exerciseIds?: number[];
   items?: WorkoutItemInput[];
+  /** 'sequence': dayOfWeek is the position in the rotation. Default 'week'. */
+  schedule?: Schedule;
 }): Promise<number> {
   const { userId, dayOfWeek, title } = params;
+  const schedule = params.schedule ?? 'week';
   const items: WorkoutItemInput[] =
     params.items ?? (params.exerciseIds ?? []).map((exerciseId) => ({ exerciseId }));
 
@@ -186,7 +204,9 @@ export async function createWorkoutForUser(params: {
     ensureSupabaseEnabled();
     const { data: workoutRow, error: workoutError } = await supabase
       .from('workouts')
-      .insert({ user_id: userId, day_of_week: dayOfWeek, title })
+      // schedule only when needed, so weekly programs keep working before
+      // migration_workout_schedule.sql is applied.
+      .insert({ user_id: userId, day_of_week: dayOfWeek, title, ...(schedule === 'sequence' ? { schedule } : {}) })
       .select('id')
       .single();
     if (workoutError) throw workoutError;
@@ -217,10 +237,11 @@ export async function createWorkoutForUser(params: {
 
   const db = await getLocalDb();
   const result = await db.runAsync(
-    `INSERT INTO workouts (user_id, day_of_week, title) VALUES (?, ?, ?);`,
+    `INSERT INTO workouts (user_id, day_of_week, title, schedule) VALUES (?, ?, ?, ?);`,
     userId,
     dayOfWeek,
     title,
+    schedule,
   );
   const workoutId = result.lastInsertRowId!;
 

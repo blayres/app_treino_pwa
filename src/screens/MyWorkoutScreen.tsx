@@ -20,13 +20,16 @@ import { applyDefaultProgram } from '../services/defaultWorkoutService';
 import { archiveWorkout, invalidateWorkoutsByUserCache } from '../services/workoutService';
 import {
   draftFromText,
+  draftSchedule,
   isProgramDirty,
   loadProgramDraft,
   peekProgramDraft,
   saveProgram,
+  textSchedule,
   visibleDays,
   type DraftDay,
 } from '../services/programService';
+import { slotLabel, type Schedule } from '../utils/schedule';
 import { FEATURES } from '../config/features';
 import { restartProgramCycle } from '../services/programReminder';
 
@@ -59,7 +62,10 @@ export default function MyWorkoutScreen() {
   const [initialDraft] = useState(() => (userId ? peekProgramDraft(userId) : null));
   const [original, setOriginal] = useState<DraftDay[]>(() => initialDraft ?? []);
   const [days, setDays] = useState<DraftDay[]>(() => initialDraft ?? []);
+  // Fixed weekdays or a sequence, for the current program and an imported one.
+  const [schedule, setSchedule] = useState<Schedule>(() => draftSchedule(initialDraft ?? []));
   const [imported, setImported] = useState<DraftDay[]>([]);
+  const [importedSchedule, setImportedSchedule] = useState<Schedule>('week');
   const [pasted, setPasted] = useState('');
   const [appending, setAppending] = useState(false);
   const [isLoading, setIsLoading] = useState(() => initialDraft === null);
@@ -68,8 +74,8 @@ export default function MyWorkoutScreen() {
   const isSavingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  const dayName = (day: number) => t.dayLabels[day];
-  const dirty = isProgramDirty(original, days);
+  const dayName = (day: number, mode: Schedule = schedule) => slotLabel(t, mode, day);
+  const dirty = isProgramDirty(original, days, schedule);
 
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
@@ -86,6 +92,7 @@ export default function MyWorkoutScreen() {
       hasDraftRef.current = true;
       setOriginal(draft);
       setDays(draft);
+      setSchedule(draftSchedule(draft));
     } catch (err: any) {
       showAlert(t.saveError, err?.message ?? t.genericError);
     } finally {
@@ -105,10 +112,11 @@ export default function MyWorkoutScreen() {
   if (!currentUser || !userId) return null;
 
   // ── Validation shared by edit and replace ────────────────────────────────
-  const validate = (draft: DraftDay[]): boolean => {
+  const validate = (draft: DraftDay[], mode: Schedule): boolean => {
     const emptyDay = visibleDays(draft).find((d) => d.items.length === 0);
     if (emptyDay) {
-      showAlert('', t.onboardingEmptyDay(dayName(emptyDay.dayOfWeek)));
+      const label = dayName(emptyDay.dayOfWeek, mode);
+      showAlert('', mode === 'sequence' ? t.onboardingEmptyWorkout(label) : t.onboardingEmptyDay(label));
       return false;
     }
     if (visibleDays(draft).length === 0) {
@@ -137,23 +145,26 @@ export default function MyWorkoutScreen() {
     }
   };
 
-  const defaultTitle = (day: number) => t.onboardingDefaultDayTitle(dayName(day));
+  // "Treino de Segunda" for a weekday; a sequence slot is a name already ("Treino 2").
+  const defaultTitleFor = (mode: Schedule) => (day: number) =>
+    mode === 'sequence' ? dayName(day, mode) : t.onboardingDefaultDayTitle(dayName(day, mode));
 
   // ── Edit current program ─────────────────────────────────────────────────
   const removedDayNames = () => {
     const keptIds = new Set(visibleDays(days).map((d) => d.workoutId).filter(Boolean));
-    return original.filter((d) => !keptIds.has(d.workoutId)).map((d) => dayName(d.dayOfWeek));
+    const originalSchedule = draftSchedule(original);
+    return original.filter((d) => !keptIds.has(d.workoutId)).map((d) => dayName(d.dayOfWeek, originalSchedule));
   };
 
   const handleSaveEdits = () => {
-    if (!validate(days)) return;
+    if (!validate(days, schedule)) return;
     if (removedDayNames().length > 0) setConfirm('removeDays');
     else saveEdits();
   };
 
   const saveEdits = () =>
     run(
-      () => saveProgram({ userId, draft: days, original, defaultTitle }),
+      () => saveProgram({ userId, draft: days, original, defaultTitle: defaultTitleFor(schedule), schedule }),
       async () => {
         invalidateExerciseCatalogue();
         await load(true);
@@ -177,6 +188,8 @@ export default function MyWorkoutScreen() {
           ? [...imported.filter((d) => !d.hidden), ...draft].sort((a, b) => a.dayOfWeek - b.dayOfWeek)
           : draft,
       );
+      // A sheet without weekdays ("Treino A, B, C") is done in sequence.
+      if (!appending) setImportedSchedule(textSchedule(pasted));
       if (appending) setPasted('');
       setAppending(false);
       setStep('review');
@@ -189,7 +202,15 @@ export default function MyWorkoutScreen() {
 
   const replaceWithImport = () =>
     run(
-      () => saveProgram({ userId, draft: imported, original, replaceAll: true, defaultTitle }),
+      () =>
+        saveProgram({
+          userId,
+          draft: imported,
+          original,
+          replaceAll: true,
+          defaultTitle: defaultTitleFor(importedSchedule),
+          schedule: importedSchedule,
+        }),
       () => {
         invalidateExerciseCatalogue();
         navigation.goBack();
@@ -220,7 +241,13 @@ export default function MyWorkoutScreen() {
       <ScreenHeader
         onBack={handleBack}
         title={studentId !== null ? t.studentProgramTitle(params?.studentName ?? '') : t.myWorkoutOverviewTitle}
-        subtitle={studentId !== null ? t.studentProgramSubtitle : t.myWorkoutSubtitle}
+        subtitle={
+          studentId !== null
+            ? t.studentProgramSubtitle
+            : schedule === 'sequence'
+              ? t.myWorkoutSubtitleSequence
+              : t.myWorkoutSubtitle
+        }
       />
       {isLoading ? (
         [...Array(3)].map((_, i) => (
@@ -230,7 +257,13 @@ export default function MyWorkoutScreen() {
         ))
       ) : (
         <>
-          <ProgramEditor userId={userId} days={days} onChange={setDays} />
+          <ProgramEditor
+            userId={userId}
+            days={days}
+            onChange={setDays}
+            schedule={schedule}
+            onScheduleChange={setSchedule}
+          />
           <Text style={styles.sectionTitle} accessibilityRole="header">
             {t.replaceSectionTitle}
           </Text>
@@ -261,7 +294,13 @@ export default function MyWorkoutScreen() {
   const renderReview = () => (
     <>
       <ScreenHeader onBack={handleBack} title={t.replaceReviewTitle} subtitle={t.replaceReviewSubtitle} />
-      <ProgramEditor userId={userId} days={imported} onChange={setImported} />
+      <ProgramEditor
+        userId={userId}
+        days={imported}
+        onChange={setImported}
+        schedule={importedSchedule}
+        onScheduleChange={setImportedSchedule}
+      />
       <AddAnotherSheetButton
         onPress={() => {
           setAppending(true);
@@ -275,8 +314,10 @@ export default function MyWorkoutScreen() {
   const importedCount = visibleDays(imported).length;
   const confirmProps = {
     removeDays: {
-      title: t.removeDaysConfirmTitle,
-      message: t.removeDaysConfirmMsg(removedDayNames().join(', ')),
+      title: draftSchedule(original) === 'sequence' ? t.removeWorkoutsConfirmTitle : t.removeDaysConfirmTitle,
+      message: (draftSchedule(original) === 'sequence' ? t.removeWorkoutsConfirmMsg : t.removeDaysConfirmMsg)(
+        removedDayNames().join(', '),
+      ),
       confirmLabel: t.saveChanges,
       onConfirm: () => {
         setConfirm(null);
@@ -337,8 +378,8 @@ export default function MyWorkoutScreen() {
         )}
         {step === 'review' && (
           <FooterButton
-            label={t.replaceSave(importedCount)}
-            onPress={() => validate(imported) && setConfirm('replaceImport')}
+            label={importedSchedule === 'sequence' ? t.replaceSaveSequence(importedCount) : t.replaceSave(importedCount)}
+            onPress={() => validate(imported, importedSchedule) && setConfirm('replaceImport')}
             disabled={importedCount === 0}
             loading={isBusy}
           />

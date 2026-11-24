@@ -274,6 +274,8 @@ export async function initDatabase() {
     `ALTER TABLE workout_exercises ADD COLUMN scheme TEXT DEFAULT NULL;`,
     `ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER DEFAULT NULL;`,
     `ALTER TABLE workout_exercises ADD COLUMN notes TEXT DEFAULT NULL;`,
+    // Programs without fixed weekdays (migration_workout_schedule.sql)
+    `ALTER TABLE workouts ADD COLUMN schedule TEXT NOT NULL DEFAULT 'week';`,
   ]) {
     try {
       await db.execAsync(statement);

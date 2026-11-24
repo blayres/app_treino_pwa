@@ -16,10 +16,13 @@ import {
 import { prefetchWhenIdle } from '../utils/idle';
 import { useI18n } from '../i18n';
 import { relativeDay } from '../utils/date';
+import { nextInSequence, scheduleOf, slotLabel, type Schedule } from '../utils/schedule';
 
 type Props = {
   userId: number;
   refreshKey?: number;
+  /** Fixed weekdays or a sequence, once the workouts are known (Home's section title). */
+  onSchedule?: (schedule: Schedule) => void;
 };
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -46,7 +49,7 @@ function InProgressBadge({ label }: { label: string }) {
   );
 }
 
-export function DayWorkouts({ userId, refreshKey }: Props) {
+export function DayWorkouts({ userId, refreshKey, onSchedule }: Props) {
   const navigation = useNavigation<Navigation>();
   const { t } = useI18n();
   const activeSession = useAppStore(state => state.activeSession);
@@ -62,6 +65,11 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
     if (ago.unit === 'weeks') return ago.value === 1 ? t.done1Week : t.doneWeeks(ago.value);
     return ago.value === 1 ? t.done1Month : t.doneMonths(ago.value);
   };
+
+  const schedule = scheduleOf(workouts);
+  useEffect(() => {
+    if (!isLoading) onSchedule?.(schedule);
+  }, [schedule, isLoading, onSchedule]);
 
   // Keep previous content visible while refreshing (no skeleton → content
   // layout shift); only the very first load shows the skeleton.
@@ -109,11 +117,16 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
     navigation.navigate('Workout', { workoutId, workoutTitle });
   };
 
+  // In a sequence there is no "today": the next one after the last done is suggested.
+  const nextId = schedule === 'sequence' && runningWorkoutId == null ? nextInSequence(workouts) : null;
+
   return (
     <View>
       {workouts.map(item => {
         const isRest = item.title.toLowerCase().includes('repouso');
         const isInProgress = !isRest && item.id === runningWorkoutId;
+        const isNext = item.id === nextId;
+        const label = slotLabel(t, schedule, item.day_of_week);
 
         return (
           <Pressable
@@ -121,13 +134,16 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
             style={({ pressed }) => [
               styles.item,
               isInProgress && styles.itemInProgress,
+              isNext && styles.itemNext,
               isRest ? styles.itemRest : (pressed && styles.itemPressed),
             ]}
             accessibilityRole="button"
             accessibilityLabel={
               isInProgress
-                ? `${t.dayLabels[item.day_of_week]}, ${item.title}, ${t.workoutInProgress}`
-                : undefined
+                ? `${label}, ${item.title}, ${t.workoutInProgress}`
+                : isNext
+                  ? `${label}, ${item.title}, ${t.nextWorkout}`
+                  : undefined
             }
             onPress={() =>
               !isRest &&
@@ -140,8 +156,13 @@ export function DayWorkouts({ userId, refreshKey }: Props) {
           >
             <View>
               <View style={styles.dayLabelRow}>
-                <Text style={styles.dayLabel}>{t.dayLabels[item.day_of_week]}</Text>
+                <Text style={styles.dayLabel}>{label}</Text>
                 {isInProgress && <InProgressBadge label={t.workoutInProgress} />}
+                {isNext && (
+                  <View style={styles.nextBadge}>
+                    <Text style={styles.nextBadgeText}>{t.nextWorkout}</Text>
+                  </View>
+                )}
               </View>
               <Text style={[styles.title, isRest && styles.titleRest]}>{item.title}</Text>
             </View>

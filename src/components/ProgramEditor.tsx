@@ -5,8 +5,12 @@ import { colors } from '../theme';
 import type { Exercise } from '../services/types';
 import { DEFAULT_CUSTOM_SCHEME } from '../services/workoutService';
 import {
+  appendSequenceDay,
+  compactSlots,
   copyDayTo,
+  duplicateSequenceDay,
   newDraftItem,
+  removeSequenceDay,
   swapDays,
   nextDraftKey,
   visibleDays,
@@ -18,6 +22,8 @@ import { styles } from './ProgramEditor.styles';
 import { schemeMeasure, switchSchemeMeasure } from '../utils/measure';
 import { MeasureToggle } from './MeasureToggle';
 import { exerciseName } from '../utils/exerciseText';
+import { MAX_SLOTS, slotLabel, type Schedule } from '../utils/schedule';
+import { SegmentedToggle } from './SegmentedToggle';
 
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
 
@@ -25,6 +31,10 @@ type Props = {
   userId: number;
   days: DraftDay[];
   onChange: (days: DraftDay[]) => void;
+  /** Fixed weekdays (default) or workouts done in sequence on any day. */
+  schedule?: Schedule;
+  /** Shows the "Dias fixos | Em sequência" switch. */
+  onScheduleChange?: (schedule: Schedule) => void;
 };
 
 const byWeekday = (a: DraftDay, b: DraftDay) => a.dayOfWeek - b.dayOfWeek;
@@ -67,12 +77,16 @@ function DragHandle({ label, handlers }: { label: string; handlers: DragHandlers
 }
 
 /**
- * Weekly program editor used by onboarding and "Meu treino": weekday chips,
- * one card per day (title, exercises with editable scheme, add/remove),
- * drag & drop by the "≡" grip to swap two days, "Trocar dia" (onto a taken
- * day = swap) and "Repetir em outro dia". Purely a view over `days`.
+ * Program editor used by onboarding and "Meu treino". Two modes:
+ * - fixed weekdays: weekday chips, one card per day, "Trocar dia" (onto a
+ *   taken day = swap) and "Repetir em outro dia";
+ * - in sequence: "Treino 1, 2, 3…" cards, "+ Adicionar treino", "Duplicar",
+ *   "Remover" (the next ones move up).
+ * Both: title, exercises with editable scheme, drag & drop by the "≡" grip to
+ * swap two cards. Purely a view over `days`.
  */
-export function ProgramEditor({ userId, days, onChange }: Props) {
+export function ProgramEditor({ userId, days, onChange, schedule = 'week', onScheduleChange }: Props) {
+  const sequence = schedule === 'sequence';
   const { t, locale } = useI18n();
   // Catalogue exercises in the user's language; new ones as typed.
   const itemName = (item: DraftItem) => (item.exercise ? exerciseName(item.exercise, locale) : item.name);
@@ -93,7 +107,7 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
   const cardLayouts = useRef(new Map<string, { y: number; height: number }>());
 
   const shown = visibleDays(days);
-  const dayName = (day: number) => t.dayLabels[day];
+  const dayName = (day: number) => slotLabel(t, schedule, day);
   const shortDay = (day: number) => t.dayLabels[day].slice(0, 3);
   const selectedDays = new Set(shown.map((d) => d.dayOfWeek));
 
@@ -193,29 +207,56 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
       return next;
     });
 
+  // Switching keeps the order: Mon, Wed, Fri ⇄ workouts 1, 2, 3.
+  const switchSchedule = (next: Schedule) => {
+    onChange(compactSlots(days));
+    onScheduleChange?.(next);
+  };
+
   return (
     <>
-      <Text style={styles.sectionLabel}>{t.onboardingTrainingDays}</Text>
-      <View style={styles.dayChips}>
-        {ALL_DAYS.map((day) => {
-          const selected = selectedDays.has(day);
-          return (
-            <Pressable
-              key={day}
-              onPress={() => toggleDay(day)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: selected }}
-              aria-checked={selected}
-              accessibilityLabel={dayName(day)}
-              style={[styles.dayChip, selected && styles.dayChipSelected]}
-            >
-              <Text style={[styles.dayChipLabel, selected && styles.dayChipLabelSelected]}>{shortDay(day)}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {onScheduleChange && (
+        <View style={styles.scheduleBlock}>
+          <Text style={styles.sectionLabel}>{t.scheduleQuestion}</Text>
+          <SegmentedToggle
+            size="md"
+            value={schedule}
+            onChange={switchSchedule}
+            options={[
+              { value: 'week', label: t.scheduleWeek },
+              { value: 'sequence', label: t.scheduleSequence },
+            ]}
+            style={styles.scheduleToggle}
+          />
+          <Text style={styles.scheduleHint}>{sequence ? t.scheduleSequenceHint : t.scheduleWeekHint}</Text>
+        </View>
+      )}
 
-      {shown.length > 1 && <Text style={styles.reorderHint}>{t.reorderHint}</Text>}
+      {!sequence && (
+        <>
+          <Text style={styles.sectionLabel}>{t.onboardingTrainingDays}</Text>
+          <View style={styles.dayChips}>
+            {ALL_DAYS.map((day) => {
+              const selected = selectedDays.has(day);
+              return (
+                <Pressable
+                  key={day}
+                  onPress={() => toggleDay(day)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected }}
+                  aria-checked={selected}
+                  accessibilityLabel={dayName(day)}
+                  style={[styles.dayChip, selected && styles.dayChipSelected]}
+                >
+                  <Text style={[styles.dayChipLabel, selected && styles.dayChipLabelSelected]}>{shortDay(day)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      {shown.length > 1 && <Text style={styles.reorderHint}>{sequence ? t.reorderHintSequence : t.reorderHint}</Text>}
 
       {shown.map((day) => (
         <View
@@ -232,20 +273,43 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
           <View style={styles.dayCardHeader}>
             <View style={styles.dayLabelRow}>
               {shown.length > 1 && (
-                <DragHandle label={t.dragToSwapDay(dayName(day.dayOfWeek))} handlers={dragHandlers(day.key)} />
+                <DragHandle
+                  label={sequence ? t.dragToSwapSlot(dayName(day.dayOfWeek)) : t.dragToSwapDay(dayName(day.dayOfWeek))}
+                  handlers={dragHandlers(day.key)}
+                />
               )}
               <Text style={styles.dayLabel}>{dayName(day.dayOfWeek)}</Text>
             </View>
-            <View style={styles.dayActions}>
-              {shown.length < 7 && (
-                <Pressable onPress={() => setDaySheet({ key: day.key, mode: 'copy' })} hitSlop={10} accessibilityRole="button">
-                  <Text style={styles.changeDay}>{t.repeatOnDay}</Text>
+            {sequence ? (
+              <View style={styles.dayActions}>
+                {shown.length < MAX_SLOTS && (
+                  <Pressable onPress={() => onChange(duplicateSequenceDay(days, day.key))} hitSlop={10} accessibilityRole="button">
+                    <Text style={styles.changeDay}>{t.duplicateWorkout}</Text>
+                  </Pressable>
+                )}
+                {shown.length > 1 && (
+                  <Pressable
+                    onPress={() => onChange(removeSequenceDay(days, day.key))}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.removeWorkout} ${dayName(day.dayOfWeek)}`}
+                  >
+                    <Text style={styles.changeDay}>{t.removeWorkout}</Text>
+                  </Pressable>
+                )}
+              </View>
+            ) : (
+              <View style={styles.dayActions}>
+                {shown.length < 7 && (
+                  <Pressable onPress={() => setDaySheet({ key: day.key, mode: 'copy' })} hitSlop={10} accessibilityRole="button">
+                    <Text style={styles.changeDay}>{t.repeatOnDay}</Text>
+                  </Pressable>
+                )}
+                <Pressable onPress={() => setDaySheet({ key: day.key, mode: 'move' })} hitSlop={10} accessibilityRole="button">
+                  <Text style={styles.changeDay}>{t.onboardingChangeDay}</Text>
                 </Pressable>
-              )}
-              <Pressable onPress={() => setDaySheet({ key: day.key, mode: 'move' })} hitSlop={10} accessibilityRole="button">
-                <Text style={styles.changeDay}>{t.onboardingChangeDay}</Text>
-              </Pressable>
-            </View>
+              </View>
+            )}
           </View>
           <TextInput
             style={styles.dayTitleInput}
@@ -316,6 +380,16 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
           </Pressable>
         </View>
       ))}
+
+      {sequence && shown.length < MAX_SLOTS && (
+        <Pressable
+          onPress={() => onChange(appendSequenceDay(days))}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.addItem, styles.addWorkout, pressed && styles.addItemPressed]}
+        >
+          <Text style={styles.addItemLabel}>{t.addSequenceWorkout}</Text>
+        </Pressable>
+      )}
 
       <ExercisePickerSheet
         visible={pickerDay !== null}

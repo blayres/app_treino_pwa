@@ -157,5 +157,9 @@ export const styles = StyleSheet.create({
   cardDragging: { zIndex: 10, opacity: 0.95, ...shadows.popover },
   cardDropTarget: { borderWidth: 2, borderStyle: 'dashed', borderColor: colors.olive },
   reorderHint: { ...typography.caption, marginTop: -spacing.md, marginBottom: spacing.md },
+  scheduleBlock: { marginBottom: spacing.xl },
+  scheduleToggle: { marginTop: 0 },
+  scheduleHint: { ...typography.caption, marginTop: spacing.sm },
+  addWorkout: { marginTop: 0, marginBottom: spacing.md, paddingVertical: spacing.md },
   sheetOptionHint: { ...typography.caption, marginTop: 2 },
 });

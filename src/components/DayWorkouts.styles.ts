@@ -17,6 +17,9 @@ export const styles = StyleSheet.create({
   itemInProgress: {
     borderColor: colors.success,
   },
+  itemNext: {
+    borderColor: colors.olive,
+  },
   dayLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -37,6 +40,17 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.olive,
+  },
+  nextBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: colors.olive,
+  },
+  nextBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimaryDark,
   },
   dayLabel: {
     fontSize: 12,
