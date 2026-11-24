@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors, spacing, typography } from '../theme';
+import { colors, minTouchSize, spacing, typography } from '../theme';
 
 export const styles = StyleSheet.create({
   header: {
@@ -44,14 +44,21 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
   },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSoftLight,
+  },
   exerciseItem: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSoftLight,
   },
+  // The delete button sits after the item, inside the row's right padding.
+  exerciseItemWithDelete: { paddingRight: spacing.xs },
   exerciseItemDisabled: {
     opacity: 0.45,
   },
@@ -119,12 +126,12 @@ export const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: minTouchSize,
+    height: minTouchSize,
+    borderRadius: minTouchSize / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.xs,
+    marginRight: spacing.sm,
   },
   deleteButtonPressed: {
     backgroundColor: colors.danger + '1A',

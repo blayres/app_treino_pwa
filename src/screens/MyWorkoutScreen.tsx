@@ -49,7 +49,7 @@ export default function MyWorkoutScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const currentUser = useAppStore((s) => s.currentUser);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const params = route.params as { studentId?: number | string; studentName?: string } | undefined;
   const studentId = params?.studentId != null ? Number(params.studentId) : null;
 
@@ -202,7 +202,7 @@ export default function MyWorkoutScreen() {
       async () => {
         for (const day of original) if (day.workoutId) await archiveWorkout(day.workoutId);
         invalidateWorkoutsByUserCache(userId);
-        await applyDefaultProgram(userId);
+        await applyDefaultProgram(userId, locale);
       },
       () => navigation.goBack(),
     );

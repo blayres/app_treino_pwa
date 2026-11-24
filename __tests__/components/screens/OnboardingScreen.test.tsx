@@ -1,14 +1,12 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 jest.mock('@react-navigation/native', () => require('../helpers/navigationMock'));
+// The real program and its pure helpers (titles, names); only applying it is mocked.
 jest.mock('../../../src/services/defaultWorkoutService', () => ({
+  ...jest.requireActual<typeof import('../../../src/services/defaultWorkoutService')>('../../../src/services/defaultWorkoutService'),
   applyDefaultProgram: jest.fn(),
-  DEFAULT_PROGRAM: [
-    { day_of_week: 1, title: 'Superior A', exercises: ['Supino', 'Remada'] },
-    { day_of_week: 4, title: 'Inferior A', exercises: ['Agachamento'] },
-  ],
 }));
 jest.mock('../../../src/services/workoutService', () => ({ invalidateWorkoutsByUserCache: jest.fn() }));
 jest.mock('../../../src/services/authService', () => ({ markOnboarded: jest.fn() }));
@@ -44,6 +42,9 @@ import { navigation, resetNavigation } from '../helpers/navigationMock';
 import { useAppStore } from '../../../src/store/useAppStore';
 import { useDialogStore } from '../../../src/store/useDialogStore';
 import OnboardingScreen from '../../../src/screens/OnboardingScreen';
+import * as pickerSheet from '../../../src/components/ExercisePickerSheet';
+import { useI18n } from '../../../src/i18n';
+import { locales } from '../../../src/i18n/translations';
 
 const defaults = defaultWorkoutService as jest.Mocked<typeof defaultWorkoutService>;
 const auth = authService as jest.Mocked<typeof authService>;
@@ -82,13 +83,13 @@ describe('OnboardingScreen', () => {
   it('"use ready-made program" previews it, then applies it, marks the user onboarded and resets to Home', async () => {
     render(<OnboardingScreen />);
     fireEvent.click(screen.getByText('Usar treino pronto'));
-    expect(screen.getByText('Superior A')).toBeTruthy();
-    expect(screen.getByText('Supino · Remada')).toBeTruthy();
+    expect(screen.getByText('Superior A – Peito, Costas e Ombros')).toBeTruthy();
+    expect(screen.getByText(/^Supino reto com halteres · Puxada frente na polia/)).toBeTruthy();
     expect(defaults.applyDefaultProgram).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Começar com este treino' }));
     await waitFor(() => expect(navigation.reset).toHaveBeenCalledWith(goHome));
-    expect(defaults.applyDefaultProgram).toHaveBeenCalledWith(5);
+    expect(defaults.applyDefaultProgram).toHaveBeenCalledWith(5, 'pt');
     expect(auth.markOnboarded).toHaveBeenCalledWith(5);
     expect(defaults.applyDefaultProgram.mock.invocationCallOrder[0]).toBeLessThan(auth.markOnboarded.mock.invocationCallOrder[0]);
     expect(useAppStore.getState().needsOnboarding).toBe(false);
@@ -145,5 +146,26 @@ describe('OnboardingScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
     expect(screen.getByText('Boas-vindas, Ana!')).toBeTruthy();
     expect(defaults.applyDefaultProgram).not.toHaveBeenCalled();
+  });
+});
+
+describe('OnboardingScreen — languages', () => {
+  it('French: the ready-made preview shows French titles and the translated catalogue names, and applies it in French', async () => {
+    act(() => useI18n.getState().setLocale('fr'));
+    try {
+      (pickerSheet.loadExerciseCatalogue as jest.Mock<any>).mockResolvedValue([
+        { id: 1, name: 'Supino reto com halteres', name_i18n: { fr: 'Développé couché avec haltères' }, owner_id: null },
+      ]);
+      const { unmount } = render(<OnboardingScreen />);
+      fireEvent.click(screen.getByText('Utiliser un programme prêt'));
+      expect(screen.getByText('Haut du corps A – Pectoraux, dos et épaules')).toBeTruthy();
+      expect(await screen.findByText(/^Développé couché avec haltères · Puxada frente na polia/)).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: locales.fr.onboardingStartWithThis }));
+      await waitFor(() => expect(defaults.applyDefaultProgram).toHaveBeenCalledWith(5, 'fr'));
+      unmount();
+    } finally {
+      act(() => useI18n.getState().setLocale('pt'));
+    }
   });
 });

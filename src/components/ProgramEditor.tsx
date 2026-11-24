@@ -17,6 +17,7 @@ import { ExercisePickerSheet } from './ExercisePickerSheet';
 import { styles } from './ProgramEditor.styles';
 import { schemeMeasure, switchSchemeMeasure } from '../utils/measure';
 import { MeasureToggle } from './MeasureToggle';
+import { exerciseName } from '../utils/exerciseText';
 
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
 
@@ -72,7 +73,9 @@ function DragHandle({ label, handlers }: { label: string; handlers: DragHandlers
  * day = swap) and "Repetir em outro dia". Purely a view over `days`.
  */
 export function ProgramEditor({ userId, days, onChange }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  // Catalogue exercises in the user's language; new ones as typed.
+  const itemName = (item: DraftItem) => (item.exercise ? exerciseName(item.exercise, locale) : item.name);
   const [pickerDayKey, setPickerDayKey] = useState<string | null>(null);
   // Weekday sheet: move this card ("Trocar dia") or copy it ("Repetir em outro dia").
   const [daySheet, setDaySheet] = useState<{ key: string; mode: 'move' | 'copy' } | null>(null);
@@ -176,7 +179,7 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
                 autoCapitalize="none"
                 autoCorrect={false}
                 maxLength={60}
-                accessibilityLabel={`${item.name} ${item.scheme}`}
+                accessibilityLabel={`${itemName(item)} ${item.scheme}`}
               />
   );
 
@@ -257,7 +260,7 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
             <View key={item.key} style={styles.itemRow}>
               <View style={styles.itemBody}>
                 <View style={styles.itemNameRow}>
-                  <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+                  <Text style={styles.itemName} numberOfLines={2}>{itemName(item)}</Text>
                   {!item.exercise && <Text style={styles.newTag}>{t.onboardingNewTag}</Text>}
                 </View>
                 {/* Load (kg) or time (plank…): switching rewrites the reps, keeping the sets. */}
@@ -268,7 +271,7 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
                       scheme: switchSchemeMeasure(item.scheme.trim() || DEFAULT_CUSTOM_SCHEME, measure),
                     })
                   }
-                  accessibilityPrefix={item.name}
+                  accessibilityPrefix={itemName(item)}
                 />
                 {isLong(item) && renderScheme(day.key, item, true)}
                 {item.notes ? (
@@ -296,7 +299,7 @@ export function ProgramEditor({ userId, days, onChange }: Props) {
               <Pressable
                 onPress={() => removeItem(day.key, item.key)}
                 accessibilityRole="button"
-                accessibilityLabel={`${t.removeExercise} ${item.name}`}
+                accessibilityLabel={`${t.removeExercise} ${itemName(item)}`}
                 style={({ pressed }) => [styles.removeItem, pressed && styles.removeItemPressed]}
               >
                 <Text style={styles.removeItemLabel}>✕</Text>

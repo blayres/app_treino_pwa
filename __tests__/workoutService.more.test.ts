@@ -204,7 +204,7 @@ describe('getWorkoutExercises base fallback', () => {
   it('when every enriched query fails, uses the minimal columns', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const err = { error: { message: 'missing column' } };
-    supabaseMock.queue('workout_exercises.select', err, err, err, {
+    supabaseMock.queue('workout_exercises.select', err, err, err, err, {
       data: [{ id: 1, workout_id: 9, exercise_id: 2, order_index: 0, exercises: { id: 2, name: 'Agachamento', scheme: '4x8', rest_seconds: '90' } }],
     });
     const [row] = await getWorkoutExercises(9);
@@ -216,7 +216,7 @@ describe('getWorkoutExercises base fallback', () => {
   it('throws when even the fallback fails', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const err = { error: { message: 'down' } };
-    supabaseMock.queue('workout_exercises.select', err, err, err, err);
+    supabaseMock.queue('workout_exercises.select', err, err, err, err, err);
     await expect(getWorkoutExercises(9)).rejects.toEqual({ message: 'down' });
     warn.mockRestore();
   });

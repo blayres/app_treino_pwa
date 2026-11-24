@@ -185,17 +185,33 @@ describe('getWorkoutExercises', () => {
     expect(row.exercise).toMatchObject({ scheme: '3x10-12', rest_seconds: 60, tip: 'Dica geral' });
   });
 
-  it('retries without the newer columns if a migration is missing', async () => {
+  it('retries without the newer columns if a migration is missing (translations first, then notes)', async () => {
     supabaseMock.queue(
       'workout_exercises.select',
+      { error: { code: '42703' } },
       { error: { code: '42703' } },
       { data: [{ id: 1, workout_id: 40, exercise_id: 10, order_index: 0, scheme: null, rest_seconds: null, exercises: exercise }] },
     );
     const rows = await getWorkoutExercises(40);
     expect(rows).toHaveLength(1);
-    const [first, second] = supabaseMock.calls('workout_exercises', 'select').map((q) => String(q.payload));
-    expect(first).toContain('notes');
-    expect(second).not.toContain('notes');
+    const [first, second, third] = supabaseMock.calls('workout_exercises', 'select').map((q) => String(q.payload));
+    expect(first).toContain('name_i18n');
+    expect(second).not.toContain('name_i18n');
+    expect(second).toContain('notes');
+    expect(third).not.toContain('notes');
+  });
+
+  it('reads the translations, and drops the tip translation when coach notes replace the tip', async () => {
+    const translated = { ...exercise, tip: 'Desça devagar', name_i18n: { fr: 'Squat' }, tip_i18n: { fr: 'Descendez lentement' } };
+    supabaseMock.queue('workout_exercises.select', {
+      data: [
+        { id: 1, workout_id: 41, exercise_id: 10, order_index: 0, notes: null, exercises: translated },
+        { id: 2, workout_id: 41, exercise_id: 10, order_index: 1, notes: 'Pegada aberta', exercises: translated },
+      ],
+    });
+    const [plain, withNotes] = await getWorkoutExercises(41);
+    expect(plain.exercise).toMatchObject({ name_i18n: { fr: 'Squat' }, tip: 'Desça devagar', tip_i18n: { fr: 'Descendez lentement' } });
+    expect(withNotes.exercise).toMatchObject({ tip: 'Pegada aberta', tip_i18n: null });
   });
 });
 

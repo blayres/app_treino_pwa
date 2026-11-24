@@ -14,10 +14,13 @@ import { normalizeSearch } from '../utils/text';
 
 export const MAX_SUBSTITUTES = 4;
 
-const EXERCISE_COLUMNS = `
+const BASE_COLUMNS = `
   id, name, primary_muscle, secondary_muscle, rest_seconds, scheme, tip, exercise_library_id,
   exercise_library:exercise_library_id ( id, gif_url )
 `;
+// With the translations (migration_exercise_translations.sql); without them if
+// the migration hasn't run yet.
+const COLUMN_SETS = [`${BASE_COLUMNS}, name_i18n, tip_i18n`, BASE_COLUMNS];
 
 const cache = new Map<number, Exercise[]>();
 
@@ -30,6 +33,8 @@ function toExercise(row: any): Exercise {
     rest_seconds: Number(row.rest_seconds),
     scheme: String(row.scheme),
     tip: row.tip ?? null,
+    name_i18n: row.name_i18n ?? null,
+    tip_i18n: row.tip_i18n ?? null,
     exercise_library_id: row.exercise_library_id ?? null,
     library: row.exercise_library ?? row.library ?? null,
     owner_id: row.owner_id ?? null,
@@ -68,20 +73,24 @@ export function substitutesByMuscle(exercise: Exercise, candidates: Exercise[], 
 }
 
 async function curatedSubstitutes(exerciseId: number): Promise<Exercise[] | null> {
-  const { data, error } = await supabase
-    .from('exercise_substitutes')
-    .select(`rank, substitute:substitute_id ( ${EXERCISE_COLUMNS} )`)
-    .eq('exercise_id', exerciseId)
-    .order('rank', { ascending: true });
-  if (error) return null; // table missing (migration not applied): use the fallback
-  return (data ?? []).filter((row: any) => row.substitute).map((row: any) => toExercise(row.substitute));
+  for (const columns of COLUMN_SETS) {
+    const { data, error } = await supabase
+      .from('exercise_substitutes')
+      .select(`rank, substitute:substitute_id ( ${columns} )`)
+      .eq('exercise_id', exerciseId)
+      .order('rank', { ascending: true });
+    if (!error) return (data ?? []).filter((row: any) => row.substitute).map((row: any) => toExercise(row.substitute));
+  }
+  return null; // table missing (migration not applied): use the fallback
 }
 
 async function candidatesForFallback(userId: number): Promise<Exercise[]> {
   if (backendMode !== 'supabase') return listExercises(userId);
-  const { data, error } = await supabase.from('exercises').select(EXERCISE_COLUMNS);
-  if (error) return listExercises(userId);
-  return (data ?? []).map(toExercise);
+  for (const columns of COLUMN_SETS) {
+    const { data, error } = await supabase.from('exercises').select(columns);
+    if (!error) return (data ?? []).map(toExercise);
+  }
+  return listExercises(userId);
 }
 
 /** Up to MAX_SUBSTITUTES alternatives, best first (cached per exercise). */

@@ -85,29 +85,35 @@ export async function getLoadHistoryByUser(userId: number): Promise<
 > {
   if (backendMode === 'supabase') {
     ensureSupabaseEnabled();
-    const { data, error } = await supabase
-      .from('exercise_load_history')
-      .select(
-        `
-        id,
-        exercise_id,
-        load_kg,
-        recorded_at,
-        exercises (
-          name,
-          scheme
+    // With the name translations (migration_exercise_translations.sql); retried
+    // without them if the migration hasn't run yet.
+    const query = (withTranslations: boolean) =>
+      supabase
+        .from('exercise_load_history')
+        .select(
+          `
+          id,
+          exercise_id,
+          load_kg,
+          recorded_at,
+          exercises (
+            name,${withTranslations ? '\n            name_i18n,' : ''}
+            scheme
+          )
+          `,
         )
-        `,
-      )
-      .eq('user_id', userId)
-      .order('recorded_at', { ascending: true });
+        .eq('user_id', userId)
+        .order('recorded_at', { ascending: true });
 
+    let { data, error } = await query(true);
+    if (error) ({ data, error } = await query(false));
     if (error) throw error;
 
     return (data ?? []).map((row: any) => ({
       id: Number(row.id),
       exercise_id: Number(row.exercise_id),
       exercise_name: String(row.exercises?.name ?? '—'),
+      exercise_name_i18n: row.exercises?.name_i18n ?? null,
       load_kg: Number(row.load_kg),
       recorded_at: String(row.recorded_at),
       scheme: String(row.exercises?.scheme ?? ''),

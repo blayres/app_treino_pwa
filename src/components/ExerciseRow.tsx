@@ -10,6 +10,7 @@ import { useTourTarget } from '../store/useTourStore';
 import type { Exercise } from '../services/types';
 import { useI18n } from '../i18n';
 import { formatRest } from '../utils/date';
+import { exerciseName, exerciseTip } from '../utils/exerciseText';
 import { parseDecimal } from '../utils/decimal';
 import { schemeMeasure, targetSeconds } from '../utils/measure';
 import { HoldTimer } from './HoldTimer';
@@ -56,7 +57,9 @@ export const ExerciseRow = memo(function ExerciseRow({
   isTourAnchor = false,
   video = null,
 }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const name = exerciseName(exercise, locale);
+  const tip = exerciseTip(exercise, locale);
   const loadTourRef = useTourTarget(isTourAnchor ? 'workout.load' : null);
   const substitutesTourRef = useTourTarget(isTourAnchor ? 'workout.substitutes' : null);
   const [focused, setFocused] = useState<LoadField | null>(null);
@@ -100,20 +103,20 @@ export const ExerciseRow = memo(function ExerciseRow({
       onFocus={() => handleFocus(field)}
       onBlur={handleBlur}
       placeholder={focused === field ? '' : isTimed ? String(targetTime) : t.loadPlaceholder}
-      accessibilityLabel={`${exercise.name} · ${field === 'normal' ? (isTimed ? t.timeSeconds : t.loadKg) : t.progression}`}
+      accessibilityLabel={`${name} · ${field === 'normal' ? (isTimed ? t.timeSeconds : t.loadKg) : t.progression}`}
     />
   );
 
   return (
     <View style={[styles.exerciseRow, isCompleted && styles.exerciseRowActive]}>
       {isSessionActive ? (
-        <CircularCheckbox checked={isCompleted} onToggle={toggle} accessibilityLabel={exercise.name} />
+        <CircularCheckbox checked={isCompleted} onToggle={toggle} accessibilityLabel={name} />
       ) : (
         <View style={styles.checkboxPlaceholder} />
       )}
 
       <Pressable style={styles.exerciseInfo} onPress={isSessionActive ? toggle : undefined}>
-        <Text style={styles.exerciseName}>{exercise.name}</Text>
+        <Text style={styles.exerciseName}>{name}</Text>
         {!isCompleted ? (
           <>
             <Text style={styles.scheme}>
@@ -123,14 +126,14 @@ export const ExerciseRow = memo(function ExerciseRow({
             <Text style={styles.rest}>
               {t.restInterval(formatRest(exercise.rest_seconds, t.minuteShort, t.secondShort))}
             </Text>
-            {exercise.tip ? <Text style={styles.tip}>{exercise.tip}</Text> : null}
+            {tip ? <Text style={styles.tip}>{tip}</Text> : null}
             <ExerciseMedia library={exercise.library} video={video}>
               <View ref={substitutesTourRef} collapsable={false} style={styles.tourAnchor}>
                 <PillButton
                   label={t.alternatives}
                   icon={SwapIcon}
                   onPress={() => onShowSubstitutes(exercise)}
-                  accessibilityLabel={t.substitutesTitle(exercise.name)}
+                  accessibilityLabel={t.substitutesTitle(name)}
                 />
               </View>
             </ExerciseMedia>
@@ -142,7 +145,7 @@ export const ExerciseRow = memo(function ExerciseRow({
         <View style={styles.loadColumn}>
           <Text style={styles.loadLabel}>{t.timeSeconds}</Text>
           {loadInput('normal', loadNormal)}
-          <HoldTimer seconds={holdSeconds} exerciseName={exercise.name} />
+          <HoldTimer seconds={holdSeconds} exerciseName={name} />
         </View>
       ) : null}
 

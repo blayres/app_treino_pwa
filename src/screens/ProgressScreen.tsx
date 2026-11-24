@@ -24,6 +24,7 @@ import {
   type PeriodKey,
 } from '../services/progressUtils';
 import { formatDecimal, formatKg, formatKgDelta } from '../utils/decimal';
+import { exerciseName } from '../utils/exerciseText';
 
 const PERIODS: PeriodKey[] = ['1m', '3m', '6m', 'all'];
 type LoadState = 'pending' | 'ready' | 'error';
@@ -91,6 +92,8 @@ export default function ProgressScreen() {
   const periodLabel = (p: PeriodKey) =>
     p === '1m' ? t.period1m : p === '3m' ? t.period3m : p === '6m' ? t.period6m : t.periodAll;
   const shortDate = (iso: string) => formatShortDate(iso.slice(0, 10), locale);
+  const nameOf = (item: ExerciseProgress) =>
+    exerciseName({ name: item.exercise_name, name_i18n: item.exercise_name_i18n }, locale);
   const pct = (value: number | null) => (value === null ? '' : ` · ${value > 0 ? '+' : ''}${value}%`);
 
   const handleDelete = async () => {
@@ -161,7 +164,7 @@ export default function ProgressScreen() {
           width={chartWidth}
           locale={locale}
           bestDate={item.bestDate}
-          accessibilityLabel={t.chartLabel(item.exercise_name)}
+          accessibilityLabel={t.chartLabel(nameOf(item))}
         />
       )}
 
@@ -276,7 +279,7 @@ export default function ProgressScreen() {
                         >
                           <View style={styles.itemInfo}>
                             <View style={styles.itemNameRow}>
-                              <Text style={styles.itemName} numberOfLines={2}>{item.exercise_name}</Text>
+                              <Text style={styles.itemName} numberOfLines={2}>{nameOf(item)}</Text>
                               {item.isNewRecord && (
                                 <View style={styles.recordBadge}>
                                   <Text style={styles.recordBadgeText}>{t.newRecordBadge}</Text>

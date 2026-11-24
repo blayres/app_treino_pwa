@@ -57,9 +57,10 @@ describe('reads (supabase)', () => {
       data: [{ id: 1, exercise_id: 2, load_kg: 10, recorded_at: '2026-10-01', exercises: null }],
     });
     expect(await getLoadHistoryByUser(5)).toEqual([
-      { id: 1, exercise_id: 2, exercise_name: '—', load_kg: 10, recorded_at: '2026-10-01', scheme: '' },
+      { id: 1, exercise_id: 2, exercise_name: '—', exercise_name_i18n: null, load_kg: 10, recorded_at: '2026-10-01', scheme: '' },
     ]);
-    supabaseMock.queue('exercise_load_history.select', { error: { message: 'denied' } });
+    // Retried once without the translations, then the error propagates.
+    supabaseMock.queue('exercise_load_history.select', { error: { message: 'denied' } }, { error: { message: 'denied' } });
     await expect(getLoadHistoryByUser(5)).rejects.toEqual({ message: 'denied' });
   });
 

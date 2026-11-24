@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { ExerciseRow } from '../../src/components/ExerciseRow';
+import { useI18n } from '../../src/i18n';
 
 const exercise = {
   id: 7,
@@ -110,5 +111,30 @@ describe('ExerciseRow', () => {
     setup();
     expect(screen.getByText('Carga (kg)')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /cronômetro/ })).toBeNull();
+  });
+
+  it('French: catalogue name and tip translated; coach notes (no tip translation) shown as written', () => {
+    useI18n.getState().setLocale('fr');
+    try {
+      setup({
+        exercise: { ...exercise, name: 'Prancha', name_i18n: { fr: 'Gainage (planche)' }, tip: 'Quadril neutro.', tip_i18n: { fr: 'Bassin neutre.' }, scheme: '3x10' },
+      });
+      expect(screen.getByText('Gainage (planche)')).toBeTruthy();
+      expect(screen.getByText('Bassin neutre.')).toBeTruthy();
+      expect(screen.queryByText('Prancha')).toBeNull();
+    } finally {
+      act(() => useI18n.getState().setLocale('pt'));
+    }
+  });
+
+  it("French: the user's own exercise and coach notes stay as typed", () => {
+    useI18n.getState().setLocale('fr');
+    try {
+      setup({ exercise: { ...exercise, name: 'Remada cavalinho', tip: 'Pegada aberta', tip_i18n: null } });
+      expect(screen.getByText('Remada cavalinho')).toBeTruthy();
+      expect(screen.getByText('Pegada aberta')).toBeTruthy();
+    } finally {
+      act(() => useI18n.getState().setLocale('pt'));
+    }
   });
 });

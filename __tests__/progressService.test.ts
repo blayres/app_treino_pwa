@@ -20,11 +20,29 @@ describe('progressService', () => {
     });
 
     expect(await getLoadHistoryByUser(5)).toEqual([
-      { id: 7, exercise_id: 3, exercise_name: 'Abdutora', load_kg: 43.5, recorded_at: '2026-10-01T10:00:00Z', scheme: '3x15' },
+      { id: 7, exercise_id: 3, exercise_name: 'Abdutora', exercise_name_i18n: null, load_kg: 43.5, recorded_at: '2026-10-01T10:00:00Z', scheme: '3x15' },
     ]);
     const [query] = supabaseMock.calls('exercise_load_history', 'select');
     expect(filter(query, 'eq', 'user_id')).toEqual(['eq', 'user_id', 5]);
     expect(filter(query, 'order')).toEqual(['order', 'recorded_at', { ascending: true }]);
+  });
+
+  it('reads the name translations; without the migration, retries without them', async () => {
+    supabaseMock.queue(
+      'exercise_load_history.select',
+      { error: { code: '42703', message: 'column exercises_1.name_i18n does not exist' } },
+      { data: [{ id: 1, exercise_id: 3, load_kg: 40, recorded_at: '2026-10-01', exercises: { name: 'Prancha', scheme: '3x30s' } }] },
+    );
+    expect((await getLoadHistoryByUser(5))[0].exercise_name).toBe('Prancha');
+    const [first, second] = supabaseMock.calls('exercise_load_history', 'select').map((q) => String(q.payload));
+    expect(first).toContain('name_i18n');
+    expect(second).not.toContain('name_i18n');
+
+    supabaseMock.reset();
+    supabaseMock.queue('exercise_load_history.select', {
+      data: [{ id: 1, exercise_id: 3, load_kg: 40, recorded_at: '2026-10-01', exercises: { name: 'Prancha', name_i18n: { fr: 'Gainage' }, scheme: '3x30s' } }],
+    });
+    expect((await getLoadHistoryByUser(5))[0].exercise_name_i18n).toEqual({ fr: 'Gainage' });
   });
 
   it('deletes all copies of a wrong entry at once, and nothing for an empty list', async () => {

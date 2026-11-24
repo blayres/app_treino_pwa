@@ -157,7 +157,7 @@ describe('MyWorkoutScreen', () => {
     fireEvent.click(screen.getByText('Substituir'));
     await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
     expect(workouts.archiveWorkout.mock.calls).toEqual([[31], [32]]);
-    expect(defaults.applyDefaultProgram).toHaveBeenCalledWith(5);
+    expect(defaults.applyDefaultProgram).toHaveBeenCalledWith(5, 'pt');
     // Archive before applying, so the new days don't clash with the old ones.
     expect(workouts.archiveWorkout.mock.invocationCallOrder[1]).toBeLessThan(
       defaults.applyDefaultProgram.mock.invocationCallOrder[0],

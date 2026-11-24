@@ -14,7 +14,13 @@ import { FooterButton } from '../components/FooterButton';
 import { OptionCard } from '../components/OptionCard';
 import { invalidateExerciseCatalogue, loadExerciseCatalogue } from '../components/ExercisePickerSheet';
 import { AddAnotherSheetButton, PasteWorkoutInput, ProgramEditor } from '../components/ProgramEditor';
-import { applyDefaultProgram, DEFAULT_PROGRAM } from '../services/defaultWorkoutService';
+import {
+  applyDefaultProgram,
+  DEFAULT_PROGRAM,
+  defaultDayExerciseNames,
+  defaultProgramTitle,
+} from '../services/defaultWorkoutService';
+import type { Exercise } from '../services/types';
 import { invalidateWorkoutsByUserCache } from '../services/workoutService';
 import { draftFromText, saveProgram, visibleDays, type DraftDay } from '../services/programService';
 import { markOnboarded } from '../services/authService';
@@ -44,7 +50,7 @@ export default function OnboardingScreen() {
   const currentUser = useAppStore((s) => s.currentUser);
   const needsOnboarding = useAppStore((s) => s.needsOnboarding);
   const setNeedsOnboarding = useAppStore((s) => s.setNeedsOnboarding);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [step, setStep] = useState<Step>('choose');
   const [mode, setMode] = useState<EditorMode>('manual');
@@ -96,7 +102,7 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleUseDefault = () => runSaving(() => applyDefaultProgram(userId));
+  const handleUseDefault = () => runSaving(() => applyDefaultProgram(userId, locale));
 
   const handleOrganise = async () => {
     if (isBusy) return;
@@ -185,7 +191,7 @@ export default function OnboardingScreen() {
         title={t.onboardingDefaultPreviewTitle}
         subtitle={t.onboardingDefaultPreviewSubtitle}
       />
-      <DefaultProgramPreview />
+      <DefaultProgramPreview userId={userId} />
     </>
   );
 
@@ -250,9 +256,20 @@ export default function OnboardingScreen() {
   );
 }
 
-/** Read-only preview of the ready-made program (also used by "Meu treino"). */
-export function DefaultProgramPreview() {
-  const { t } = useI18n();
+/** Read-only preview of the ready-made program, in the user's language. */
+export function DefaultProgramPreview({ userId }: { userId: number }) {
+  const { t, locale } = useI18n();
+  // Catalogue rows carry the translated names (warmed by the onboarding screen).
+  const [catalogue, setCatalogue] = useState<Exercise[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    loadExerciseCatalogue(userId)
+      .then((rows) => !cancelled && setCatalogue(rows))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
   return (
     <View style={layout.card}>
       {DEFAULT_PROGRAM.map((day, index) => (
@@ -261,8 +278,8 @@ export function DefaultProgramPreview() {
           style={[styles.previewDay, index === DEFAULT_PROGRAM.length - 1 && styles.previewDayLast]}
         >
           <Text style={styles.dayLabel}>{t.dayLabels[day.day_of_week]}</Text>
-          <Text style={styles.previewTitle}>{day.title}</Text>
-          <Text style={styles.previewExercises}>{day.exercises.join(' · ')}</Text>
+          <Text style={styles.previewTitle}>{defaultProgramTitle(day, locale)}</Text>
+          <Text style={styles.previewExercises}>{defaultDayExerciseNames(day, catalogue, locale).join(' · ')}</Text>
         </View>
       ))}
     </View>

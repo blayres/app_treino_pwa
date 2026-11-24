@@ -9,7 +9,13 @@ jest.mock('../src/services/workoutService', () => ({
 }));
 
 import * as workoutService from '../src/services/workoutService';
-import { applyDefaultProgram, DEFAULT_PROGRAM, estimateWorkoutMinutes } from '../src/services/defaultWorkoutService';
+import {
+  applyDefaultProgram,
+  DEFAULT_PROGRAM,
+  defaultDayExerciseNames,
+  defaultProgramTitle,
+  estimateWorkoutMinutes,
+} from '../src/services/defaultWorkoutService';
 
 const mocked = workoutService as jest.Mocked<typeof workoutService>;
 const exercise = (id: number, name: string, scheme = '4x10-12', rest = 90, owner_id: number | null = null) =>
@@ -42,7 +48,7 @@ describe('applyDefaultProgram', () => {
 
     expect(mocked.createWorkoutForUser).toHaveBeenCalledTimes(DEFAULT_PROGRAM.length);
     const monday = mocked.createWorkoutForUser.mock.calls[0][0] as any;
-    expect(monday).toMatchObject({ userId: 7, dayOfWeek: 1, title: DEFAULT_PROGRAM[0].title });
+    expect(monday).toMatchObject({ userId: 7, dayOfWeek: 1, title: 'Superior A – Peito, Costas e Ombros' });
     expect(monday.items.slice(0, 3).map((i: any) => i.exerciseId)).toEqual([1, 2, 3]);
   });
 
@@ -80,5 +86,26 @@ describe('DEFAULT_PROGRAM', () => {
 
   it('trains each weekday once, Monday to Friday', () => {
     expect(DEFAULT_PROGRAM.map((day) => day.day_of_week)).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe('default program titles', () => {
+  it("saves the day titles in the user's language", async () => {
+    mocked.listExercises.mockResolvedValue([]);
+    await applyDefaultProgram(7, 'fr');
+    expect((mocked.createWorkoutForUser.mock.calls[0][0] as any).title).toBe('Haut du corps A – Pectoraux, dos et épaules');
+  });
+
+  it('has a title for every day in every language', () => {
+    for (const locale of ['pt', 'en', 'es', 'fr'] as const) {
+      for (const day of DEFAULT_PROGRAM) expect(defaultProgramTitle(day, locale).trim()).toBeTruthy();
+    }
+  });
+
+  it('preview names use the catalogue translation, else the Portuguese name', () => {
+    const catalogue = [{ id: 1, name: 'Supino reto com halteres', name_i18n: { fr: 'Développé couché avec haltères' }, owner_id: null }] as any;
+    const names = defaultDayExerciseNames(DEFAULT_PROGRAM[0], catalogue, 'fr');
+    expect(names[0]).toBe('Développé couché avec haltères');
+    expect(names[1]).toBe('Puxada frente na polia'); // not in this catalogue
   });
 });
