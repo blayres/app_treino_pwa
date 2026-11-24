@@ -5,6 +5,9 @@
  *    migration_exercise_substitutes.sql.
  * 2. Fallback for exercises without curated rows (e.g. the user's own) or
  *    before the migration: same primary muscle, see substitutesByMuscle.
+ *
+ * Either way the list never shows the same thing twice (distinctSubstitutes):
+ * three lunges with the same animation read as "three identical exercises".
  */
 import { backendMode } from './backendMode';
 import { ensureSupabaseEnabled, supabase } from './supabaseClient';
@@ -46,6 +49,26 @@ const muscleKey = (muscle: string | null | undefined) => normalizeSearch(muscle)
 const nameKey = (name: string) => muscleKey(name).replace(/\s+/g, ' ');
 
 /**
+ * Drops alternatives that would look like repeats: the exercise itself, a
+ * second exercise with the same name (e.g. a user's copy of a catalogue one),
+ * or a second one with the same animation (same movement under another name).
+ * The first occurrence wins, so the rank order is kept.
+ */
+export function distinctSubstitutes(exercise: Exercise, list: Exercise[]): Exercise[] {
+  const names = new Set([nameKey(exercise.name)]);
+  const animations = new Set<string>();
+  return list.filter((c) => {
+    if (c.id === exercise.id) return false;
+    const name = nameKey(c.name);
+    const animation = c.library?.gif_url ?? null;
+    if (names.has(name) || (animation && animations.has(animation))) return false;
+    names.add(name);
+    if (animation) animations.add(animation);
+    return true;
+  });
+}
+
+/**
  * Pure fallback: candidates whose primary muscle is the exercise's primary
  * (best) or that work it as their secondary muscle. Sharing only a secondary
  * muscle is NOT enough (a leg press is not replaced by a hip thrust). Ties
@@ -54,10 +77,8 @@ const nameKey = (name: string) => muscleKey(name).replace(/\s+/g, ' ');
 export function substitutesByMuscle(exercise: Exercise, candidates: Exercise[], limit = MAX_SUBSTITUTES): Exercise[] {
   const primary = muscleKey(exercise.primary_muscle);
   if (!primary) return [];
-  const self = nameKey(exercise.name);
 
-  return candidates
-    .filter((c) => c.id !== exercise.id && nameKey(c.name) !== self)
+  const ranked = candidates
     .map((c) => {
       const cPrimary = muscleKey(c.primary_muscle);
       const cSecondary = muscleKey(c.secondary_muscle);
@@ -68,8 +89,8 @@ export function substitutesByMuscle(exercise: Exercise, candidates: Exercise[], 
     })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || Number(b.hasAnimation) - Number(a.hasAnimation) || a.c.name.localeCompare(b.c.name))
-    .slice(0, limit)
     .map((x) => x.c);
+  return distinctSubstitutes(exercise, ranked).slice(0, limit);
 }
 
 async function curatedSubstitutes(exerciseId: number): Promise<Exercise[] | null> {
@@ -106,7 +127,7 @@ export async function getExerciseSubstitutes(exercise: Exercise, userId: number)
   if (!result || result.length === 0) {
     result = substitutesByMuscle(exercise, await candidatesForFallback(userId));
   }
-  result = result.slice(0, MAX_SUBSTITUTES);
+  result = distinctSubstitutes(exercise, result).slice(0, MAX_SUBSTITUTES);
   cache.set(exercise.id, result);
   return result;
 }
